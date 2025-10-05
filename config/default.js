@@ -12,10 +12,6 @@ module.exports = {
 //     modulePath: './native/build/Release/assign.node', // path to compiled addon
 //   },
 
-  paths: {
-    airportDataDir: '../data/airports',
-  },
-
   storage: {
     type: 'memory', // 'redis' | 'file' | 'sqlite'
     redisUrl: 'redis://localhost:6379',
