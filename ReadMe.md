@@ -35,3 +35,13 @@
 
 
 
+
+| Folder             | Purpose                                                                    |
+| ------------------ | -------------------------------------------------------------------------- |
+| **`index.js`**     | Starts Express and registers all routes.                                   |
+| **`config/`**      | Stores configuration constants (port, update interval, etc.).              |
+| **`routes/`**      | Each file declares the API endpoints (`/report`, `/assign`, etc.).         |
+| **`controllers/`** | Handles the request/response logic (validations, data formatting).         |
+| **`services/`**    | Contains business logic — your C++ call, occupancy tracking, merging, etc. |
+| **`native/`**      | Where you’ll put and compile your `.cpp` → `.node` addon later.            |
+| **`utils/`**       | Logging, error handling, helpers.                                          |
