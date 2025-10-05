@@ -2,13 +2,17 @@ const occupancyService = require('../services/occupancyService');
 const { info } = require('../utils/logger');
 
 exports.handleReport = (req, res) => {
-  const { callsign, occupied } = req.body;
-  if (!callsign || !Array.isArray(occupied)) {
-    return res.status(400).json({ error: 'Invalid payload' });
+  const { client, aircrafts } = req.body;
+  if (!client) {
+    return res.status(400).json({ error: 'Invalid client info' });
   }
 
-  info(`Received report for ${callsign}: ${occupied.length} occupied spots`);
+  if (!aircrafts || typeof aircrafts !== 'object') {
+    return res.status(400).json({ error: 'Invalid aircrafts info' });
+  }
 
-  occupancyService.updateClientReport(callsign, occupied);
-  res.json({ status: 'ok' });
+  info(`Received report from ${client}, processing...`);
+
+  occupancyService.clientReportParse(aircrafts);
+  res.status(200).json({ status: 'ok' });
 };
