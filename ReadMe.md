@@ -25,7 +25,7 @@
 ## Structure
 
 - Position data reception (multiple ATC connected) what rate ? Event based ?
-    - Select one connection as master per airport to take only his position data
+    - Select connections as masters per airport to take only their position data
         - how to transfer ownership dynamically
         - does it reduce transfer rate ? if no just don't
         - how to determine master ? First in ?
@@ -33,7 +33,14 @@
         - seemless transitions
         - high transfer rate ?
 
+    client side now which one are masters and send or not the reports → server side process all reports because only masters are sending one
+    yes but since developping for neoRadar & Euroscope, both plugins will need bespoke implementations and can desync
+    server side would be better but how to select ?
+    
 
+- Client report :
+    - JSON of aircraft that are stopped, on ground of concerned airport (FP active or not)
+    - \+ all converned airborn aircraft < maxAlt && < maxDist
 
 
 | Folder             | Purpose                                                                    |
