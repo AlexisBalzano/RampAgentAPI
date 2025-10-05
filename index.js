@@ -1,5 +1,9 @@
 const express = require('express');
-const config = require('./config/default');
+
+const env = process.env.NODE_ENV || 'default';
+const config = require(`./config/${env}.js`);
+
+const config = require('./config/${env}.js');
 const reportRoutes = require('./routes/report');
 const assignRoutes = require('./routes/assign');
 const logger = require('./utils/logger');
