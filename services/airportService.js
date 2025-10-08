@@ -1,5 +1,8 @@
-exports.getAirportConfigPath = () => {
-  return '../data/airports/';
+exports.getAirportConfigPath = (icao) => {
+  if (!icao) {
+    return `../data/airports/`;
+  }
+  return `../data/airports/${icao}.json`;
 };
 
 exports.getAirportList = () => {
