@@ -6,7 +6,7 @@ await fetch("http://localhost:3000/report", {
     client: "LFBO_APP",
     aircrafts: {
       onGround: {
-        AFR123: {
+        AFR124: {
           origin: "LFBO",
           aircraftType: "B77W",
           use: "A",

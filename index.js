@@ -5,6 +5,7 @@ const env = process.env.NODE_ENV || 'default';
 const config = require(`./config/${env}.js`);
 const reportRoutes = require('./routes/report');
 const assignRoutes = require('./routes/assign');
+const occupancyRoutes = require('./routes/occupancy');
 const logger = require('./utils/logger');
 
 const app = express();
@@ -19,6 +20,7 @@ app.get('/debug', (req, res) => {
 app.use('/debug', express.static(path.join(__dirname, 'viewer')));
 app.use('/report', reportRoutes);
 app.use('/assign', assignRoutes);
+app.use('/api/occupancy', occupancyRoutes);
 
 app.listen(config.port, () => {
   logger.info(`Server running at http://localhost:${config.port}`);
