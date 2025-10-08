@@ -5,17 +5,32 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Ramp Agent API</title>
     <link rel="stylesheet" href="styles.css" />
+    <script src="script.js" defer></script>
+
+    <!-- Boxicons -->
+    <link
+      href="https://cdn.boxicons.com/fonts/basic/boxicons.min.css"
+      rel="stylesheet"
+    />
   </head>
   <body>
     <header>
-      <div class="menu-icon">
-        <div></div>
-        <div></div>
-        <div></div>
-      </div>
+      <i class="bx bx-menu" onclick="openNav()"></i>
       <h1>Ramp Agent API</h1>
     </header>
     <main>
+      <div id="mySidenav" class="sidenav">
+        <div class="sidenav-content">
+          <i href="javascript:void(0)" class="closebtn bx bx-menu" onclick="closeNav()"
+            ></i>
+          <a href="#" onclick="closeNav()">About</a>
+          <a href="# "onclick="closeNav()">Services</a>
+          <a href="# "onclick="closeNav()">Clients</a>
+          <a href="# "onclick="closeNav()">Contact</a>
+          <p class="version">Version 1.0.0</p>
+        </div>
+      </div>
+
       <section id="status">
         <h2>Status</h2>
         <p>Welcome to the status section!</p>
