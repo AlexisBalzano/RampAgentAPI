@@ -16,6 +16,11 @@ app.get('/debug', (req, res) => {
   res.sendFile(path.join(__dirname, 'viewer', 'viewer.html'));
 });
 
+// API endpoint to get logs
+app.get('/api/logs', (req, res) => {
+  res.json(logger.getLogs());
+});
+
 // Register routes
 app.use('/debug', express.static(path.join(__dirname, 'viewer')));
 app.use('/report', reportRoutes);

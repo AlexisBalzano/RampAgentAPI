@@ -42,7 +42,13 @@
       </section>
       <section id="log">
         <h2>Log</h2>
-        <p>Get in touch with us here.</p>
+        <div class="log-controls">
+          <button id="clearLog" onclick="clearLog()">Clear Log</button>
+          <button id="toggleAutoScroll" onclick="toggleAutoScroll()">Auto-scroll: ON</button>
+        </div>
+        <div id="logContainer" class="log-container">
+          <div id="logContent"></div>
+        </div>
       </section>
     </main>
     <footer>

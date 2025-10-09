@@ -19,7 +19,7 @@ await fetch("http://localhost:3000/report", {
           position: { lat: 43.629031, lon: 1.373805 },
         },
         RYR123: {
-          origin: "LFBO",
+          origin: "N/A",
           aircraftType: "B77W",
           use: "A",
           position: { lat: 43.628017, lon: 1.376684 },

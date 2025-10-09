@@ -101,15 +101,67 @@ const isAircraftOnStand = (ac) => {
     return "";
   }
 
-  // Call getAirportList safely (don't fail if it scans wrong cwd)
   let airportList = [];
   try {
     const al = getAirportList();
-    if (Array.isArray(al)) airportList = al;
+    if (Array.isArray(al)) {
+      airportList = al;
+      info(`Loaded airport list: ${airportList.join(", ")}`);
+    } 
   } catch (e) {
+    info(`Error loading airport list: ${e.message}`);
     // ignore - we'll fallback to checking the file directly
   }
-  if (airportList.length && !airportList.includes(ac.origin)) {
+
+  if (ac.origin === "N/A") {
+    // Find current airport
+    info(`Aircraft has origin N/A, trying to determine from position...`);
+    for (const airport of airportList) {
+      try {
+        const airportJson = require(getAirportConfigPath(airport));
+        if (airportJson && airportJson.Coordinates && airportJson.ICAO) {
+          const parts = String(airportJson.Coordinates).split(":");
+          if (parts.length < 2) continue;
+          const lat = parseFloat(parts[0]);
+          const lon = parseFloat(parts[1]);
+          // Validate coordinates
+          if (isNaN(lat) || isNaN(lon)) continue;
+          const radius = parts[2] ? parseFloat(parts[2]) : 5000; // default 5km
+          const aircraftDist = haversineMeters(
+            ac.position.lat,
+            ac.position.lon,
+            lat,
+            lon
+          );
+          if (aircraftDist <= radius) {
+            ac.origin = airportJson.ICAO;
+            info(
+              `Found aircraft at airport ${airportJson.ICAO} (distance: ${aircraftDist.toFixed(
+                0
+              )}m)`
+            );
+            break;
+          }
+          else {
+            info(`Aircraft not at airport ${airportJson.ICAO} (distance: ${aircraftDist.toFixed(0)}m)`);
+          }
+        }
+      } catch (error) {
+        // Skip this airport if config cannot be loaded
+        info(`Could not load config for airport ${airport}: ${error.message}`);
+        continue;
+      }
+    }
+
+    // If still N/A after checking all airports
+    if (ac.origin === "N/A") {
+      info(
+        `Could not determine airport for aircraft at position ${ac.position.lat}, ${ac.position.lon}`
+      );
+    }
+  }
+
+  if (!airportList.includes(ac.origin)) {
     return "";
   }
 
@@ -162,14 +214,9 @@ clientReportParse = (aircrafts) => {
       // Check if the stand is an apron by looking into json
       const airportJson = require(getAirportConfigPath(ac.origin));
       const standDef = airportJson.Stands && airportJson.Stands[ac.stand];
-      if (
-        standDef &&
-        standDef.Apron &&
-        standDef.Apron === true
-      ) {
+      if (standDef && standDef.Apron && standDef.Apron === true) {
         info(`Stand ${ac.stand} at ${ac.origin} is an apron.`);
-      }
-      else {
+      } else {
         const stand = new Stand(ac.stand, ac.origin || "UNKNOWN", callsign);
         info(
           `Registering occupied stand ${ac.stand} at ${ac.origin} for ${callsign}`

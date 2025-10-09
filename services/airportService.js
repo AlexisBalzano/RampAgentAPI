@@ -9,7 +9,7 @@ exports.getAirportList = () => {
   // Return a list of available airport ICAO codes based on existing JSON files
   const fs = require('fs');
   const path = require('path');
-  const dirPath = this.getAirportConfigPath();
+  const dirPath = path.join(__dirname, '..', 'data', 'airports');
   const files = fs.readdirSync(dirPath);
   return files
     .filter((file) => file.endsWith('.json'))
