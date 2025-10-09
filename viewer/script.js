@@ -102,11 +102,6 @@ function addLogEntry(level, message) {
   updateLogDisplay();
 }
 
-function clearLog() {
-  logEntries = [];
-  updateLogDisplay();
-}
-
 function toggleAutoScroll() {
   autoScroll = !autoScroll;
   const button = document.getElementById('toggleAutoScroll');
