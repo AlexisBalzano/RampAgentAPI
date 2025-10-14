@@ -172,12 +172,7 @@ var map = L.map('map', {
             maxZoom: 19  // Set tile layer max zoom
         }).addTo(map);
 
-  
-// Add layer control
-var baseMaps = {
-    "Satellite": L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}'),
-};
-L.control.layers(baseMaps).addTo(map);
+
 
 
 // Add legend
