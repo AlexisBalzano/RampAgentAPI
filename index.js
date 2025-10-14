@@ -7,6 +7,7 @@ const reportRoutes = require('./routes/report');
 const assignRoutes = require('./routes/assign');
 const occupancyRoutes = require('./routes/occupancy');
 const logger = require('./utils/logger');
+const airportRoutes = require('./routes/airports');
 
 const app = express();
 app.use(express.json());
@@ -20,6 +21,9 @@ app.get('/debug', (req, res) => {
 app.get('/api/logs', (req, res) => {
   res.json(logger.getLogs());
 });
+
+// API endpoint to get Airports
+app.use('/api/airports', airportRoutes);
 
 // Register routes
 app.use('/debug', express.static(path.join(__dirname, 'viewer')));

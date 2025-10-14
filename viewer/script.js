@@ -70,11 +70,12 @@ function updateLogDisplay() {
   logContent.innerHTML = '';
   
   logEntries.forEach(entry => {
+    const level = (entry.level || 'INFO');
     const logDiv = document.createElement('div');
-    logDiv.className = `log-entry log-${entry.level.toLowerCase()}`;
+    logDiv.className = `log-entry log-${String(level).toLowerCase()}`;
     logDiv.innerHTML = `
     <span class="log-timestamp">${new Date(entry.timestamp).toLocaleTimeString()}</span>
-    <span class="log-level">[${entry.level}]</span>
+    <span class="log-level">[${level}]</span>
     <span class="log-message">${entry.message}</span>
     `;
     logContent.appendChild(logDiv);
@@ -173,21 +174,117 @@ var map = L.map('map', {
         }).addTo(map);
 
 
-
-
 // Add legend
 var legend = L.control({position: 'topright'});
 legend.onAdd = function (map) {
     var div = L.DomUtil.create('div', 'legend');
     div.innerHTML =
         '<h4>Stands Legend</h4>' +
-        '<i style="background:#96CEB4; width:18px; height:18px; display:inline-block; margin-right:8px; opacity:0.7; border-radius:50%;"></i> Default<br>' +
-        '<i style="background:#45B7D1; width:18px; height:18px; display:inline-block; margin-right:8px; opacity:0.7; border-radius:50%;"></i> Schengen<br>' +
-        '<i style="background:#4ECDC4; width:18px; height:18px; display:inline-block; margin-right:8px; opacity:0.7; border-radius:50%;"></i> Non-Schengen<br>' +
-        '<i style="background:#FF6B6B; width:18px; height:18px; display:inline-block; margin-right:8px; opacity:0.7; border-radius:50%;"></i> Apron<br><br>' +
+        '<i style="background:#FFFFFF; width:18px; height:18px; display:inline-block; margin-right:8px; opacity:0.7; border-radius:50%; border: 1px solid #CCCCCC;"></i> Airport<br>' +
+        '<i style="background:#96CEB4; width:18px; height:18px; display:inline-block; margin-right:8px; opacity:0.7; border-radius:50%; border: 1px solid #CCCCCC;"></i> Default<br>' +
+        '<i style="background:#45B7D1; width:18px; height:18px; display:inline-block; margin-right:8px; opacity:0.7; border-radius:50%; border: 1px solid #CCCCCC;"></i> Schengen<br>' +
+        '<i style="background:#4ECDC4; width:18px; height:18px; display:inline-block; margin-right:8px; opacity:0.7; border-radius:50%; border: 1px solid #CCCCCC;"></i> Non-Schengen<br>' +
+        '<i style="background:#FF6B6B; width:18px; height:18px; display:inline-block; margin-right:8px; opacity:0.7; border-radius:50%; border: 1px solid #CCCCCC;"></i> Apron<br><br>' +
         '<small>Click circles for details<br>Click map to copy coordinates</small>';
     // prevent map interactions when interacting with legend
     L.DomEvent.disableClickPropagation(div);
     return div;
 };
 legend.addTo(map);
+
+// Add airport pins onto map (meter-circle + pixel-marker hybrid)
+var zoomThreshold = 5;         // <= show meter circle, > show screen-sized marker
+var zoomHideThreshold = 13;    // > hide marker entirely
+var meterRadius = 50000;        // meters for the L.Circle when zoomed out
+
+var airports = []; // will be filled after fetch
+
+fetch('/api/airports')
+  .then((res) => {
+    if (!res.ok) throw new Error('Network response was not ok');
+    return res.json();
+  })
+  .then((data) => {
+    if (!Array.isArray(data)) throw new Error('Airports response is not an array');
+    // keep only entries with valid numeric [lat, lon] coords
+    airports = data.filter(a => {
+      return Array.isArray(a.coords) &&
+             a.coords.length === 2 &&
+             Number.isFinite(a.coords[0]) &&
+             Number.isFinite(a.coords[1]);
+    });
+
+    if (airports.length === 0) {
+      console.warn('No valid airport coordinates found in /api/airports response', data);
+    } else {
+      // create a feature group only from valid markers
+      const markers = airports.map(a => L.marker(a.coords));
+      const group = new L.featureGroup(markers);
+      const bounds = group.getBounds();
+      if (bounds.isValid && bounds.isValid()) {
+        map.fitBounds(bounds.pad(0.5));
+      }
+    }
+
+    airports.forEach(function(airport) {
+        // create both layers but don't assume both are on the map at once
+        airport.circle = L.circle(airport.coords, {
+            color: '#505050ff',
+            fillColor: '#ffffff',
+            fillOpacity: 0.7,
+            radius: meterRadius, // meters
+            weight: 1
+        }).bindPopup(`<strong>${airport.name}</strong>`);
+
+        airport.marker = L.circleMarker(airport.coords, {
+            color: '#505050ff',
+            fillColor: '#ffffff',
+            fillOpacity: 0.7,
+            radius: 26, // pixels on screen when visible
+            weight: 1
+        }).bindPopup(`<strong>${airport.name}</strong>`);
+
+        // initially decide which to add based on current zoom
+        if (map.getZoom() <= zoomThreshold) {
+            airport.circle.addTo(map);
+        } else {
+            airport.marker.addTo(map);
+        }
+    });
+
+    // ensure toggling logic runs now that airports exist
+    updateMarkerSizes();
+  })
+  .catch((err) => {
+    console.error('Failed to load airports on Map', err);
+    addLogEntry('ERROR', 'Failed to load airports from server');
+  });
+
+function updateMarkerSizes() {
+  if (!Array.isArray(airports) || airports.length === 0) return;
+  const z = map.getZoom();
+
+  airports.forEach(airport => {
+    if (!airport) return;
+    const circle = airport.circle;
+    const marker = airport.marker;
+
+    const circleOnMap = circle && map.hasLayer ? map.hasLayer(circle) : false;
+    const markerOnMap = marker && map.hasLayer ? map.hasLayer(marker) : false;
+
+    if (z > zoomHideThreshold) {
+      if (markerOnMap && marker) map.removeLayer(marker);
+      // keep circles hidden when very zoomed out if desired (optional)
+    }
+    else if (z <= zoomThreshold) {
+      // show meter-based circle, hide pixel marker
+      if (circle && !circleOnMap) circle.addTo(map);
+      if (markerOnMap && marker) map.removeLayer(marker);
+    } else {
+      // show pixel marker, hide meter circle
+      if (marker && !markerOnMap) marker.addTo(map);
+      if (circleOnMap && circle) map.removeLayer(circle);
+    }
+  });
+}
+map.on('zoomend', updateMarkerSizes);
