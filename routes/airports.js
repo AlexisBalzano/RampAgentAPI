@@ -7,4 +7,9 @@ router.get('/', (req, res) => {
   res.json(airportList);
 });
 
+router.get('/stands', (req, res) => {
+  const stands = airportService.getAllStands();
+  res.json(stands);
+});
+
 module.exports = router;
