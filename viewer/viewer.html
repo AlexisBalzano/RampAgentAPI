@@ -4,6 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Ramp Agent API</title>
+    <link rel="icon" href="favicon.svg">
     <link rel="stylesheet" href="styles.css" />
     <script src="script.js" defer></script>
 
@@ -23,24 +24,28 @@
         <div class="sidenav-content">
           <i href="javascript:void(0)" class="closebtn bx bx-menu" onclick="closeNav()"
             ></i>
-          <a href="#" onclick="closeNav()">About</a>
-          <a href="# "onclick="closeNav()">Services</a>
-          <a href="# "onclick="closeNav()">Clients</a>
-          <a href="# "onclick="closeNav()">Contact</a>
+            <a href="#status" onclick="closeNav()">Status</a>
+            <a href="#statistics" onclick="closeNav()">Statistics</a>
+            <a href="#standMap" onclick="closeNav()">Map</a>
+            <a href="#log" onclick="closeNav()">Logs</a>
           <p class="version">Version 1.0.0</p>
         </div>
       </div>
 
-      <section id="status">
+      <section id="status" data-page="status">
         <h2>Status</h2>
-        <h23>Occupied Stands</h3>
+        <h3>Occupied Stands</h3>
         <ul id="occupiedStands"></ul>
       </section>
-      <section id="standMap">
+      <section id="statistics" data-page="statistics">
+        <h2>Statistics</h2>
+        <h3>Number of request handled: <b>13 899</b> since last 24 hours</h3>
+      </section>
+      <section id="standMap" data-page="standMap">
         <h2>Stand Map</h2>
         <p>This is the stand map section.</p>
       </section>
-      <section id="log">
+      <section id="log" data-page="log">
         <h2>Log</h2>
         <div class="log-controls">
           <button id="toggleAutoScroll" onclick="toggleAutoScroll()">Auto-scroll: ON</button>
@@ -55,3 +60,4 @@
     </footer>
   </body>
 </html>
+  
