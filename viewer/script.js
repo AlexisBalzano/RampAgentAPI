@@ -138,6 +138,13 @@ document.addEventListener('DOMContentLoaded', () => {
     navLinks.forEach(a => {
       a.classList.toggle('active', a.getAttribute('href') === ('#' + page));
     });
+    // ensure map renders correctly when its section becomes visible
+    if (page === 'standMap' && typeof map !== 'undefined') {
+      // small delay to allow layout to settle
+      setTimeout(() => {
+        try { map.invalidateSize(); } catch (e) { /* ignore if not ready */ }
+      }, 100);
+    }
     // optional: scroll to top of content area
     window.scrollTo(0, 0);
   }
@@ -152,3 +159,40 @@ document.addEventListener('DOMContentLoaded', () => {
   document.addEventListener('DOMContentLoaded', route);
 
 })();
+
+
+// Map 
+var map = L.map('map', {
+            maxZoom: 19  // Increase maximum zoom level
+        }).setView([49.009279,2.565732], 14);
+        
+        // Add satellite tile layer
+        L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+            attribution: 'Tiles &copy; Esri &mdash; Source: Esri, i-cubed, USDA, USGS, AEX, GeoEye, Getmapping, Aerogrid, IGN, IGP, UPR-EGP, and the GIS User Community',
+            maxZoom: 19  // Set tile layer max zoom
+        }).addTo(map);
+
+  
+// Add layer control
+var baseMaps = {
+    "Satellite": L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}'),
+};
+L.control.layers(baseMaps).addTo(map);
+
+
+// Add legend
+var legend = L.control({position: 'topright'});
+legend.onAdd = function (map) {
+    var div = L.DomUtil.create('div', 'legend');
+    div.innerHTML =
+        '<h4>Stands Legend</h4>' +
+        '<i style="background:#96CEB4; width:18px; height:18px; display:inline-block; margin-right:8px; opacity:0.7; border-radius:50%;"></i> Default<br>' +
+        '<i style="background:#45B7D1; width:18px; height:18px; display:inline-block; margin-right:8px; opacity:0.7; border-radius:50%;"></i> Schengen<br>' +
+        '<i style="background:#4ECDC4; width:18px; height:18px; display:inline-block; margin-right:8px; opacity:0.7; border-radius:50%;"></i> Non-Schengen<br>' +
+        '<i style="background:#FF6B6B; width:18px; height:18px; display:inline-block; margin-right:8px; opacity:0.7; border-radius:50%;"></i> Apron<br><br>' +
+        '<small>Click circles for details<br>Click map to copy coordinates</small>';
+    // prevent map interactions when interacting with legend
+    L.DomEvent.disableClickPropagation(div);
+    return div;
+};
+legend.addTo(map);
