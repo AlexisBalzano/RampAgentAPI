@@ -168,6 +168,7 @@ document.addEventListener("DOMContentLoaded", () => {
 })();
 
 // Map
+var stands = []; // make stands accessible to updateMarkerSizes
 var map = L.map("map", {
   maxZoom: 19, // Increase maximum zoom level
 }).setView([49.009279, 2.565732], 14);
@@ -192,8 +193,7 @@ legend.onAdd = function (map) {
     '<i style="background:#96CEB4; width:18px; height:18px; display:inline-block; margin-right:8px; opacity:0.7; border-radius:50%; border: 1px solid #CCCCCC;"></i> Default<br>' +
     '<i style="background:#45B7D1; width:18px; height:18px; display:inline-block; margin-right:8px; opacity:0.7; border-radius:50%; border: 1px solid #CCCCCC;"></i> Schengen<br>' +
     '<i style="background:#4ECDC4; width:18px; height:18px; display:inline-block; margin-right:8px; opacity:0.7; border-radius:50%; border: 1px solid #CCCCCC;"></i> Non-Schengen<br>' +
-    '<i style="background:#FF6B6B; width:18px; height:18px; display:inline-block; margin-right:8px; opacity:0.7; border-radius:50%; border: 1px solid #CCCCCC;"></i> Apron<br><br>' +
-    "<small>Click circles for details<br>Click map to copy coordinates</small>";
+    '<i style="background:#FF6B6B; width:18px; height:18px; display:inline-block; margin-right:8px; opacity:0.7; border-radius:50%; border: 1px solid #CCCCCC;"></i> Apron<br><br>'
   // prevent map interactions when interacting with legend
   L.DomEvent.disableClickPropagation(div);
   return div;
@@ -201,119 +201,62 @@ legend.onAdd = function (map) {
 legend.addTo(map);
 
 function getStandColor(schengen, apron) {
-  if (apron) return "#FF6B6B"; // red for apron stands
-  if (schengen === true || schengen === "true") return "#45B7D1"; // blue for schengen
-  if (schengen === false || schengen === "false") return "#4ECDC4"; // turquoise for non-schengen
-  return "#96CEB4"; // light green for default/unspecified
+  if (apron) return ["#CC4A4A", "#FF6B6B"]; // darker red border, bright red fill (apron)
+  if (schengen === true || schengen === "true") return ["#2F93A0", "#45B7D1"]; // darker teal border, bright blue fill (schengen)
+  if (schengen === false || schengen === "false") return ["#3DAE9D", "#4ECDC4"]; // darker turquoise border, brighter fill (non-schengen)
+  return ["#78BFA0", "#96CEB4"]; // darker green border, light green fill (default)
 }
 
 // Add airport pins onto map (meter-circle + pixel-marker hybrid)
 var zoomThreshold = 5; // <= show meter circle, > show screen-sized marker
 var zoomHideThreshold = 13; // > hide marker entirely
 var meterRadius = 50000; // meters for the L.Circle when zoomed out
+var labelZoomThreshold = 17; // show stand labels at this zoom level and above
 
-var airports = []; // will be filled after fetch
-
-fetch("/api/airports")
-  .then((res) => {
-    if (!res.ok) throw new Error("Network response was not ok");
-    return res.json();
-  })
-  .then((data) => {
-    if (!Array.isArray(data))
-      throw new Error("Airports response is not an array");
-    // keep only entries with valid numeric [lat, lon] coords
-    airports = data.filter((a) => {
-      return (
-        Array.isArray(a.coords) &&
-        a.coords.length === 2 &&
-        Number.isFinite(a.coords[0]) &&
-        Number.isFinite(a.coords[1])
-      );
-    });
-
-    if (airports.length === 0) {
-      console.warn(
-        "No valid airport coordinates found in /api/airports response",
-        data
-      );
-    } else {
-      // create a feature group only from valid markers
-      const markers = airports.map((a) => L.marker(a.coords));
-      const group = new L.featureGroup(markers);
-      const bounds = group.getBounds();
-      if (bounds.isValid && bounds.isValid()) {
-        map.fitBounds(bounds.pad(0.5));
-      }
-    }
-
-    airports.forEach(function (airport) {
-      // create both layers but don't assume both are on the map at once
-      airport.circle = L.circle(airport.coords, {
-        color: "#505050ff",
-        fillColor: "#ffffff",
-        fillOpacity: 0.7,
-        radius: meterRadius, // meters
-        weight: 1,
-      }).bindPopup(`<strong>${airport.name}</strong>`);
-
-      airport.marker = L.circleMarker(airport.coords, {
-        color: "#505050ff",
-        fillColor: "#ffffff",
-        fillOpacity: 0.7,
-        radius: 26, // pixels on screen when visible
-        weight: 1,
-      }).bindPopup(`<strong>${airport.name}</strong>`);
-
-      // initially decide which to add based on current zoom
-      if (map.getZoom() <= zoomThreshold) {
-        airport.circle.addTo(map);
-      } else {
-        airport.marker.addTo(map);
-      }
-    });
-
-    // ensure toggling logic runs now that airports exist
-    updateMarkerSizes();
-  })
-  .catch((err) => {
-    console.error("Failed to load airports on Map", err);
-    addLogEntry("ERROR", "Failed to load airports from server");
-  });
 
 // Draw stands on map
 fetch("/api/airports/stands")
-  .then((res) => {
-    if (!res.ok) throw new Error("Network response was not ok");
-    return res.json();
-  })
-  .then((data) => {
-    if (!Array.isArray(data))
-      throw new Error("Stands response is not an array");
-    // keep only entries with valid numeric [lat, lon] coords
-    const stands = data.filter((s) => {
-      return (
-        Array.isArray(s.coords) &&
-        s.coords.length === 2 &&
-        Number.isFinite(s.coords[0]) &&
-        Number.isFinite(s.coords[1])
-      );
-    });
-
-    if (stands.length === 0) {
-      console.warn(
-        "No valid stand coordinates found in /api/airports/stands response",
-        data
-      );
-    } else {
-      stands.forEach((stand) => {
-        stand.circle = L.circle(stand.coords, {
-          color: "#505050ff",
-          fillColor: getStandColor(stand.schengen, stand.apron),
+.then((res) => {
+  if (!res.ok) throw new Error("Network response was not ok");
+  return res.json();
+})
+.then((data) => {
+  if (!Array.isArray(data))
+    throw new Error("Stands response is not an array");
+  // keep only entries with valid numeric [lat, lon] coords
+  stands = data.filter((s) => {
+    return (
+      Array.isArray(s.coords) &&
+      s.coords.length === 2 &&
+      Number.isFinite(s.coords[0]) &&
+      Number.isFinite(s.coords[1])
+    );
+  });
+  
+  if (stands.length === 0) {
+    console.warn(
+      "No valid stand coordinates found in /api/airports/stands response",
+      data
+    );
+  } else {
+    stands.forEach((stand) => {
+      const color = getStandColor(stand.schengen, stand.apron);
+      stand.circle = L.circle(stand.coords, {
+          color: color[0],
+          fillColor: color[1],
           fillOpacity: 0.8,
           radius: stand.radius, // meters
-          weight: 1,
+          weight: 3,
         }).bindPopup(`<strong>${stand.name}</strong>`);
+        
+        stand.label = L.marker(stand.coords, {
+          interactive: false,
+          icon: L.divIcon({
+            className: "stand-label", // style in CSS
+            html: `<span>${stand.name}</span>`,
+          })
+        });
+        
         stand.circle.addTo(map);
       });
     }
@@ -322,7 +265,91 @@ fetch("/api/airports/stands")
     console.error("Failed to load stands on Map", err);
     addLogEntry("ERROR", "Failed to load stands from server");
   });
-
+  
+  // Draw airports on map (meter-circle + pixel-marker hybrid)
+  var airports = []; // will be filled after fetch
+  
+  fetch("/api/airports")
+    .then((res) => {
+      if (!res.ok) throw new Error("Network response was not ok");
+      return res.json();
+    })
+    .then((data) => {
+      if (!Array.isArray(data))
+        throw new Error("Airports response is not an array");
+      // keep only entries with valid numeric [lat, lon] coords
+      airports = data.filter((a) => {
+        return (
+          Array.isArray(a.coords) &&
+          a.coords.length === 2 &&
+          Number.isFinite(a.coords[0]) &&
+          Number.isFinite(a.coords[1])
+        );
+      });
+  
+      if (airports.length === 0) {
+        console.warn(
+          "No valid airport coordinates found in /api/airports response",
+          data
+        );
+      } else {
+        // create a feature group only from valid markers
+        const markers = airports.map((a) => L.marker(a.coords));
+        const group = new L.featureGroup(markers);
+        const bounds = group.getBounds();
+        if (bounds.isValid && bounds.isValid()) {
+          map.fitBounds(bounds.pad(0.5));
+        }
+      }
+  
+      airports.forEach(function (airport) {
+        // create both layers but don't assume both are on the map at once
+        airport.circle = L.circle(airport.coords, {
+          color: "#505050ff",
+          fillColor: "#ffffff",
+          fillOpacity: 0.7,
+          radius: meterRadius, // meters
+          weight: 3,
+        }).bindPopup(`<strong>${airport.name}</strong>`);
+  
+        airport.marker = L.circleMarker(airport.coords, {
+          color: "#505050ff",
+          fillColor: "#ffffff",
+          fillOpacity: 0.7,
+          radius: 26, // pixels on screen when visible
+          weight: 3,
+        }).bindPopup(`<strong>${airport.name}</strong>`);
+  
+        // zoom-to-airport on click: ensure map zoom reaches the pixel-marker zoom level
+        const targetZoom = zoomHideThreshold+1;
+        const zoomAndOpen = function (layer) {
+          // animate to the airport and open the popup afterwards
+          map.setView(airport.coords, targetZoom, { animate: true });
+          // small delay so popup opens after the view change
+          setTimeout(() => {
+            try { layer.openPopup(); } catch (e) { /* ignore */ }
+          }, 300);
+        };
+  
+        airport.circle.on("click", function () { zoomAndOpen(airport.circle); });
+        airport.marker.on("click", function () { zoomAndOpen(airport.marker); });
+  
+         // initially decide which to add based on current zoom
+         if (map.getZoom() <= zoomThreshold) {
+           airport.circle.addTo(map);
+         } else {
+           airport.marker.addTo(map);
+         }
+       });
+  
+      // ensure toggling logic runs now that airports exist
+      updateMarkerSizes();
+    })
+    .catch((err) => {
+      console.error("Failed to load airports on Map", err);
+      addLogEntry("ERROR", "Failed to load airports from server");
+    });
+    
 function updateMarkerSizes() {
   if (!Array.isArray(airports) || airports.length === 0) return;
   const z = map.getZoom();
@@ -336,8 +363,9 @@ function updateMarkerSizes() {
     const markerOnMap = marker && map.hasLayer ? map.hasLayer(marker) : false;
 
     if (z > zoomHideThreshold) {
+      // hide everything at very high zoom
       if (markerOnMap && marker) map.removeLayer(marker);
-      // keep circles hidden when very zoomed out if desired (optional)
+      if (circleOnMap && circle) map.removeLayer(circle);
     } else if (z <= zoomThreshold) {
       // show meter-based circle, hide pixel marker
       if (circle && !circleOnMap) circle.addTo(map);
@@ -348,5 +376,18 @@ function updateMarkerSizes() {
       if (circleOnMap && circle) map.removeLayer(circle);
     }
   });
+  
+  // toggle stand labels (if you keep stands array accessible)
+  if (Array.isArray(stands) && stands.length) {
+    stands.forEach((stand) => {
+      const label = stand.label;
+      const labelOnMap = label && map.hasLayer ? map.hasLayer(label) : false;
+      if (z >= labelZoomThreshold) {
+        if (label && !labelOnMap) label.addTo(map);
+      } else {
+        if (labelOnMap && label) map.removeLayer(label);
+      }
+    });
+  }
 }
 map.on("zoomend", updateMarkerSizes);
