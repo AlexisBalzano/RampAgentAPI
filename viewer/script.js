@@ -126,3 +126,29 @@ document.addEventListener('DOMContentLoaded', () => {
   setInterval(renderOccupiedStands, 5000);
   setInterval(renderLogs, 2000); // Fetch logs more frequently
 });
+
+(function () {
+  const sections = Array.from(document.querySelectorAll('section[data-page]'));
+  const navLinks = Array.from(document.querySelectorAll('.sidenav a[href^="#"]'));
+
+  function showPage(page) {
+    sections.forEach(s => {
+      s.style.display = (s.dataset.page === page) ? '' : 'none';
+    });
+    navLinks.forEach(a => {
+      a.classList.toggle('active', a.getAttribute('href') === ('#' + page));
+    });
+    // optional: scroll to top of content area
+    window.scrollTo(0, 0);
+  }
+
+  function route() {
+    const hash = location.hash.replace('#', '') || 'status';
+    showPage(hash);
+  }
+
+  // initialize
+  window.addEventListener('hashchange', route);
+  document.addEventListener('DOMContentLoaded', route);
+
+})();
