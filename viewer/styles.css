@@ -30,6 +30,9 @@ section {
   margin-top: 80px;
   margin-bottom: 20px;
 }
+H1 {
+  cursor: default;
+}
 
 .bx {
   font-size: 50px;
