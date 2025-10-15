@@ -7,7 +7,6 @@ function _currentHourIndex() {
 }
 
 function incrementReportCount(by = 1) {
-    info('Incrementing report count by '+ by);
     const idx = _currentHourIndex();
     counts.set(idx, (counts.get(idx) || 0) + by);
     // prune older than 48 hours occasionally
