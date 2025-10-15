@@ -1,7 +1,9 @@
 const occupancyService = require('../services/occupancyService');
 const { info } = require('../utils/logger');
+const stats = require('../services/statService');
 
 exports.handleReport = (req, res) => {
+  stats.incrementReportCount();
   const { client, aircrafts } = req.body;
   if (!client) {
     return res.status(400).json({ error: 'Invalid client info' });

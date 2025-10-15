@@ -39,6 +39,93 @@ function renderOccupiedStands() {
     });
 }
 
+// Statistics chart
+let totalRequests = 0;
+
+let reportsChart = null;
+
+async function fetchReportsPerHour() {
+  console.debug('fetchReportsPerHour -> calling /api/stats/reports-per-hour');
+  const res = await fetch('/api/stats/reports-per-hour'); // match server route
+  if (!res.ok) {
+    console.warn('fetchReportsPerHour -> network not ok', res.status, await res.text());
+    throw new Error('Failed to fetch stats');
+  }
+  const json = await res.json();
+  console.debug('fetchReportsPerHour -> got', json);
+  return json;
+}
+
+function renderReportsChart(data) {
+  if (!Array.isArray(data)) {
+    console.warn('renderReportsChart -> invalid data', data);
+    return;
+  }
+  const canvas = document.getElementById('reportsChart');
+  if (!canvas) {
+    console.warn('renderReportsChart -> canvas#reportsChart not found');
+    return;
+  }
+  if (typeof Chart === 'undefined') {
+    console.warn('renderReportsChart -> Chart is not loaded');
+    return;
+  }
+
+  const labels = data.map(d => {
+    const dt = new Date(d.hourIso);
+    return `${String(dt.getHours()).padStart(2,'0')}:00`;
+  });
+  const counts = data.map(d => d.count);
+  const ctx = canvas.getContext('2d');
+  if (!reportsChart) {
+    reportsChart = new Chart(ctx, {
+      type: 'bar',
+      data: {
+        labels,
+        datasets: [{
+          label: 'Reports / hour',
+          data: counts,
+          backgroundColor: 'rgba(54,162,235,0.7)',
+          borderColor: 'rgba(54,162,235,1)',
+          borderWidth: 1
+        }]
+      },
+      options: {
+        scales: {
+          x: { title: { display: false } },
+          y: { beginAtZero: true, ticks: { precision: 0 } }
+        },
+        plugins: { legend: { display: false } },
+        responsive: true,
+        maintainAspectRatio: false
+      }
+    });
+  } else {
+    reportsChart.data.labels = labels;
+    reportsChart.data.datasets[0].data = counts;
+    reportsChart.update();
+  }
+}
+
+async function refreshStatsChart() {
+  try {
+    const data = await fetchReportsPerHour();
+    renderReportsChart(data);
+    totalRequests = data.reduce((sum, d) => sum + d.count, 0);
+    document.querySelector('#StatTotal').textContent = totalRequests.toLocaleString();
+  } catch (err) {
+    console.error('Failed to refresh stats chart', err);
+  }
+}
+
+// initial load when DOM ready
+document.addEventListener('DOMContentLoaded', () => {
+  // try initial render (chart canvas must exist)
+  setTimeout(() => { refreshStatsChart(); }, 200);
+  // refresh every minute
+  setInterval(refreshStatsChart, 5_000);
+});
+
 // Log management
 let autoScroll = true;
 let logEntries = [];
@@ -153,6 +240,15 @@ document.addEventListener("DOMContentLoaded", () => {
         }
       }, 100);
     }
+
+    // ensure statistics chart is initialised/updated when the section becomes visible
+    if (page === "statistics") {
+      // small delay so layout settles and canvas has non-zero size
+      setTimeout(() => {
+        if (typeof refreshStatsChart === 'function') refreshStatsChart();
+      }, 150);
+    }
+
     // optional: scroll to top of content area
     window.scrollTo(0, 0);
   }

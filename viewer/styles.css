@@ -241,3 +241,7 @@ section {
   pointer-events: none;
   transform: none;
 }
+
+/* ensure statistics canvas has height */
+#statistics .reports-chart-wrap { width: 100%; min-height: 220px; }
+#reportsChart { width: 100% !important; height: 260px !important; display:block; }
