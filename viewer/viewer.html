@@ -45,15 +45,9 @@
       </section>
       <section id="statistics" data-page="statistics">
         <h2>Statistics</h2>
-        <h3>Reports per hour (last 24h)</h3>
-        <div style="display:flex;align-items:center;gap:1rem">
-          <div style="flex:1;min-height:200px">
-            <canvas id="reportsChart"></canvas>
-          </div>
-          <div style="width:120px">
-            <div>Total</div>
-            <div id="StatTotal">0</div>
-          </div>
+        <h3>Reports per hour (last 24h): <span id="StatTotal">0</span> Requests</h3>
+        <div class="reports-chart-wrap">
+          <canvas id="reportsChart"></canvas>
         </div>
       </section>
       <section id="standMap" data-page="standMap">

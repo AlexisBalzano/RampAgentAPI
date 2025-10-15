@@ -85,9 +85,10 @@ function renderReportsChart(data) {
         datasets: [{
           label: 'Reports / hour',
           data: counts,
-          backgroundColor: 'rgba(54,162,235,0.7)',
+          backgroundColor: 'rgba(104, 139, 239,0.7)',
           borderColor: 'rgba(54,162,235,1)',
-          borderWidth: 1
+          borderWidth: 1,
+          borderRadius: 3,
         }]
       },
       options: {
