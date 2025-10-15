@@ -45,61 +45,81 @@ let totalRequests = 0;
 let reportsChart = null;
 
 async function fetchReportsPerHour() {
-  console.debug('fetchReportsPerHour -> calling /api/stats/reports-per-hour');
-  const res = await fetch('/api/stats/reports-per-hour'); // match server route
+  console.debug("fetchReportsPerHour -> calling /api/stats/reports-per-hour");
+  const res = await fetch("/api/stats/reports-per-hour"); // match server route
   if (!res.ok) {
-    console.warn('fetchReportsPerHour -> network not ok', res.status, await res.text());
-    throw new Error('Failed to fetch stats');
+    console.warn(
+      "fetchReportsPerHour -> network not ok",
+      res.status,
+      await res.text()
+    );
+    throw new Error("Failed to fetch stats");
   }
   const json = await res.json();
-  console.debug('fetchReportsPerHour -> got', json);
+  console.debug("fetchReportsPerHour -> got", json);
   return json;
 }
 
 function renderReportsChart(data) {
   if (!Array.isArray(data)) {
-    console.warn('renderReportsChart -> invalid data', data);
+    console.warn("renderReportsChart -> invalid data", data);
     return;
   }
-  const canvas = document.getElementById('reportsChart');
+  const canvas = document.getElementById("reportsChart");
   if (!canvas) {
-    console.warn('renderReportsChart -> canvas#reportsChart not found');
+    console.warn("renderReportsChart -> canvas#reportsChart not found");
     return;
   }
-  if (typeof Chart === 'undefined') {
-    console.warn('renderReportsChart -> Chart is not loaded');
+  if (typeof Chart === "undefined") {
+    console.warn("renderReportsChart -> Chart is not loaded");
     return;
   }
 
-  const labels = data.map(d => {
+  const labels = data.map((d) => {
     const dt = new Date(d.hourIso);
-    return `${String(dt.getHours()).padStart(2,'0')}:00`;
+    return `${String(dt.getHours()).padStart(2, "0")}:00`;
   });
-  const counts = data.map(d => d.count);
-  const ctx = canvas.getContext('2d');
+  const counts = data.map((d) => d.count);
+  const ctx = canvas.getContext("2d");
   if (!reportsChart) {
     reportsChart = new Chart(ctx, {
-      type: 'bar',
+      type: "bar",
       data: {
         labels,
-        datasets: [{
-          label: 'Reports / hour',
-          data: counts,
-          backgroundColor: 'rgba(104, 139, 239,0.7)',
-          borderColor: 'rgba(54,162,235,1)',
-          borderWidth: 1,
-          borderRadius: 3,
-        }]
+        datasets: [
+          {
+            label: "Reports / hour",
+            data: counts,
+            backgroundColor: "rgba(104, 139, 239,0.7)",
+            borderColor: "rgba(54,162,235,1)",
+            borderWidth: 1,
+            borderRadius: 3,
+            barThickness: 25,
+          },
+        ],
       },
       options: {
         scales: {
-          x: { title: { display: false } },
-          y: { beginAtZero: true, ticks: { precision: 0 } }
+          x: {
+            title: { display: false },
+            grid: {
+              display: true,
+              lineWidth: 3,
+            },
+          },
+          y: {
+            beginAtZero: true,
+            ticks: { precision: 0 },
+            grid: {
+              display: true,
+              lineWidth: 3,
+            },
+          },
         },
         plugins: { legend: { display: false } },
         responsive: true,
-        maintainAspectRatio: false
-      }
+        maintainAspectRatio: false,
+      },
     });
   } else {
     reportsChart.data.labels = labels;
@@ -113,16 +133,19 @@ async function refreshStatsChart() {
     const data = await fetchReportsPerHour();
     renderReportsChart(data);
     totalRequests = data.reduce((sum, d) => sum + d.count, 0);
-    document.querySelector('#StatTotal').textContent = totalRequests.toLocaleString();
+    document.querySelector("#StatTotal").textContent =
+      totalRequests.toLocaleString();
   } catch (err) {
-    console.error('Failed to refresh stats chart', err);
+    console.error("Failed to refresh stats chart", err);
   }
 }
 
 // initial load when DOM ready
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener("DOMContentLoaded", () => {
   // try initial render (chart canvas must exist)
-  setTimeout(() => { refreshStatsChart(); }, 200);
+  setTimeout(() => {
+    refreshStatsChart();
+  }, 200);
   // refresh every minute
   setInterval(refreshStatsChart, 5_000);
 });
@@ -246,7 +269,7 @@ document.addEventListener("DOMContentLoaded", () => {
     if (page === "statistics") {
       // small delay so layout settles and canvas has non-zero size
       setTimeout(() => {
-        if (typeof refreshStatsChart === 'function') refreshStatsChart();
+        if (typeof refreshStatsChart === "function") refreshStatsChart();
       }, 150);
     }
 
@@ -290,7 +313,7 @@ legend.onAdd = function (map) {
     '<i style="background:#96CEB4; width:18px; height:18px; display:inline-block; margin-right:8px; opacity:0.7; border-radius:50%; border: 1px solid #CCCCCC;"></i> Default<br>' +
     '<i style="background:#45B7D1; width:18px; height:18px; display:inline-block; margin-right:8px; opacity:0.7; border-radius:50%; border: 1px solid #CCCCCC;"></i> Schengen<br>' +
     '<i style="background:#4ECDC4; width:18px; height:18px; display:inline-block; margin-right:8px; opacity:0.7; border-radius:50%; border: 1px solid #CCCCCC;"></i> Non-Schengen<br>' +
-    '<i style="background:#FF6B6B; width:18px; height:18px; display:inline-block; margin-right:8px; opacity:0.7; border-radius:50%; border: 1px solid #CCCCCC;"></i> Apron<br><br>'
+    '<i style="background:#FF6B6B; width:18px; height:18px; display:inline-block; margin-right:8px; opacity:0.7; border-radius:50%; border: 1px solid #CCCCCC;"></i> Apron<br><br>';
   // prevent map interactions when interacting with legend
   L.DomEvent.disableClickPropagation(div);
   return div;
@@ -310,50 +333,49 @@ var zoomHideThreshold = 13; // > hide marker entirely
 var meterRadius = 50000; // meters for the L.Circle when zoomed out
 var labelZoomThreshold = 17; // show stand labels at this zoom level and above
 
-
 // Draw stands on map
 fetch("/api/airports/stands")
-.then((res) => {
-  if (!res.ok) throw new Error("Network response was not ok");
-  return res.json();
-})
-.then((data) => {
-  if (!Array.isArray(data))
-    throw new Error("Stands response is not an array");
-  // keep only entries with valid numeric [lat, lon] coords
-  stands = data.filter((s) => {
-    return (
-      Array.isArray(s.coords) &&
-      s.coords.length === 2 &&
-      Number.isFinite(s.coords[0]) &&
-      Number.isFinite(s.coords[1])
-    );
-  });
-  
-  if (stands.length === 0) {
-    console.warn(
-      "No valid stand coordinates found in /api/airports/stands response",
-      data
-    );
-  } else {
-    stands.forEach((stand) => {
-      const color = getStandColor(stand.schengen, stand.apron);
-      stand.circle = L.circle(stand.coords, {
+  .then((res) => {
+    if (!res.ok) throw new Error("Network response was not ok");
+    return res.json();
+  })
+  .then((data) => {
+    if (!Array.isArray(data))
+      throw new Error("Stands response is not an array");
+    // keep only entries with valid numeric [lat, lon] coords
+    stands = data.filter((s) => {
+      return (
+        Array.isArray(s.coords) &&
+        s.coords.length === 2 &&
+        Number.isFinite(s.coords[0]) &&
+        Number.isFinite(s.coords[1])
+      );
+    });
+
+    if (stands.length === 0) {
+      console.warn(
+        "No valid stand coordinates found in /api/airports/stands response",
+        data
+      );
+    } else {
+      stands.forEach((stand) => {
+        const color = getStandColor(stand.schengen, stand.apron);
+        stand.circle = L.circle(stand.coords, {
           color: color[0],
           fillColor: color[1],
           fillOpacity: 0.8,
           radius: stand.radius, // meters
           weight: 3,
         }).bindPopup(`<strong>${stand.name}</strong>`);
-        
+
         stand.label = L.marker(stand.coords, {
           interactive: false,
           icon: L.divIcon({
             className: "stand-label", // style in CSS
             html: `<span>${stand.name}</span>`,
-          })
+          }),
         });
-        
+
         stand.circle.addTo(map);
       });
     }
@@ -362,91 +384,99 @@ fetch("/api/airports/stands")
     console.error("Failed to load stands on Map", err);
     addLogEntry("ERROR", "Failed to load stands from server");
   });
-  
-  // Draw airports on map (meter-circle + pixel-marker hybrid)
-  var airports = []; // will be filled after fetch
-  
-  fetch("/api/airports")
-    .then((res) => {
-      if (!res.ok) throw new Error("Network response was not ok");
-      return res.json();
-    })
-    .then((data) => {
-      if (!Array.isArray(data))
-        throw new Error("Airports response is not an array");
-      // keep only entries with valid numeric [lat, lon] coords
-      airports = data.filter((a) => {
-        return (
-          Array.isArray(a.coords) &&
-          a.coords.length === 2 &&
-          Number.isFinite(a.coords[0]) &&
-          Number.isFinite(a.coords[1])
-        );
-      });
-  
-      if (airports.length === 0) {
-        console.warn(
-          "No valid airport coordinates found in /api/airports response",
-          data
-        );
-      } else {
-        // create a feature group only from valid markers
-        const markers = airports.map((a) => L.marker(a.coords));
-        const group = new L.featureGroup(markers);
-        const bounds = group.getBounds();
-        if (bounds.isValid && bounds.isValid()) {
-          map.fitBounds(bounds.pad(0.5));
-        }
-      }
-  
-      airports.forEach(function (airport) {
-        // create both layers but don't assume both are on the map at once
-        airport.circle = L.circle(airport.coords, {
-          color: "#505050ff",
-          fillColor: "#ffffff",
-          fillOpacity: 0.7,
-          radius: meterRadius, // meters
-          weight: 3,
-        }).bindPopup(`<strong>${airport.name}</strong>`);
-  
-        airport.marker = L.circleMarker(airport.coords, {
-          color: "#505050ff",
-          fillColor: "#ffffff",
-          fillOpacity: 0.7,
-          radius: 26, // pixels on screen when visible
-          weight: 3,
-        }).bindPopup(`<strong>${airport.name}</strong>`);
-  
-        // zoom-to-airport on click: ensure map zoom reaches the pixel-marker zoom level
-        const targetZoom = zoomHideThreshold+1;
-        const zoomAndOpen = function (layer) {
-          // animate to the airport and open the popup afterwards
-          map.setView(airport.coords, targetZoom, { animate: true });
-          // small delay so popup opens after the view change
-          setTimeout(() => {
-            try { layer.openPopup(); } catch (e) { /* ignore */ }
-          }, 300);
-        };
-  
-        airport.circle.on("click", function () { zoomAndOpen(airport.circle); });
-        airport.marker.on("click", function () { zoomAndOpen(airport.marker); });
-  
-         // initially decide which to add based on current zoom
-         if (map.getZoom() <= zoomThreshold) {
-           airport.circle.addTo(map);
-         } else {
-           airport.marker.addTo(map);
-         }
-       });
-  
-      // ensure toggling logic runs now that airports exist
-      updateMarkerSizes();
-    })
-    .catch((err) => {
-      console.error("Failed to load airports on Map", err);
-      addLogEntry("ERROR", "Failed to load airports from server");
+
+// Draw airports on map (meter-circle + pixel-marker hybrid)
+var airports = []; // will be filled after fetch
+
+fetch("/api/airports")
+  .then((res) => {
+    if (!res.ok) throw new Error("Network response was not ok");
+    return res.json();
+  })
+  .then((data) => {
+    if (!Array.isArray(data))
+      throw new Error("Airports response is not an array");
+    // keep only entries with valid numeric [lat, lon] coords
+    airports = data.filter((a) => {
+      return (
+        Array.isArray(a.coords) &&
+        a.coords.length === 2 &&
+        Number.isFinite(a.coords[0]) &&
+        Number.isFinite(a.coords[1])
+      );
     });
-    
+
+    if (airports.length === 0) {
+      console.warn(
+        "No valid airport coordinates found in /api/airports response",
+        data
+      );
+    } else {
+      // create a feature group only from valid markers
+      const markers = airports.map((a) => L.marker(a.coords));
+      const group = new L.featureGroup(markers);
+      const bounds = group.getBounds();
+      if (bounds.isValid && bounds.isValid()) {
+        map.fitBounds(bounds.pad(0.5));
+      }
+    }
+
+    airports.forEach(function (airport) {
+      // create both layers but don't assume both are on the map at once
+      airport.circle = L.circle(airport.coords, {
+        color: "#505050ff",
+        fillColor: "#ffffff",
+        fillOpacity: 0.7,
+        radius: meterRadius, // meters
+        weight: 3,
+      }).bindPopup(`<strong>${airport.name}</strong>`);
+
+      airport.marker = L.circleMarker(airport.coords, {
+        color: "#505050ff",
+        fillColor: "#ffffff",
+        fillOpacity: 0.7,
+        radius: 26, // pixels on screen when visible
+        weight: 3,
+      }).bindPopup(`<strong>${airport.name}</strong>`);
+
+      // zoom-to-airport on click: ensure map zoom reaches the pixel-marker zoom level
+      const targetZoom = zoomHideThreshold + 1;
+      const zoomAndOpen = function (layer) {
+        // animate to the airport and open the popup afterwards
+        map.setView(airport.coords, targetZoom, { animate: true });
+        // small delay so popup opens after the view change
+        setTimeout(() => {
+          try {
+            layer.openPopup();
+          } catch (e) {
+            /* ignore */
+          }
+        }, 300);
+      };
+
+      airport.circle.on("click", function () {
+        zoomAndOpen(airport.circle);
+      });
+      airport.marker.on("click", function () {
+        zoomAndOpen(airport.marker);
+      });
+
+      // initially decide which to add based on current zoom
+      if (map.getZoom() <= zoomThreshold) {
+        airport.circle.addTo(map);
+      } else {
+        airport.marker.addTo(map);
+      }
+    });
+
+    // ensure toggling logic runs now that airports exist
+    updateMarkerSizes();
+  })
+  .catch((err) => {
+    console.error("Failed to load airports on Map", err);
+    addLogEntry("ERROR", "Failed to load airports from server");
+  });
+
 function updateMarkerSizes() {
   if (!Array.isArray(airports) || airports.length === 0) return;
   const z = map.getZoom();
@@ -473,7 +503,7 @@ function updateMarkerSizes() {
       if (circleOnMap && circle) map.removeLayer(circle);
     }
   });
-  
+
   // toggle stand labels (if you keep stands array accessible)
   if (Array.isArray(stands) && stands.length) {
     stands.forEach((stand) => {

@@ -37,17 +37,26 @@
           <p class="version">Version 1.0.0</p>
         </div>
       </div>
-
       <section id="status" data-page="status">
         <h2>Status</h2>
-        <h3>Occupied Stands</h3>
-        <ul id="occupiedStands"></ul>
+        <div class="container">
+          <div class="subContainer">
+            <h3>Occupied Stands:</h3>
+            <ul id="occupiedStands"></ul>
+          </div>
+          <div class="subContainer">
+            <h3>Blocked Stands:</h3>
+            <ul id="blockedStands"></ul>
+          </div>
+        </div>
       </section>
       <section id="statistics" data-page="statistics">
         <h2>Statistics</h2>
-        <h3>Reports per hour (last 24h): <span id="StatTotal">0</span> Requests</h3>
-        <div class="reports-chart-wrap">
-          <canvas id="reportsChart"></canvas>
+        <div class="container">
+          <div class="subContainer reports-chart-wrap">
+            <h3>Reports per hour (last 24h): Total: <span id="StatTotal">0</span> Requests</h3>
+            <canvas id="reportsChart"></canvas>
+          </div>
         </div>
       </section>
       <section id="standMap" data-page="standMap">
