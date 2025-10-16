@@ -418,7 +418,9 @@ function assignStand(airportConfig, config, callsign, ac) {
     for (const standDef of availableStandList) {
       if (standDef.Code) {
         anyCode = true;
-        const maxCode = standDef.Code.split("").reduce((a, b) => (a > b ? a : b));
+        const maxCode = standDef.Code.split("").reduce((a, b) =>
+          a > b ? a : b
+        );
         if (maxCode < bestMaxCode) {
           bestMaxCode = maxCode;
           selectedStandDef = standDef;
@@ -461,6 +463,31 @@ clientReportParse = (aircrafts) => {
         );
         registry.addOccupied(stand);
         blockStands(standDef, ac.origin, callsign, ac.stand);
+      }
+    } else {
+      // Check if aircraft was previously on a stand and has now left
+      const previouslyOnStand = registry
+        .getAllOccupied()
+        .find((s) => s.callsign === callsign && s.icao === ac.origin);
+
+      if (previouslyOnStand) {
+        info(
+          `Aircraft ${callsign} has left stand ${previouslyOnStand.name} at ${ac.origin}`
+        );
+        registry.removeOccupied(previouslyOnStand);
+
+        // Unblock any stands that were blocked due to this stand
+        // Create a list first, then remove to avoid modifying during iteration
+        const standsToUnblock = registry
+          .getAllBlocked()
+          .filter((s) => s.callsign === callsign && s.icao === ac.origin);
+
+        standsToUnblock.forEach((s) => {
+          info(
+            `Unblocking stand ${s.name} at ${s.icao} previously blocked due to ${callsign}`
+          );
+          registry.removeBlocked(s);
+        });
       }
     }
   }
@@ -518,5 +545,5 @@ module.exports = {
   getAllOccupied: registry.getAllOccupied.bind(registry),
   getAllBlocked: registry.getAllBlocked.bind(registry),
   isOccupied: registry.isOccupied.bind(registry),
-  isBlocked: registry.isBlocked.bind(registry)
+  isBlocked: registry.isBlocked.bind(registry),
 };
