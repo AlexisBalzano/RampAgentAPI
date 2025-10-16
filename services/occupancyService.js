@@ -19,7 +19,7 @@ class Stand {
 
   // Hash function for the Stand class
   key() {
-    return `${this.icao}:${this.name}:${this.callsign || ""}`;
+    return `${this.icao}:${this.name}`;
   }
 
   equals(other) {
@@ -494,6 +494,8 @@ clientReportParse = (aircrafts) => {
         info(
           `Registering occupied stand ${ac.stand} at ${ac.origin} for ${callsign}`
         );
+        // Remove preceeding entry if any
+        registry.removeOccupied(stand);
         registry.addOccupied(stand);
 
         blockStands(standDef, ac.origin, callsign, ac.stand);

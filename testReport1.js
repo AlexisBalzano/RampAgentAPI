@@ -41,6 +41,11 @@ await fetch("http://localhost:3000/report", {
           aircraftType: "B77W",
           position: { lat: 43.618574, lon: 1.362633 },
         },
+        TUI123: {
+          origin: "LFBO",
+          aircraftType: "B737",
+          position: { lat: 43.628829, lon: 1.374866 },
+        },
       },
       airborne: {
         BAW456: {
