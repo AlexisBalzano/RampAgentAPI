@@ -14,9 +14,15 @@ await fetch("http://localhost:3000/report", {
         },
         EZY123: {
           origin: "LFBO",
-          aircraftType: "B77W",
+          aircraftType: "A320",
           use: "A",
           position: { lat: 43.629031, lon: 1.373805 },
+        },
+        EZY321: {
+          origin: "LFBO",
+          aircraftType: "A320",
+          use: "A",
+          position: { lat: 43.659984, lon: 7.207375 },
         },
         RYR123: {
           origin: "N/A",
