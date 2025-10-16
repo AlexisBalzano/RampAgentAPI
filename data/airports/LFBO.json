@@ -1,7 +1,7 @@
 {
     "version": "v1.0.4",
     "ICAO": "LFBO",
-	"Coordinates": "43.629863:1.363335:3000",
+    "Coordinates": "43.629242:1.363506:3000",
     "Stands": {
         "A20": {
             "Coordinates": "43.622726:1.377140:18",
