@@ -515,4 +515,8 @@ module.exports = {
   registry,
   clientReportParse,
   getGlobalOccupied,
+  getAllOccupied: registry.getAllOccupied.bind(registry),
+  getAllBlocked: registry.getAllBlocked.bind(registry),
+  isOccupied: registry.isOccupied.bind(registry),
+  isBlocked: registry.isBlocked.bind(registry)
 };

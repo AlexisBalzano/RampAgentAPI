@@ -16,5 +16,6 @@ exports.handleReport = (req, res) => {
   info(`Received report from ${client}, processing...`);
 
   occupancyService.clientReportParse(aircrafts);
-  res.status(200).json({ status: 'ok' });
+  const assignedStands = occupancyService.getAllOccupied();
+  res.status(200).json({ status: 'ok', assignedStands });
 };
