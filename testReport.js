@@ -49,6 +49,12 @@ await fetch("http://localhost:3000/report", {
           aircraftType: "A320",
           position: { lat: 48.8566, lon: 2.3522, alt: 3000, dist: 15 },
         },
+        BAW457: {
+          origin: "EGLL",
+          destination: "LFBO",
+          aircraftType: "A320",
+          position: { lat: 48.8566, lon: 2.3522, alt: 3000, dist: 15 },
+        },
         HBJVK: {
           origin: "LSGG",
           destination: "LFBO",
@@ -69,8 +75,14 @@ await fetch("http://localhost:3000/report", {
         },
         AIB456: {
           origin: "LFPG",
-          destination: "LFBH",
+          destination: "LFBO",
           aircraftType: "A320",
+          position: { lat: 43.631168, lon: 1.371362, alt: 3000, dist: 20 },
+        },
+        BGA456: {
+          origin: "LFPG",
+          destination: "LFBO",
+          aircraftType: "A339",
           position: { lat: 43.631168, lon: 1.371362, alt: 3000, dist: 20 },
         },
       },
