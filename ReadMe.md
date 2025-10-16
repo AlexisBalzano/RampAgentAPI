@@ -16,9 +16,7 @@
     - Airport info screen layout ?
     - Stats report (# of assigned stands, # of requests, # of custom assigns)
 
-- Be Fast as fuck boys
 
-- limit request rate
 
 
 
@@ -40,7 +38,8 @@
 
 - Client report :
     - JSON of aircraft that are stopped, on ground of concerned airport (FP active or not)
-    - \+ all converned airborn aircraft < maxAlt && < maxDist
+    - \+ all converned airborn aircrafts
+    - check response for assigned stands (get a json of all occupied stands, just need to check if callsign of arrival are in it)
 
 
 | Folder             | Purpose                                                                    |
