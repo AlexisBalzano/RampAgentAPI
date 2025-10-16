@@ -1,5 +1,9 @@
 const { info } = require("../utils/logger");
-const { getAirportList, getConfig, getAirportConfigPath } = require("./airportService");
+const {
+  getAirportList,
+  getConfig,
+  getAirportConfigPath,
+} = require("./airportService");
 const path = require("path");
 const fs = require("fs");
 const { warn } = require("console");
@@ -216,10 +220,10 @@ const blockStands = (standDef, icao, callsign, standName) => {
         icao || "UNKNOWN",
         callsign
       );
-        info(
-          `Registering blocked stand ${blockedStandName} at ${icao} due to occupation of ${standName} for ${callsign}`
-        );
-        registry.addBlocked(blockedStand);
+      info(
+        `Registering blocked stand ${blockedStandName} at ${icao} due to occupation of ${standName} for ${callsign}`
+      );
+      registry.addBlocked(blockedStand);
     }
   }
 };
@@ -229,16 +233,22 @@ function isConcernedArrival(callsign, ac, config) {
     return false;
   }
   if (ac.position.alt > config.max_alt) {
-    info(`Aircraft ${callsign} is above maximum altitude at ${ac.position.alt}`);
+    info(
+      `Aircraft ${callsign} is above maximum altitude at ${ac.position.alt}`
+    );
     return false;
   }
   if (ac.position.dist > config.max_distance) {
-    info(`Aircraft ${callsign} is beyond maximum distance at ${ac.position.dist}`);
+    info(
+      `Aircraft ${callsign} is beyond maximum distance at ${ac.position.dist}`
+    );
     return false;
   }
   const airportList = getAirportList();
   if (!airportList.includes(ac.destination)) {
-    info(`Aircraft ${callsign} is arriving at unsupported airport ${ac.destination}`);
+    info(
+      `Aircraft ${callsign} is arriving at unsupported airport ${ac.destination}`
+    );
     return false;
   }
   return true;
@@ -252,35 +262,37 @@ function isSchengen(origin, destination) {
 }
 
 function isSchengenPrefix(prefix) {
-  return prefix == "LF" || // France
-			prefix == "LS" || // Switzerland
-			prefix == "ED" || // Germany (civil)
-			prefix == "ET" || // Germany (military)
-			prefix == "LO" || // Austria
-			prefix == "EB" || // Belgium
-			prefix == "EL" || // Luxembourg
-			prefix == "EH" || // Netherlands
-			prefix == "EK" || // Denmark
-			prefix == "ES" || // Sweden
-			prefix == "EN" || // Norway
-			prefix == "EF" || // Finland
-			prefix == "EE" || // Estonia
-			prefix == "EV" || // Latvia
-			prefix == "EY" || // Lithuania
-			prefix == "EP" || // Poland
-			prefix == "LK" || // Czech Republic
-			prefix == "LZ" || // Slovakia
-			prefix == "LH" || // Hungary
-			prefix == "LJ" || // Slovenia
-			prefix == "LD" || // Croatia
-			prefix == "LI" || // Italy
-			prefix == "LG" || // Greece
-			prefix == "LE" || // Spain
-			prefix == "LP" || // Portugal
-			prefix == "LM" || // Malta
-			prefix == "BI" || // Iceland
-			prefix == "LB" || // Bulgaria
-			prefix == "LR";   // Romania
+  return (
+    prefix == "LF" || // France
+    prefix == "LS" || // Switzerland
+    prefix == "ED" || // Germany (civil)
+    prefix == "ET" || // Germany (military)
+    prefix == "LO" || // Austria
+    prefix == "EB" || // Belgium
+    prefix == "EL" || // Luxembourg
+    prefix == "EH" || // Netherlands
+    prefix == "EK" || // Denmark
+    prefix == "ES" || // Sweden
+    prefix == "EN" || // Norway
+    prefix == "EF" || // Finland
+    prefix == "EE" || // Estonia
+    prefix == "EV" || // Latvia
+    prefix == "EY" || // Lithuania
+    prefix == "EP" || // Poland
+    prefix == "LK" || // Czech Republic
+    prefix == "LZ" || // Slovakia
+    prefix == "LH" || // Hungary
+    prefix == "LJ" || // Slovenia
+    prefix == "LD" || // Croatia
+    prefix == "LI" || // Italy
+    prefix == "LG" || // Greece
+    prefix == "LE" || // Spain
+    prefix == "LP" || // Portugal
+    prefix == "LM" || // Malta
+    prefix == "BI" || // Iceland
+    prefix == "LB" || // Bulgaria
+    prefix == "LR"
+  ); // Romania
 }
 
 function getAircraftCode(config, aircraftType) {
@@ -288,11 +300,11 @@ function getAircraftCode(config, aircraftType) {
   const wingspan = config.AircraftWingspans[aircraftType.toUpperCase()];
   if (!wingspan) return "F"; // default if unknown
   if (wingspan < 15.0) return "A";
-	if (wingspan < 24.0) return "B";
-	if (wingspan < 36.0) return "C";
-	if (wingspan < 52.0) return "D";
-	if (wingspan < 65.0) return "E";
-	if (wingspan < 80.0) return "F";
+  if (wingspan < 24.0) return "B";
+  if (wingspan < 36.0) return "C";
+  if (wingspan < 52.0) return "D";
+  if (wingspan < 65.0) return "E";
+  if (wingspan < 80.0) return "F";
 }
 
 function getAircraftUse(config, callsign, aircraftType) {
@@ -326,9 +338,13 @@ function getAircraftUse(config, callsign, aircraftType) {
 //TODO: refactor to use priority system if multiple stands match
 function assignStand(airportConfig, config, callsign, ac) {
   // Check if aircraft already has a stand assigned
-  const assignedStand = registry.getAllOccupied().find(s => s.callsign === callsign && s.icao === ac.destination);
+  const assignedStand = registry
+    .getAllOccupied()
+    .find((s) => s.callsign === callsign && s.icao === ac.destination);
   if (assignedStand) {
-    info(`Aircraft ${callsign} already assigned to stand ${assignedStand.name} at ${ac.destination}`);
+    info(
+      `Aircraft ${callsign} already assigned to stand ${assignedStand.name} at ${ac.destination}`
+    );
     return;
   }
 
@@ -337,9 +353,13 @@ function assignStand(airportConfig, config, callsign, ac) {
     info(`Aircraft ${callsign} is a Schengen arrival at ${ac.destination}`);
   }
   const code = getAircraftCode(config, ac.aircraftType);
-  info(`Aircraft ${callsign} has aircraft type ${ac.aircraftType} (code: ${code})`);
+  info(
+    `Aircraft ${callsign} has aircraft type ${ac.aircraftType} (code: ${code})`
+  );
   const use = getAircraftUse(config, callsign, ac.aircraftType);
   info(`Aircraft ${callsign} has use type ${use}`);
+
+  let availableStandList = [];
 
   for (const [standName, standDef] of Object.entries(airportConfig.Stands)) {
     // Implements checks
@@ -359,24 +379,89 @@ function assignStand(airportConfig, config, callsign, ac) {
       }
     }
     if (standDef.Callsigns && Array.isArray(standDef.Callsigns)) {
-      if (!standDef.Callsigns.includes(callsign.substring(0, 3).toUpperCase())) {
+      if (
+        !standDef.Callsigns.includes(callsign.substring(0, 3).toUpperCase())
+      ) {
         continue;
       }
     }
+    if (registry.isOccupied(ac.destination, standName)) {
+      continue;
+    }
+    if (registry.isBlocked(ac.destination, standName)) {
+      continue;
+    }
+    availableStandList.push(standDef);
+  }
 
-    if (!registry.isOccupied(ac.destination, standName)) {
-      if (!registry.isBlocked(ac.destination, standName)) {
-        const stand = new Stand(standName, ac.destination, callsign);
-        info(
-          `Assigning stand ${standName} at ${ac.destination} to ${callsign}`
-        );
-        if (!standDef.Apron || standDef.Apron === false) {
-          registry.addOccupied(stand);
-          blockStands(standDef, ac.destination, callsign, standName);
-        }
-        return;
+  // Priority filtering
+  let anyPriority = false;
+  let lowestPriority = Number.MAX_SAFE_INTEGER;
+  for (const standDef of availableStandList) {
+    if (standDef.Priority && Number.isInteger(standDef.Priority)) {
+      anyPriority = true;
+      if (standDef.Priority < lowestPriority) {
+        lowestPriority = standDef.Priority;
       }
     }
+  }
+
+  if (anyPriority) {
+    availableStandList = availableStandList.filter(
+      (standDef) => standDef.Priority && standDef.Priority === lowestPriority
+    );
+  }
+
+  if (availableStandList.length > 0) {
+    // Pick smallest-allowed Code among remaining
+    /* char bestMaxCode = 'F';
+			bool anyCode = false;
+			auto selectedStandIt = standsJson.begin();
+			for (auto it2 = standsJson.begin(); it2 != standsJson.end(); ++it2) {
+				if (it2.value().contains("Code")) {
+					std::string code = it2.value()["Code"].get<std::string>();
+					if (!code.empty()) {
+						anyCode = true;
+						char maxCode = *std::max_element(code.begin(), code.end());
+						if (maxCode < bestMaxCode) {
+							bestMaxCode = maxCode;
+							selectedStandIt = it2;
+						}
+					}
+				}
+			}
+
+			auto selectedStand = standsJson.begin().value();
+			std::string selectedStandName = standsJson.begin().key();
+			if (anyCode) {
+				selectedStandName = selectedStandIt.key();
+				selectedStand = *selectedStandIt;
+			}
+    */
+    let bestMaxCode = "F";
+    let anyCode = false;
+    let selectedStandDef = availableStandList[0];
+    for (const standDef of availableStandList) {
+      if (standDef.Code) {
+        anyCode = true;
+        const maxCode = standDef.Code.split("").reduce((a, b) => (a > b ? a : b));
+        if (maxCode < bestMaxCode) {
+          bestMaxCode = maxCode;
+          selectedStandDef = standDef;
+        }
+      }
+    }
+
+    const standName = Object.keys(airportConfig.Stands).find(
+      (name) => airportConfig.Stands[name] === selectedStandDef
+    );
+    const stand = new Stand(standName, airportConfig.ICAO, callsign);
+    info(`Assigning stand ${standName} at ${ac.destination} to ${callsign}`);
+    if (!selectedStandDef.Apron || selectedStandDef.Apron === false) {
+      registry.addOccupied(stand);
+      blockStands(selectedStandDef, ac.destination, callsign, standName);
+    }
+    return;
   }
   warn(`No available stands found for ${callsign} at ${ac.destination}`);
 }
@@ -412,29 +497,30 @@ clientReportParse = (aircrafts) => {
     info("No config found, skipping assignment");
     return;
   }
-  
+
   // Handle airborne aircraft - (ie: assign stand if criterias met)
   for (const [callsign, ac] of Object.entries(aircrafts.airborne || {})) {
     // Check Assignement conditions
     if (!isConcernedArrival(callsign, ac, config)) {
       continue;
     }
-  
+
     // Aircraft meets requirements for stand assignment
     info(
       `Processing stand assignment for ${callsign} arriving at ${ac.destination}`
     );
-  
+
     const airportConfig = require(getAirportConfigPath(ac.destination));
     if (!airportConfig || !airportConfig.Stands) {
-      info(`No stands found for airport ${ac.destination}, skipping assignment`);
+      info(
+        `No stands found for airport ${ac.destination}, skipping assignment`
+      );
       continue;
     }
 
     assignStand(airportConfig, config, callsign, ac);
   }
 };
-
 
 const getGlobalOccupied = () => {
   const now = Date.now();
