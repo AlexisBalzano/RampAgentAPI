@@ -551,7 +551,6 @@ function standCleanup() {
   // Remove occupied stands if timestamp is older than 5 minutes without update
   const now = Date.now();
   registry.clearExpired((stand) => now - stand.timestamp > 5 * 60 * 1000);
-  // TODO: also clear blocked if needed
 }
 
 setInterval(standCleanup, 60 * 1000); // every minute
