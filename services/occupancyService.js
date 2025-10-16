@@ -335,7 +335,6 @@ function getAircraftUse(config, callsign, aircraftType) {
   return "A"; // default to airliner
 }
 
-//TODO: refactor to use priority system if multiple stands match
 function assignStand(airportConfig, config, callsign, ac) {
   // Check if aircraft already has a stand assigned
   const assignedStand = registry
@@ -413,31 +412,6 @@ function assignStand(airportConfig, config, callsign, ac) {
   }
 
   if (availableStandList.length > 0) {
-    // Pick smallest-allowed Code among remaining
-    /* char bestMaxCode = 'F';
-			bool anyCode = false;
-			auto selectedStandIt = standsJson.begin();
-			for (auto it2 = standsJson.begin(); it2 != standsJson.end(); ++it2) {
-				if (it2.value().contains("Code")) {
-					std::string code = it2.value()["Code"].get<std::string>();
-					if (!code.empty()) {
-						anyCode = true;
-						char maxCode = *std::max_element(code.begin(), code.end());
-						if (maxCode < bestMaxCode) {
-							bestMaxCode = maxCode;
-							selectedStandIt = it2;
-						}
-					}
-				}
-			}
-
-			auto selectedStand = standsJson.begin().value();
-			std::string selectedStandName = standsJson.begin().key();
-			if (anyCode) {
-				selectedStandName = selectedStandIt.key();
-				selectedStand = *selectedStandIt;
-			}
-    */
     let bestMaxCode = "F";
     let anyCode = false;
     let selectedStandDef = availableStandList[0];
