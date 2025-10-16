@@ -341,20 +341,72 @@ legend.onAdd = function (map) {
   div.innerHTML =
     "<h4>Stands Legend</h4>" +
     '<i style="background:#FFFFFF; width:18px; height:18px; display:inline-block; margin-right:8px; opacity:0.7; border-radius:50%; border: 1px solid #CCCCCC;"></i> Airport<br>' +
-    '<i style="background:#96CEB4; width:18px; height:18px; display:inline-block; margin-right:8px; opacity:0.7; border-radius:50%; border: 1px solid #CCCCCC;"></i> Default<br>' +
-    '<i style="background:#45B7D1; width:18px; height:18px; display:inline-block; margin-right:8px; opacity:0.7; border-radius:50%; border: 1px solid #CCCCCC;"></i> Schengen<br>' +
-    '<i style="background:#4ECDC4; width:18px; height:18px; display:inline-block; margin-right:8px; opacity:0.7; border-radius:50%; border: 1px solid #CCCCCC;"></i> Non-Schengen<br>' +
-    '<i style="background:#FF6B6B; width:18px; height:18px; display:inline-block; margin-right:8px; opacity:0.7; border-radius:50%; border: 1px solid #CCCCCC;"></i> Apron<br><br>';
+    '<i style="background:#96CEB4; width:18px; height:18px; display:inline-block; margin-right:8px; opacity:0.7; border-radius:50%; border: 1px solid #CCCCCC;"></i> Free<br>' +
+    '<i style="background:#cdc54eff; width:18px; height:18px; display:inline-block; margin-right:8px; opacity:0.7; border-radius:50%; border: 1px solid #CCCCCC;"></i> Blocked<br>' +
+    '<i style="background:#FF6B6B; width:18px; height:18px; display:inline-block; margin-right:8px; opacity:0.7; border-radius:50%; border: 1px solid #CCCCCC;"></i> Occupied<br><br>';
   // prevent map interactions when interacting with legend
   L.DomEvent.disableClickPropagation(div);
   return div;
 };
 legend.addTo(map);
 
-function getStandColor(schengen, apron) {
-  if (apron) return ["#CC4A4A", "#FF6B6B"]; // darker red border, bright red fill (apron)
-  if (schengen === true || schengen === "true") return ["#2F93A0", "#45B7D1"]; // darker teal border, bright blue fill (schengen)
-  if (schengen === false || schengen === "false") return ["#3DAE9D", "#4ECDC4"]; // darker turquoise border, brighter fill (non-schengen)
+let occupiedStands = [];
+let blockedStands = [];
+
+function fetchOccupiedStands() {
+  fetch("/api/occupancy/occupied")
+    .then((res) => {
+      if (!res.ok) throw new Error("Network response was not ok");
+      return res.json();
+    })
+    .then((stands) => {
+      if (Array.isArray(stands)) {
+        // Store as ICAO-StandName format instead of just name
+        occupiedStands = stands.map((s) => `${s.icao}-${s.name}`);
+      }
+    })
+    .catch((err) => {
+      console.error("Failed to load occupied stands", err);
+    });
+}
+
+function fetchBlockedStands() {
+  fetch("/api/occupancy/blocked")
+    .then((res) => {
+      if (!res.ok) throw new Error("Network response was not ok");
+      return res.json();
+    })
+    .then((stands) => {
+      if (Array.isArray(stands)) {
+        // Store as ICAO-StandName format instead of just name
+        blockedStands = stands.map((s) => `${s.icao}-${s.name}`);
+      }
+    })
+    .catch((err) => {
+      console.error("Failed to load blocked stands", err);
+    });
+}
+
+// Initial fetch and periodic refresh
+fetchOccupiedStands();
+fetchBlockedStands();
+setInterval(fetchOccupiedStands, 10_000);
+setInterval(fetchBlockedStands, 10_000);
+
+function getStandColor(standName, apron) {
+  // Now both standName and the arrays are in ICAO-StandName format
+  if (occupiedStands.includes(standName)) {
+    return ["#B22222", "#FF6B6B"]; // dark red border, light red fill (occupied)
+  }
+  
+  if (blockedStands.includes(standName)) {
+    return ["#9c7c22ff", "#cdc54eff"]; // dark teal border, light teal fill (blocked)
+  }
+  
+  if (apron) {
+    return ["#4682B4", "#87CEEB"]; // steel blue border, sky blue fill (apron)
+  }
+  
   return ["#78BFA0", "#96CEB4"]; // darker green border, light green fill (default)
 }
 
@@ -384,13 +436,10 @@ fetch("/api/airports/stands")
     });
 
     if (stands.length === 0) {
-      console.warn(
-        "No valid stand coordinates found in /api/airports/stands response",
-        data
-      );
+      console.warn("No valid stand coordinates found in /api/airports/stands response", data);
     } else {
       stands.forEach((stand) => {
-        const color = getStandColor(stand.schengen, stand.apron);
+        const color = getStandColor(stand.name, stand.apron);
         stand.circle = L.circle(stand.coords, {
           color: color[0],
           fillColor: color[1],
@@ -415,6 +464,20 @@ fetch("/api/airports/stands")
     console.error("Failed to load stands on Map", err);
     addLogEntry("ERROR", "Failed to load stands from server");
   });
+
+// update stand marker colors every minute in case occupancy changed
+setInterval(() => {
+  if (!Array.isArray(stands) || stands.length === 0) return;
+  stands.forEach((stand) => {
+    if (!stand || !stand.circle) return;
+    const color = getStandColor(stand.name, stand.apron);
+    stand.circle.setStyle({
+      color: color[0],
+      fillColor: color[1],
+    });
+  });
+}, 10_000);
+
 
 // Draw airports on map (meter-circle + pixel-marker hybrid)
 var airports = []; // will be filled after fetch
