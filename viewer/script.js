@@ -39,13 +39,43 @@ function renderOccupiedStands() {
     });
 }
 
+// Fetch Blocked stands from server and render into the viewer
+function renderBlockedStands() {
+  const ul = document.getElementById("blockedStands");
+  if (!ul) return;
+  ul.innerHTML = "<li>Loading...</li>";
+
+  fetch("/api/occupancy/blocked")
+    .then((res) => {
+      if (!res.ok) throw new Error("Network response was not ok");
+      return res.json();
+    })
+    .then((stands) => {
+      ul.innerHTML = "";
+      if (!Array.isArray(stands) || stands.length === 0) {
+        ul.innerHTML = "<li>No stands are currently blocked.</li>";
+        return;
+      }
+      for (const s of stands) {
+        const li = document.createElement("li");
+        if (s.callsign)
+          li.textContent = `${s.name} @ ${s.icao} — ${s.callsign}`;
+        else li.textContent = `${s.name} @ ${s.icao}`;
+        ul.appendChild(li);
+      }
+    })
+    .catch((err) => {
+      console.error("Failed to load blocked stands", err);
+      ul.innerHTML = "<li>Error loading blocked stands.</li>";
+    });
+}
+
 // Statistics chart
 let totalRequests = 0;
 
 let reportsChart = null;
 
 async function fetchReportsPerHour() {
-  console.debug("fetchReportsPerHour -> calling /api/stats/reports-per-hour");
   const res = await fetch("/api/stats/reports-per-hour"); // match server route
   if (!res.ok) {
     console.warn(
@@ -56,7 +86,6 @@ async function fetchReportsPerHour() {
     throw new Error("Failed to fetch stats");
   }
   const json = await res.json();
-  console.debug("fetchReportsPerHour -> got", json);
   return json;
 }
 
@@ -235,8 +264,10 @@ function scrollToBottom() {
 // Initial render and periodic refresh
 document.addEventListener("DOMContentLoaded", () => {
   renderOccupiedStands();
+  renderBlockedStands();
   renderLogs();
   setInterval(renderOccupiedStands, 5000);
+  setInterval(renderBlockedStands, 5000);
   setInterval(renderLogs, 2000); // Fetch logs more frequently
 });
 

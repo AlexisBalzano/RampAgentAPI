@@ -206,6 +206,8 @@ const isAircraftOnStand = (ac) => {
 
 clientReportParse = (aircrafts) => {
   // Parse JSON of all the reported aircraft positions/states
+
+  // Handle onGround aircraft
   for (const [callsign, ac] of Object.entries(aircrafts.onGround || {})) {
     const aircraftOnStand = isAircraftOnStand(ac);
     if (aircraftOnStand) {
@@ -218,11 +220,18 @@ clientReportParse = (aircrafts) => {
         info(`Stand ${ac.stand} at ${ac.origin} is an apron.`);
       } else {
         const stand = new Stand(ac.stand, ac.origin || "UNKNOWN", callsign);
-        info(
-          `Registering occupied stand ${ac.stand} at ${ac.origin} for ${callsign}`
-        );
+        info(`Registering occupied stand ${ac.stand} at ${ac.origin} for ${callsign}`);
         registry.addOccupied(stand);
-      }
+        // Check if stand is blocking other stands
+        if (standDef && standDef.Block && Array.isArray(standDef.Block)) {
+          for (const blockedStandName of standDef.Block) {
+            const blockedStand = new Stand(blockedStandName, ac.origin || "UNKNOWN", callsign);
+            if (!registry.isBlocked(ac.origin, blockedStandName)) {
+              info(`Registering blocked stand ${blockedStandName} at ${ac.origin} due to occupation of ${ac.stand}`);
+              registry.addBlocked(blockedStand);
+            }
+          }
+      } }
     }
   }
 
@@ -244,13 +253,6 @@ clientReportParse = (aircrafts) => {
   //   }
   // }
 
-  // Print current occupied stands
-  info(`Currently occupied stands:`);
-  for (const stand of registry.getAllOccupied()) {
-    info(
-      ` - ${stand.name} at ${stand.icao} occupied by ${stand.callsign || "N/A"}`
-    );
-  }
 };
 
 const getGlobalOccupied = () => {

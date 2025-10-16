@@ -13,3 +13,17 @@ exports.getOccupied = (req, res) => {
     res.status(500).json({ error: 'Failed to retrieve occupied stands' });
   }
 };
+
+exports.getBlocked = (req, res) => {
+  try {
+    // registry.getAllBlocked returns array of Stand instances; convert to simple objects
+    const blocked = occupancyService.registry.getAllBlocked().map((s) => ({
+      name: s.name,
+      icao: s.icao,
+      callsign: s.callsign || null,
+    }));
+    res.json(blocked);
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to retrieve blocked stands' });
+  }
+};
