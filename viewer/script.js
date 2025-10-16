@@ -501,6 +501,7 @@ setInterval(() => {
 
 // Draw airports on map (meter-circle + pixel-marker hybrid)
 var airports = []; // will be filled after fetch
+var initialBounds = null; // Store the initial bounds
 
 fetch("/api/airports")
   .then((res) => {
@@ -532,6 +533,7 @@ fetch("/api/airports")
       const bounds = group.getBounds();
       if (bounds.isValid && bounds.isValid()) {
         map.fitBounds(bounds.pad(0.5));
+        initialBounds = bounds.pad(0.5); // Store the initial bounds
       }
     }
 
@@ -632,3 +634,47 @@ function updateMarkerSizes() {
   }
 }
 map.on("zoomend", updateMarkerSizes);
+
+// Custom home button control
+var HomeControl = L.Control.extend({
+  onAdd: function(map) {
+    var container = L.DomUtil.create('div', 'leaflet-bar leaflet-control leaflet-control-custom');
+    
+    container.style.backgroundColor = 'white';
+    container.style.backgroundImage = "url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyNCIgaGVpZ2h0PSIyNCIgdmlld0JveD0iMCAwIDI0IDI0IiBmaWxsPSJub25lIiBzdHJva2U9ImN1cnJlbnRDb2xvciIgc3Ryb2tlLXdpZHRoPSIyIiBzdHJva2UtbGluZWNhcD0icm91bmQiIHN0cm9rZS1saW5lam9pbj0icm91bmQiPjxwYXRoIGQ9Im0zIDkgOS03IDkgN3YxMWgtNnYtNGgtNnY0aC02eiIvPjwvc3ZnPg==')";
+    container.style.backgroundSize = '16px 16px';
+    container.style.backgroundPosition = 'center';
+    container.style.backgroundRepeat = 'no-repeat';
+    container.style.width = '30px';
+    container.style.height = '30px';
+    container.style.cursor = 'pointer';
+    container.title = 'Return to initial view';
+    
+    container.onclick = function(){
+      if (initialBounds && initialBounds.isValid()) {
+        map.fitBounds(initialBounds, { animate: true, duration: 1 });
+      } else {
+        // Fallback to default view if no bounds stored
+        map.setView([49.009279, 2.565732], 7, { animate: true });
+      }
+    }
+    
+    // Prevent map interactions when clicking the button
+    L.DomEvent.disableClickPropagation(container);
+    
+    return container;
+  },
+
+  onRemove: function(map) {
+    // Nothing to do here
+  }
+});
+
+// Add the home control to the map
+var homeControl = new HomeControl({ position: 'topleft' });
+homeControl.addTo(map);
+
+// Store the initial view bounds
+map.whenReady(function() {
+  initialBounds = map.getBounds();
+});
