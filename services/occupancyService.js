@@ -244,22 +244,136 @@ function isConcernedArrival(callsign, ac, config) {
   return true;
 }
 
-function assignStand(airportConfig, callsign, ac) {
+function isSchengen(origin, destination) {
+  if (!origin || !destination) return false;
+  const originPrefix = origin.substring(0, 2).toUpperCase();
+  const destPrefix = destination.substring(0, 2).toUpperCase();
+  return isSchengenPrefix(originPrefix) && isSchengenPrefix(destPrefix);
+}
+
+function isSchengenPrefix(prefix) {
+  return prefix == "LF" || // France
+			prefix == "LS" || // Switzerland
+			prefix == "ED" || // Germany (civil)
+			prefix == "ET" || // Germany (military)
+			prefix == "LO" || // Austria
+			prefix == "EB" || // Belgium
+			prefix == "EL" || // Luxembourg
+			prefix == "EH" || // Netherlands
+			prefix == "EK" || // Denmark
+			prefix == "ES" || // Sweden
+			prefix == "EN" || // Norway
+			prefix == "EF" || // Finland
+			prefix == "EE" || // Estonia
+			prefix == "EV" || // Latvia
+			prefix == "EY" || // Lithuania
+			prefix == "EP" || // Poland
+			prefix == "LK" || // Czech Republic
+			prefix == "LZ" || // Slovakia
+			prefix == "LH" || // Hungary
+			prefix == "LJ" || // Slovenia
+			prefix == "LD" || // Croatia
+			prefix == "LI" || // Italy
+			prefix == "LG" || // Greece
+			prefix == "LE" || // Spain
+			prefix == "LP" || // Portugal
+			prefix == "LM" || // Malta
+			prefix == "BI" || // Iceland
+			prefix == "LB" || // Bulgaria
+			prefix == "LR";   // Romania
+}
+
+function getAircraftCode(config, aircraftType) {
+  if (!aircraftType || typeof aircraftType !== "string") return "F";
+  const wingspan = config.AircraftWingspans[aircraftType.toUpperCase()];
+  if (!wingspan) return "F"; // default if unknown
+  if (wingspan < 15.0) return "A";
+	if (wingspan < 24.0) return "B";
+	if (wingspan < 36.0) return "C";
+	if (wingspan < 52.0) return "D";
+	if (wingspan < 65.0) return "E";
+	if (wingspan < 80.0) return "F";
+}
+
+function getAircraftUse(config, callsign, aircraftType) {
+  if (callsign.length < 3) {
+    return "P"; // general aviation
+  }
+
+  if (callsign[1] === "-" || callsign[2] === "-") {
+    return "P"; // general aviation
+  }
+
+  if (config.CargoOperator.includes(callsign.substring(0, 3).toUpperCase())) {
+    return "C"; // cargo
+  }
+
+  if (config.Helicopters.includes(aircraftType.toUpperCase())) {
+    return "H"; // helicopter
+  }
+
+  if (config.Military.includes(aircraftType.toUpperCase())) {
+    return "M"; // military
+  }
+
+  if (config.GeneralAviation.includes(aircraftType.toUpperCase())) {
+    return "P"; // general aviation
+  }
+
+  return "A"; // default to airliner
+}
+
+//TODO: refactor to use priority system if multiple stands match
+function assignStand(airportConfig, config, callsign, ac) {
   // Check if aircraft already has a stand assigned
   const assignedStand = registry.getAllOccupied().find(s => s.callsign === callsign && s.icao === ac.destination);
   if (assignedStand) {
     info(`Aircraft ${callsign} already assigned to stand ${assignedStand.name} at ${ac.destination}`);
     return;
   }
+
+  const schengen = isSchengen(ac.origin, ac.destination);
+  if (schengen) {
+    info(`Aircraft ${callsign} is a Schengen arrival at ${ac.destination}`);
+  }
+  const code = getAircraftCode(config, ac.aircraftType);
+  info(`Aircraft ${callsign} has aircraft type ${ac.aircraftType} (code: ${code})`);
+  const use = getAircraftUse(config, callsign, ac.aircraftType);
+  info(`Aircraft ${callsign} has use type ${use}`);
+
   for (const [standName, standDef] of Object.entries(airportConfig.Stands)) {
+    // Implements checks
+    if (standDef.Use && standDef.Use !== use) {
+      continue;
+    }
+    if (standDef.Code && standDef.Code.includes(code) === false) {
+      continue;
+    }
+    if (standDef.Schengen && standDef.Schengen !== schengen) {
+      continue;
+    }
+    if (standDef.Countries && Array.isArray(standDef.Countries)) {
+      const originPrefix = ac.origin.substring(0, 2).toUpperCase();
+      if (!standDef.Countries.includes(originPrefix)) {
+        continue;
+      }
+    }
+    if (standDef.Callsigns && Array.isArray(standDef.Callsigns)) {
+      if (!standDef.Callsigns.includes(callsign.substring(0, 3).toUpperCase())) {
+        continue;
+      }
+    }
+
     if (!registry.isOccupied(ac.destination, standName)) {
       if (!registry.isBlocked(ac.destination, standName)) {
         const stand = new Stand(standName, ac.destination, callsign);
         info(
           `Assigning stand ${standName} at ${ac.destination} to ${callsign}`
         );
-        registry.addOccupied(stand);
-        blockStands(standDef, ac.destination, callsign, standName);
+        if (!standDef.Apron || standDef.Apron === false) {
+          registry.addOccupied(stand);
+          blockStands(standDef, ac.destination, callsign, standName);
+        }
         return;
       }
     }
@@ -287,7 +401,7 @@ clientReportParse = (aircrafts) => {
           `Registering occupied stand ${ac.stand} at ${ac.origin} for ${callsign}`
         );
         registry.addOccupied(stand);
-        blockStands(standDef, ac.origin, ac.callsign, ac.stand);
+        blockStands(standDef, ac.origin, callsign, ac.stand);
       }
     }
   }
@@ -317,7 +431,7 @@ clientReportParse = (aircrafts) => {
       continue;
     }
 
-    assignStand(airportConfig, callsign, ac);
+    assignStand(airportConfig, config, callsign, ac);
   }
 };
 
