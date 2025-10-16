@@ -89,6 +89,20 @@ async function fetchReportsPerHour() {
   return json;
 }
 
+async function fetchRequestsPerHour() {
+  const res = await fetch("/api/stats/requests-per-hour"); // match server route
+  if (!res.ok) {
+    console.warn(
+      "fetchRequestsPerHour -> network not ok",
+      res.status,
+      await res.text()
+    );
+    throw new Error("Failed to fetch stats");
+  }
+  const json = await res.json();
+  return json;
+}
+
 function renderReportsChart(data) {
   if (!Array.isArray(data)) {
     console.warn("renderReportsChart -> invalid data", data);
@@ -159,11 +173,17 @@ function renderReportsChart(data) {
 
 async function refreshStatsChart() {
   try {
-    const data = await fetchReportsPerHour();
-    renderReportsChart(data);
-    totalRequests = data.reduce((sum, d) => sum + d.count, 0);
-    document.querySelector("#StatTotal").textContent =
+    const reportsData = await fetchReportsPerHour();
+    const requestsData = await fetchRequestsPerHour();
+    const combinedData = [...reportsData, ...requestsData];
+    
+    renderReportsChart(combinedData);
+    totalRequests = requestsData.reduce((sum, d) => sum + d.count, 0);
+    totalReports = reportsData.reduce((sum, d) => sum + d.count, 0);
+    document.querySelector("#RequestTotal").textContent =
       totalRequests.toLocaleString();
+    document.querySelector("#ReportTotal").textContent =
+      totalReports.toLocaleString();
   } catch (err) {
     console.error("Failed to refresh stats chart", err);
   }
