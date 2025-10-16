@@ -74,3 +74,15 @@ exports.getAllStands = () => {
   }
   return stands;
 };
+
+exports.getConfig = () => {
+  // Return the configuration settings from data/config.json
+  const fs = require('fs');
+  const path = require('path');
+  const configPath = path.join(__dirname, '..', 'data', 'config.json');
+  if (fs.existsSync(configPath)) {
+    const configData = JSON.parse(fs.readFileSync(configPath, 'utf8'));
+    return configData;
+  }
+  return {};
+};

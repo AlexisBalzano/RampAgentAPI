@@ -2,9 +2,6 @@ module.exports = {
   port: 3000,                   // API port
   logLevel: 'info',             // 'debug', 'info', 'warn', 'error'
   staleTimeout: 10_000,         // (ms) before a client report is considered outdated
-  updateInterval: 5_000,        // (ms) optional: how often to purge stale clients
-  maxAlt: 15000,               // (feet) before assigning stand
-  maxDistance: 50.0,           // (nm) before assigning stand
 
 // For c++ node addon
 //   native: {

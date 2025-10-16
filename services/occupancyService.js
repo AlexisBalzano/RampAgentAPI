@@ -1,7 +1,9 @@
 const { info } = require("../utils/logger");
-const { getAirportList, getAirportConfigPath } = require("./airportService");
+const { getAirportList, getConfig, getAirportConfigPath } = require("./airportService");
 const path = require("path");
 const fs = require("fs");
+const { warn } = require("console");
+const { get } = require("http");
 
 class Stand {
   constructor(name, icao, callsign) {
@@ -206,6 +208,65 @@ const isAircraftOnStand = (ac) => {
   return "";
 };
 
+const blockStands = (standDef, icao, callsign, standName) => {
+  if (standDef && standDef.Block && Array.isArray(standDef.Block)) {
+    for (const blockedStandName of standDef.Block) {
+      const blockedStand = new Stand(
+        blockedStandName,
+        icao || "UNKNOWN",
+        callsign
+      );
+        info(
+          `Registering blocked stand ${blockedStandName} at ${icao} due to occupation of ${standName} for ${callsign}`
+        );
+        registry.addBlocked(blockedStand);
+    }
+  }
+};
+
+function isConcernedArrival(callsign, ac, config) {
+  if (!ac || !ac.destination || !ac.position) {
+    return false;
+  }
+  if (ac.position.alt > config.max_alt) {
+    info(`Aircraft ${callsign} is above maximum altitude at ${ac.position.alt}`);
+    return false;
+  }
+  if (ac.position.dist > config.max_distance) {
+    info(`Aircraft ${callsign} is beyond maximum distance at ${ac.position.dist}`);
+    return false;
+  }
+  const airportList = getAirportList();
+  if (!airportList.includes(ac.destination)) {
+    info(`Aircraft ${callsign} is arriving at unsupported airport ${ac.destination}`);
+    return false;
+  }
+  return true;
+}
+
+function assignStand(airportConfig, callsign, ac) {
+  // Check if aircraft already has a stand assigned
+  const assignedStand = registry.getAllOccupied().find(s => s.callsign === callsign && s.icao === ac.destination);
+  if (assignedStand) {
+    info(`Aircraft ${callsign} already assigned to stand ${assignedStand.name} at ${ac.destination}`);
+    return;
+  }
+  for (const [standName, standDef] of Object.entries(airportConfig.Stands)) {
+    if (!registry.isOccupied(ac.destination, standName)) {
+      if (!registry.isBlocked(ac.destination, standName)) {
+        const stand = new Stand(standName, ac.destination, callsign);
+        info(
+          `Assigning stand ${standName} at ${ac.destination} to ${callsign}`
+        );
+        registry.addOccupied(stand);
+        blockStands(standDef, ac.destination, callsign, standName);
+        return;
+      }
+    }
+  }
+  warn(`No available stands found for ${callsign} at ${ac.destination}`);
+}
+
 clientReportParse = (aircrafts) => {
   // Parse JSON of all the reported aircraft positions/states
 
@@ -226,44 +287,40 @@ clientReportParse = (aircrafts) => {
           `Registering occupied stand ${ac.stand} at ${ac.origin} for ${callsign}`
         );
         registry.addOccupied(stand);
-        // Check if stand is blocking other stands
-        if (standDef && standDef.Block && Array.isArray(standDef.Block)) {
-          for (const blockedStandName of standDef.Block) {
-            const blockedStand = new Stand(
-              blockedStandName,
-              ac.origin || "UNKNOWN",
-              callsign
-            );
-            if (!registry.isBlocked(ac.origin, blockedStandName)) {
-              info(
-                `Registering blocked stand ${blockedStandName} at ${ac.origin} due to occupation of ${ac.stand}`
-              );
-              registry.addBlocked(blockedStand);
-            }
-          }
-        }
+        blockStands(standDef, ac.origin, ac.callsign, ac.stand);
       }
     }
   }
 
-  // for (const [callsign, ac] of Object.entries(aircrafts.airborne || {})) {
-  //   if (!ac.stand) {
-  //     // Assigning stand placeholder
-  //     if (registry.isOccupied(ac.destination, "A01")) {
-  //       info(
-  //         `Stand A01 at ${ac.destination} is occupied, assigning B01 to ${callsign}`
-  //       );
-  //       const stand = new Stand("B01", ac.destination || "UNKNOWN", callsign);
-  //       registry.addOccupied(stand);
-  //       continue;
-  //     }
+  // get config.json for parameters
+  const config = getConfig();
+  if (!config) {
+    info("No config found, skipping assignment");
+    return;
+  }
+  
+  // Handle airborne aircraft - (ie: assign stand if criterias met)
+  for (const [callsign, ac] of Object.entries(aircrafts.airborne || {})) {
+    // Check Assignement conditions
+    if (!isConcernedArrival(callsign, ac, config)) {
+      continue;
+    }
+  
+    // Aircraft meets requirements for stand assignment
+    info(
+      `Processing stand assignment for ${callsign} arriving at ${ac.destination}`
+    );
+  
+    const airportConfig = require(getAirportConfigPath(ac.destination));
+    if (!airportConfig || !airportConfig.Stands) {
+      info(`No stands found for airport ${ac.destination}, skipping assignment`);
+      continue;
+    }
 
-  //     const stand = new Stand("A01", ac.destination || "UNKNOWN", callsign);
-  //     info(`Assigning stand A01 at ${ac.destination} to ${callsign}`);
-  //     registry.addOccupied(stand);
-  //   }
-  // }
+    assignStand(airportConfig, callsign, ac);
+  }
 };
+
 
 const getGlobalOccupied = () => {
   const now = Date.now();
