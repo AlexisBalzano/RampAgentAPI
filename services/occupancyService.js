@@ -107,50 +107,52 @@ const isAircraftOnStand = (ac) => {
     if (Array.isArray(al)) {
       airportList = al;
       info(`Loaded airport list: ${airportList.join(", ")}`);
-    } 
+    }
   } catch (e) {
     info(`Error loading airport list: ${e.message}`);
     // ignore - we'll fallback to checking the file directly
   }
 
-  if (ac.origin === "N/A") {
-    // Find current airport
-    info(`Aircraft has origin N/A, trying to determine from position...`);
-    for (const airport of airportList) {
-      try {
-        const airportJson = require(getAirportConfigPath(airport));
-        if (airportJson && airportJson.Coordinates && airportJson.ICAO) {
-          const parts = String(airportJson.Coordinates).split(":");
-          if (parts.length < 2) continue;
-          const lat = parseFloat(parts[0]);
-          const lon = parseFloat(parts[1]);
-          // Validate coordinates
-          if (isNaN(lat) || isNaN(lon)) continue;
-          const radius = parts[2] ? parseFloat(parts[2]) : 5000; // default 5km
-          const aircraftDist = haversineMeters(
-            ac.position.lat,
-            ac.position.lon,
-            lat,
-            lon
+  // Find current airport
+  info(`Aircraft has origin N/A, trying to determine from position...`);
+  for (const airport of airportList) {
+    try {
+      const airportJson = require(getAirportConfigPath(airport));
+      if (airportJson && airportJson.Coordinates && airportJson.ICAO) {
+        const parts = String(airportJson.Coordinates).split(":");
+        if (parts.length < 2) continue;
+        const lat = parseFloat(parts[0]);
+        const lon = parseFloat(parts[1]);
+        // Validate coordinates
+        if (isNaN(lat) || isNaN(lon)) continue;
+        const radius = parts[2] ? parseFloat(parts[2]) : 5000; // default 5km
+        const aircraftDist = haversineMeters(
+          ac.position.lat,
+          ac.position.lon,
+          lat,
+          lon
+        );
+        if (aircraftDist <= radius) {
+          ac.origin = airportJson.ICAO;
+          info(
+            `Found aircraft at airport ${
+              airportJson.ICAO
+            } (distance: ${aircraftDist.toFixed(0)}m)`
           );
-          if (aircraftDist <= radius) {
-            ac.origin = airportJson.ICAO;
-            info(
-              `Found aircraft at airport ${airportJson.ICAO} (distance: ${aircraftDist.toFixed(
-                0
-              )}m)`
-            );
-            break;
-          }
-          else {
-            info(`Aircraft not at airport ${airportJson.ICAO} (distance: ${aircraftDist.toFixed(0)}m)`);
-          }
+          break;
+        } else {
+          info(
+            `Aircraft not at airport ${
+              airportJson.ICAO
+            } (distance: ${aircraftDist.toFixed(0)}m)`
+          );
         }
-      } catch (error) {
-        // Skip this airport if config cannot be loaded
-        info(`Could not load config for airport ${airport}: ${error.message}`);
-        continue;
       }
+    } catch (error) {
+      // Skip this airport if config cannot be loaded
+      info(`Could not load config for airport ${airport}: ${error.message}`);
+      ac.origin = "N/A";
+      continue;
     }
 
     // If still N/A after checking all airports
@@ -220,18 +222,27 @@ clientReportParse = (aircrafts) => {
         info(`Stand ${ac.stand} at ${ac.origin} is an apron.`);
       } else {
         const stand = new Stand(ac.stand, ac.origin || "UNKNOWN", callsign);
-        info(`Registering occupied stand ${ac.stand} at ${ac.origin} for ${callsign}`);
+        info(
+          `Registering occupied stand ${ac.stand} at ${ac.origin} for ${callsign}`
+        );
         registry.addOccupied(stand);
         // Check if stand is blocking other stands
         if (standDef && standDef.Block && Array.isArray(standDef.Block)) {
           for (const blockedStandName of standDef.Block) {
-            const blockedStand = new Stand(blockedStandName, ac.origin || "UNKNOWN", callsign);
+            const blockedStand = new Stand(
+              blockedStandName,
+              ac.origin || "UNKNOWN",
+              callsign
+            );
             if (!registry.isBlocked(ac.origin, blockedStandName)) {
-              info(`Registering blocked stand ${blockedStandName} at ${ac.origin} due to occupation of ${ac.stand}`);
+              info(
+                `Registering blocked stand ${blockedStandName} at ${ac.origin} due to occupation of ${ac.stand}`
+              );
               registry.addBlocked(blockedStand);
             }
           }
-      } }
+        }
+      }
     }
   }
 
@@ -252,7 +263,6 @@ clientReportParse = (aircrafts) => {
   //     registry.addOccupied(stand);
   //   }
   // }
-
 };
 
 const getGlobalOccupied = () => {
