@@ -425,9 +425,7 @@ function assignStand(airportConfig, config, callsign, ac) {
     for (const standDef of availableStandList) {
       if (standDef.Code) {
         anyCode = true;
-        const maxCode = standDef.Code.split("").reduce((a, b) =>
-          a > b ? a : b
-        );
+        const maxCode = standDef.Code.split("").reduce((a, b) => (a > b ? a : b));
         if (maxCode < bestMaxCode) {
           bestMaxCode = maxCode;
           selectedStandDef = standDef;
@@ -561,5 +559,6 @@ module.exports = {
   getAllOccupied: registry.getAllOccupied.bind(registry),
   getAllBlocked: registry.getAllBlocked.bind(registry),
   isOccupied: registry.isOccupied.bind(registry),
+  isBlocked: registry.isBlocked.bind(registry),
   isBlocked: registry.isBlocked.bind(registry),
 };
