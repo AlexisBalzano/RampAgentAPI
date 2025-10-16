@@ -74,13 +74,17 @@ class StandRegistry {
     for (const [key, stand] of this.occupied) {
       if (predicateFn(stand)) {
         this.occupied.delete(key);
-        info(`Clearing expired occupied stand ${stand.name} at ${stand.icao} for ${stand.callsign}`);
+        info(
+          `Clearing expired occupied stand ${stand.name} at ${stand.icao} for ${stand.callsign}`
+        );
       }
     }
     for (const [key, stand] of this.blocked) {
       if (predicateFn(stand)) {
         this.blocked.delete(key);
-        info(`Clearing expired blocked stand ${stand.name} at ${stand.icao} for ${stand.callsign}`);
+        info(
+          `Clearing expired blocked stand ${stand.name} at ${stand.icao} for ${stand.callsign}`
+        );
       }
     }
   }
@@ -425,7 +429,9 @@ function assignStand(airportConfig, config, callsign, ac) {
     for (const standDef of availableStandList) {
       if (standDef.Code) {
         anyCode = true;
-        const maxCode = standDef.Code.split("").reduce((a, b) => (a > b ? a : b));
+        const maxCode = standDef.Code.split("").reduce((a, b) =>
+          a > b ? a : b
+        );
         if (maxCode < bestMaxCode) {
           bestMaxCode = maxCode;
           selectedStandDef = standDef;
@@ -452,6 +458,28 @@ clientReportParse = (aircrafts) => {
 
   // Handle onGround aircraft
   for (const [callsign, ac] of Object.entries(aircrafts.onGround || {})) {
+    const previouslyOnStand = registry
+      .getAllOccupied()
+      .find((s) => s.callsign === callsign);
+
+    if (previouslyOnStand) {
+      info(
+        `Aircraft ${callsign} has left stand ${previouslyOnStand.name} at ${ac.origin}`
+      );
+      registry.removeOccupied(previouslyOnStand);
+
+      // Unblock any stands that were blocked due to this stand
+      const standsToUnblock = registry
+        .getAllBlocked()
+        .filter((s) => s.callsign === callsign);
+
+      standsToUnblock.forEach((s) => {
+        info(
+          `Unblocking stand ${s.name} at ${s.icao} previously blocked due to ${callsign}`
+        );
+        registry.removeBlocked(s);
+      });
+    }
     const aircraftOnStand = isAircraftOnStand(ac);
     if (aircraftOnStand) {
       ac.stand = aircraftOnStand;
@@ -469,30 +497,6 @@ clientReportParse = (aircrafts) => {
         registry.addOccupied(stand);
 
         blockStands(standDef, ac.origin, callsign, ac.stand);
-      }
-    } else {
-      // Check if aircraft was previously on a stand and has now left
-      const previouslyOnStand = registry
-        .getAllOccupied()
-        .find((s) => s.callsign === callsign);
-
-      if (previouslyOnStand) {
-        info(
-          `Aircraft ${callsign} has left stand ${previouslyOnStand.name} at ${ac.origin}`
-        );
-        registry.removeOccupied(previouslyOnStand);
-
-        // Unblock any stands that were blocked due to this stand
-        const standsToUnblock = registry
-          .getAllBlocked()
-          .filter((s) => s.callsign === callsign);
-
-        standsToUnblock.forEach((s) => {
-          info(
-            `Unblocking stand ${s.name} at ${s.icao} previously blocked due to ${callsign}`
-          );
-          registry.removeBlocked(s);
-        });
       }
     }
   }
