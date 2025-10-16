@@ -14,6 +14,7 @@ class Stand {
     this.name = name;
     this.icao = icao;
     this.callsign = callsign;
+    this.timestamp = Date.now();
   }
 
   // Hash function for the Stand class
@@ -53,15 +54,11 @@ class StandRegistry {
   }
 
   isOccupied(icao, name) {
-    for (const s of this.occupied.values())
-      if (s.icao === icao && s.name === name) return true;
-    return false;
+    return this.occupied.has(`${icao}:${name}`);
   }
 
   isBlocked(icao, name) {
-    for (const s of this.blocked.values())
-      if (s.icao === icao && s.name === name) return true;
-    return false;
+    return this.blocked.has(`${icao}:${name}`);
   }
 
   getAllOccupied() {
@@ -75,7 +72,16 @@ class StandRegistry {
   clearExpired(predicateFn) {
     // e.g. remove old stands if needed
     for (const [key, stand] of this.occupied) {
-      if (predicateFn(stand)) this.occupied.delete(key);
+      if (predicateFn(stand)) {
+        this.occupied.delete(key);
+        info(`Clearing expired occupied stand ${stand.name} at ${stand.icao} for ${stand.callsign}`);
+      }
+    }
+    for (const [key, stand] of this.blocked) {
+      if (predicateFn(stand)) {
+        this.blocked.delete(key);
+        info(`Clearing expired blocked stand ${stand.name} at ${stand.icao} for ${stand.callsign}`);
+      }
     }
   }
 }
@@ -339,11 +345,12 @@ function assignStand(airportConfig, config, callsign, ac) {
   // Check if aircraft already has a stand assigned
   const assignedStand = registry
     .getAllOccupied()
-    .find((s) => s.callsign === callsign && s.icao === ac.destination);
+    .find((s) => s.callsign === callsign);
   if (assignedStand) {
     info(
       `Aircraft ${callsign} already assigned to stand ${assignedStand.name} at ${ac.destination}`
     );
+    assignedStand.timestamp = Date.now();
     return;
   }
 
@@ -462,13 +469,14 @@ clientReportParse = (aircrafts) => {
           `Registering occupied stand ${ac.stand} at ${ac.origin} for ${callsign}`
         );
         registry.addOccupied(stand);
+
         blockStands(standDef, ac.origin, callsign, ac.stand);
       }
     } else {
       // Check if aircraft was previously on a stand and has now left
       const previouslyOnStand = registry
         .getAllOccupied()
-        .find((s) => s.callsign === callsign && s.icao === ac.origin);
+        .find((s) => s.callsign === callsign);
 
       if (previouslyOnStand) {
         info(
@@ -477,10 +485,9 @@ clientReportParse = (aircrafts) => {
         registry.removeOccupied(previouslyOnStand);
 
         // Unblock any stands that were blocked due to this stand
-        // Create a list first, then remove to avoid modifying during iteration
         const standsToUnblock = registry
           .getAllBlocked()
-          .filter((s) => s.callsign === callsign && s.icao === ac.origin);
+          .filter((s) => s.callsign === callsign);
 
         standsToUnblock.forEach((s) => {
           info(
@@ -535,6 +542,15 @@ const getGlobalOccupied = () => {
 
   return Array.from(occupied);
 };
+
+function standCleanup() {
+  // Remove occupied stands if timestamp is older than 5 minutes without update
+  const now = Date.now();
+  registry.clearExpired((stand) => now - stand.timestamp > 5 * 60 * 1000);
+  // TODO: also clear blocked if needed
+}
+
+setInterval(standCleanup, 60 * 1000); // every minute
 
 // Export everything together
 module.exports = {
