@@ -1,16 +1,6 @@
 import fetch from "node-fetch";
-setInterval(async () => {
-await fetch("http://localhost:3000/report", {
-  method: "POST",
+
+fetch("http://localhost:3000/api/assign?stand=26&icao=LFMN&callsign=DLH95K", {
+  method: "GET",
   headers: { "Content-Type": "application/json" },
-  body: JSON.stringify({
-    client: "LFPG_APP",
-    aircrafts: {
-      onGround: {
-      },
-      airborne: {
-      },
-    },
-  }),
 });
-}, 400);
