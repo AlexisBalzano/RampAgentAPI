@@ -103,11 +103,42 @@ async function fetchRequestsPerHour() {
   return json;
 }
 
-function renderReportsChart(data) {
-  if (!Array.isArray(data)) {
-    console.warn("renderReportsChart -> invalid data", data);
+function generateTimeWindow(hours = 24) {
+  const now = new Date();
+  const currentHour = new Date(
+    now.getFullYear(),
+    now.getMonth(),
+    now.getDate(),
+    now.getHours()
+  );
+  const timeLabels = [];
+
+  for (let i = hours - 1; i >= 0; i--) {
+    const hour = new Date(currentHour.getTime() - i * 60 * 60 * 1000);
+    timeLabels.push({
+      hourIso: hour.toISOString(),
+      label: `${String(hour.getHours()).padStart(2, "0")}:00`,
+      hour: hour.getHours(),
+    });
+  }
+
+  return timeLabels;
+}
+
+function renderReportsChart(reportsData, requestsData = []) {
+  if (!Array.isArray(reportsData)) {
+    console.warn("renderReportsChart -> invalid data", reportsData);
     return;
   }
+
+  const timeWindow = generateTimeWindow(24);
+  const reportsMap = new Map(reportsData.map((d) => [new Date(d.hourIso).getHours(), d.count]));
+  const requestsMap = new Map(requestsData.map((d) => [new Date(d.hourIso).getHours(), d.count]));
+
+  const labels = timeWindow.map((t) => t.label);
+  const reportsCounts = timeWindow.map((t) => reportsMap.get(t.hour) || 0);
+  const requestsCounts = timeWindow.map((t) => requestsMap.get(t.hour) || 0);
+
   const canvas = document.getElementById("reportsChart");
   if (!canvas) {
     console.warn("renderReportsChart -> canvas#reportsChart not found");
@@ -118,12 +149,8 @@ function renderReportsChart(data) {
     return;
   }
 
-  const labels = data.map((d) => {
-    const dt = new Date(d.hourIso);
-    return `${String(dt.getHours()).padStart(2, "0")}:00`;
-  });
-  const counts = data.map((d) => d.count);
   const ctx = canvas.getContext("2d");
+
   if (!reportsChart) {
     reportsChart = new Chart(ctx, {
       type: "bar",
@@ -132,13 +159,22 @@ function renderReportsChart(data) {
         datasets: [
           {
             label: "Reports / hour",
-            data: counts,
+            data: reportsCounts,
             backgroundColor: "rgba(104, 139, 239,0.7)",
             borderColor: "rgba(54,162,235,1)",
             borderWidth: 1,
             borderRadius: 3,
-            barThickness: 25,
+            maxBarThickness: 40,
           },
+          {
+            label: "Requests / hour",
+            data: requestsCounts,
+            backgroundColor: "rgba(255, 99, 132, 0.7)",
+            borderColor: "rgba(255, 99, 132, 1)",
+            borderWidth: 1,
+            borderRadius: 3,
+            maxBarThickness: 40,
+          }
         ],
       },
       options: {
@@ -147,27 +183,39 @@ function renderReportsChart(data) {
             title: { display: false },
             grid: {
               display: true,
-              lineWidth: 3,
+              lineWidth: 1,
             },
+            offset: true,
+            categoryPercentage: 0.8,
+            barPercentage: 0.9,
           },
           y: {
             beginAtZero: true,
             ticks: { precision: 0 },
             grid: {
               display: true,
-              lineWidth: 3,
+              lineWidth: 1,
             },
           },
         },
-        plugins: { legend: { display: false } },
+        plugins: {
+          legend: { display: true }, // Show legend for both datasets
+          tooltip: { enabled: true },
+        },
         responsive: true,
         maintainAspectRatio: false,
+        animation: {
+          duration: 300,
+        },
       },
     });
   } else {
     reportsChart.data.labels = labels;
-    reportsChart.data.datasets[0].data = counts;
-    reportsChart.update();
+    reportsChart.data.datasets[0].data = reportsCounts;
+    if (reportsChart.data.datasets[1]) {
+      reportsChart.data.datasets[1].data = requestsCounts;
+    }
+    reportsChart.update("none");
   }
 }
 
@@ -175,11 +223,13 @@ async function refreshStatsChart() {
   try {
     const reportsData = await fetchReportsPerHour();
     const requestsData = await fetchRequestsPerHour();
-    const combinedData = [...reportsData, ...requestsData];
     
-    renderReportsChart(combinedData);
+    // Pass both datasets to the chart
+    renderReportsChart(reportsData, requestsData);
+    
     totalRequests = requestsData.reduce((sum, d) => sum + d.count, 0);
     totalReports = reportsData.reduce((sum, d) => sum + d.count, 0);
+    
     document.querySelector("#RequestTotal").textContent =
       totalRequests.toLocaleString();
     document.querySelector("#ReportTotal").textContent =
@@ -418,15 +468,15 @@ function getStandColor(standName, apron) {
   if (occupiedStands.includes(standName)) {
     return ["#B22222", "#FF6B6B"]; // dark red border, light red fill (occupied)
   }
-  
+
   if (blockedStands.includes(standName)) {
     return ["#9c7c22ff", "#cdc54eff"]; // dark teal border, light teal fill (blocked)
   }
-  
+
   if (apron) {
     return ["#4682B4", "#87CEEB"]; // steel blue border, sky blue fill (apron)
   }
-  
+
   return ["#78BFA0", "#96CEB4"]; // darker green border, light green fill (default)
 }
 
@@ -456,7 +506,10 @@ fetch("/api/airports/stands")
     });
 
     if (stands.length === 0) {
-      console.warn("No valid stand coordinates found in /api/airports/stands response", data);
+      console.warn(
+        "No valid stand coordinates found in /api/airports/stands response",
+        data
+      );
     } else {
       stands.forEach((stand) => {
         const color = getStandColor(stand.name, stand.apron);
@@ -497,7 +550,6 @@ setInterval(() => {
     });
   });
 }, 10_000);
-
 
 // Draw airports on map (meter-circle + pixel-marker hybrid)
 var airports = []; // will be filled after fetch
@@ -637,44 +689,48 @@ map.on("zoomend", updateMarkerSizes);
 
 // Custom home button control
 var HomeControl = L.Control.extend({
-  onAdd: function(map) {
-    var container = L.DomUtil.create('div', 'leaflet-bar leaflet-control leaflet-control-custom');
-    
-    container.style.backgroundColor = 'white';
-    container.style.backgroundImage = "url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyNCIgaGVpZ2h0PSIyNCIgdmlld0JveD0iMCAwIDI0IDI0IiBmaWxsPSJub25lIiBzdHJva2U9ImN1cnJlbnRDb2xvciIgc3Ryb2tlLXdpZHRoPSIyIiBzdHJva2UtbGluZWNhcD0icm91bmQiIHN0cm9rZS1saW5lam9pbj0icm91bmQiPjxwYXRoIGQ9Im0zIDkgOS03IDkgN3YxMWgtNnYtNGgtNnY0aC02eiIvPjwvc3ZnPg==')";
-    container.style.backgroundSize = '16px 16px';
-    container.style.backgroundPosition = 'center';
-    container.style.backgroundRepeat = 'no-repeat';
-    container.style.width = '30px';
-    container.style.height = '30px';
-    container.style.cursor = 'pointer';
-    container.title = 'Return to initial view';
-    
-    container.onclick = function(){
+  onAdd: function (map) {
+    var container = L.DomUtil.create(
+      "div",
+      "leaflet-bar leaflet-control leaflet-control-custom"
+    );
+
+    container.style.backgroundColor = "white";
+    container.style.backgroundImage =
+      "url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyNCIgaGVpZ2h0PSIyNCIgdmlld0JveD0iMCAwIDI0IDI0IiBmaWxsPSJub25lIiBzdHJva2U9ImN1cnJlbnRDb2xvciIgc3Ryb2tlLXdpZHRoPSIyIiBzdHJva2UtbGluZWNhcD0icm91bmQiIHN0cm9rZS1saW5lam9pbj0icm91bmQiPjxwYXRoIGQ9Im0zIDkgOS03IDkgN3YxMWgtNnYtNGgtNnY0aC02eiIvPjwvc3ZnPg==')";
+    container.style.backgroundSize = "16px 16px";
+    container.style.backgroundPosition = "center";
+    container.style.backgroundRepeat = "no-repeat";
+    container.style.width = "30px";
+    container.style.height = "30px";
+    container.style.cursor = "pointer";
+    container.title = "Return to initial view";
+
+    container.onclick = function () {
       if (initialBounds && initialBounds.isValid()) {
         map.fitBounds(initialBounds, { animate: true, duration: 1 });
       } else {
         // Fallback to default view if no bounds stored
         map.setView([49.009279, 2.565732], 7, { animate: true });
       }
-    }
-    
+    };
+
     // Prevent map interactions when clicking the button
     L.DomEvent.disableClickPropagation(container);
-    
+
     return container;
   },
 
-  onRemove: function(map) {
+  onRemove: function (map) {
     // Nothing to do here
-  }
+  },
 });
 
 // Add the home control to the map
-var homeControl = new HomeControl({ position: 'topleft' });
+var homeControl = new HomeControl({ position: "topleft" });
 homeControl.addTo(map);
 
 // Store the initial view bounds
-map.whenReady(function() {
+map.whenReady(function () {
   initialBounds = map.getBounds();
 });
