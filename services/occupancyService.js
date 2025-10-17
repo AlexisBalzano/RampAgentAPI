@@ -146,14 +146,14 @@ const isAircraftOnStand = (callsign, ac, airportList) => {
       continue;
     }
 
-    // If still N/A after checking all airports
-    if (ac.origin === "N/A") {
-      error(
-        `Could not determine airport for aircraft at position ${ac.position.lat}, ${ac.position.lon} for callsign: ${callsign}`
-      );
-    }
   }
-
+  // If still N/A after checking all airports
+  if (ac.origin === "N/A") {
+    error(
+      `Could not determine airport for aircraft at position ${ac.position.lat}, ${ac.position.lon} for callsign: ${callsign}`
+    );
+  }
+  
   if (!airportList.includes(ac.origin)) {
     return "";
   }
