@@ -336,8 +336,8 @@ document.addEventListener("DOMContentLoaded", () => {
   renderOccupiedStands();
   renderBlockedStands();
   renderLogs();
-  setInterval(renderOccupiedStands, 5000);
-  setInterval(renderBlockedStands, 5000);
+  setInterval(renderOccupiedStands, 10000);
+  setInterval(renderBlockedStands, 10000);
   setInterval(renderLogs, 2000); // Fetch logs more frequently
 });
 
