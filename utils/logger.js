@@ -1,4 +1,5 @@
 exports.info = (msg) => addServerLog('INFO', msg);
+exports.warn = (msg) => addServerLog('WARN', msg);
 exports.error = (msg) => addServerLog('ERROR', msg);
 
 // Store logs in memory (you might want to use a more robust solution)
