@@ -12,4 +12,10 @@ router.get('/stands', (req, res) => {
   res.json(stands);
 });
 
+router.get('/:icao/stands', (req, res) => {
+  const icao = req.params.icao;
+  const stands = airportService.getStandsByIcao(icao.toUpperCase());
+  res.json(stands);
+});
+
 module.exports = router;

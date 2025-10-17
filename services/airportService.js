@@ -1,3 +1,5 @@
+const { get } = require('http');
+
 exports.getAirportConfigPath = (icao) => {
   if (!icao) {
     return `../data/airports/`;
@@ -73,6 +75,12 @@ exports.getAllStands = () => {
     }
   }
   return stands;
+};
+
+exports.getStandsByIcao = (icao) => {
+  // Return the list of all stands of a specific airport ICAO
+  const airportConfig = require(this.getAirportConfigPath(icao));
+  return airportConfig.Stands;
 };
 
 exports.getConfig = () => {
