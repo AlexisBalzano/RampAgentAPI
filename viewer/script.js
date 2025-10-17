@@ -8,13 +8,20 @@ function closeNav() {
   document.getElementById("mySidenav").style.width = "0";
 }
 
+// Dark mode toggle
+function toggleDarkMode() {
+  document.body.classList.toggle("dark-mode");
+  const isDarkMode = document.body.classList.contains("dark-mode");
+  localStorage.setItem("darkMode", isDarkMode ? "enabled" : "disabled");
+}
+
 // Fetch occupied stands from server and render into the viewer
 function renderOccupiedStands() {
   const ul = document.getElementById("occupiedStands");
   if (!ul) return;
   ul.innerHTML = "<li>Loading...</li>";
 
-  fetch("/api/occupancy/occupied")
+  fetch("/api/occupancy/occupied", {headers:{"X-Internal-Request": "1"}})
     .then((res) => {
       if (!res.ok) throw new Error("Network response was not ok");
       return res.json();
@@ -45,7 +52,7 @@ function renderBlockedStands() {
   if (!ul) return;
   ul.innerHTML = "<li>Loading...</li>";
 
-  fetch("/api/occupancy/blocked")
+  fetch("/api/occupancy/blocked", {headers:{"X-Internal-Request": "1"}})
     .then((res) => {
       if (!res.ok) throw new Error("Network response was not ok");
       return res.json();
@@ -90,7 +97,7 @@ async function fetchReportsPerHour() {
 }
 
 async function fetchRequestsPerHour() {
-  const res = await fetch("/api/stats/requests-per-hour"); // match server route
+  const res = await fetch("/api/stats/requests-per-hour", {headers:{"X-Internal-Request": "1"}}); // match server route
   if (!res.ok) {
     console.warn(
       "fetchRequestsPerHour -> network not ok",
@@ -130,6 +137,11 @@ function renderReportsChart(reportsData, requestsData = []) {
     console.warn("renderReportsChart -> invalid data", reportsData);
     return;
   }
+
+  const isDarkMode = document.body.classList.contains("dark-mode");
+  const gridColor = isDarkMode ? "#444" : "#b0b0b0";
+  const axisTextColor = isDarkMode ? "#444" : "#b0b0b0";
+  const legendTextColor = isDarkMode ? "#444" : "#b0b0b0";
 
   const timeWindow = generateTimeWindow(24);
   const reportsMap = new Map(reportsData.map((d) => [new Date(d.hourIso).getHours(), d.count]));
@@ -180,26 +192,42 @@ function renderReportsChart(reportsData, requestsData = []) {
       options: {
         scales: {
           x: {
-            title: { display: false },
             grid: {
               display: true,
               lineWidth: 1,
+              color: gridColor
+            },
+            ticks: {
+              color: axisTextColor
             },
             offset: true,
             categoryPercentage: 0.8,
             barPercentage: 0.9,
           },
           y: {
-            beginAtZero: true,
-            ticks: { precision: 0 },
             grid: {
               display: true,
               lineWidth: 1,
+              color: gridColor
+            },
+            ticks: {
+              color: axisTextColor,
+              precision: 0
+            },
+            beginAtZero: true,
+            grid: {
+              display: true,
+              lineWidth: 1,
+              color: gridColor
             },
           },
         },
         plugins: {
-          legend: { display: true }, // Show legend for both datasets
+          legend: {
+            labels: {
+              color: legendTextColor
+            }
+          },
           tooltip: { enabled: true },
         },
         responsive: true,
@@ -424,7 +452,7 @@ let occupiedStands = [];
 let blockedStands = [];
 
 function fetchOccupiedStands() {
-  fetch("/api/occupancy/occupied")
+  fetch("/api/occupancy/occupied", {headers:{"X-Internal-Request": "1"}})
     .then((res) => {
       if (!res.ok) throw new Error("Network response was not ok");
       return res.json();
@@ -441,7 +469,7 @@ function fetchOccupiedStands() {
 }
 
 function fetchBlockedStands() {
-  fetch("/api/occupancy/blocked")
+  fetch("/api/occupancy/blocked", {headers:{"X-Internal-Request": "1"}})
     .then((res) => {
       if (!res.ok) throw new Error("Network response was not ok");
       return res.json();
