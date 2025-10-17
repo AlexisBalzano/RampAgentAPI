@@ -81,6 +81,7 @@ function renderBlockedStands() {
 let totalRequests = 0;
 
 let reportsChart = null;
+let airportChart = null;
 
 async function fetchReportsPerHour() {
   const res = await fetch("/api/stats/reports-per-hour"); // match server route
@@ -247,6 +248,68 @@ function renderReportsChart(reportsData, requestsData = []) {
   }
 }
 
+function renderAirportChart() {
+  // Render a pie chart of occupied stands per airport
+  const isDarkMode = document.body.classList.contains("dark-mode");
+  const chartColors = isDarkMode
+    ? ["#6a5acd", "#ff6347", "#3cb371", "#ffa500"]
+    : ["#4a90e2", "#e94e77", "#50b848", "#f5a623"];
+
+  const canvas = document.getElementById("airportChart");
+  if (!canvas) {
+    console.warn("renderAirportChart -> canvas#airportChart not found");
+    return;
+  }
+  if (typeof Chart === "undefined") {
+    console.warn("renderAirportChart -> Chart is not loaded");
+    return;
+  }
+
+  const ctx = canvas.getContext("2d");
+
+  if (!airportChart) {
+    airportChart = new Chart(ctx, {
+      type: "pie",
+      data: {
+        labels: ["Airport 1", "Airport 2", "Airport 3", "Airport 4"], //TODO: Fetch real data
+        datasets: [
+          {
+            data: [300, 150, 100, 50],
+            backgroundColor: chartColors,
+            borderColor: "#222",
+            borderWidth: 0,
+          },
+        ],
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: {
+            position: "top",
+            labels: {
+              color: "#888888"
+            }
+          },
+          tooltip: {
+            callbacks: {
+              label: (tooltipItem) => {
+                const label = tooltipItem.label || "";
+                const value = tooltipItem.raw || 0;
+                return `${label}: ${value}`;
+              },
+            },
+          },
+        },
+      },
+    });
+  } else {
+    airportChart.data.labels = ["Airport 1", "Airport 2", "Airport 3", "Airport 4"];
+    airportChart.data.datasets[0].data = [300, 150, 100, 50];
+    airportChart.update("none");
+  }
+}
+
 async function refreshStatsChart() {
   try {
     const reportsData = await fetchReportsPerHour();
@@ -254,6 +317,7 @@ async function refreshStatsChart() {
     
     // Pass both datasets to the chart
     renderReportsChart(reportsData, requestsData);
+    renderAirportChart();
     
     totalRequests = requestsData.reduce((sum, d) => sum + d.count, 0);
     totalReports = reportsData.reduce((sum, d) => sum + d.count, 0);

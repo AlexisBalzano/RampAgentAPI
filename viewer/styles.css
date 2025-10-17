@@ -355,14 +355,25 @@ body.dark-mode #map {
 .per-airport-chart-wrap {
   justify-content: center;
   max-width: 800px;
-  width: 600px;
+  width: 500px;
   height: 500px;
+  max-height: 500px;
+}
+
+#airportChart {
+  width: 100%;
+  height: 100%;
+  max-width: 600px;
+  max-height: 400px;
+  display: block;
+  margin-top: 20px;
+  margin-bottom: 20px;
 }
 
 .time-chart-wrap {
   justify-content: center;
-  max-width: 350px;
-  width: 350px;
+  max-width: 450px;
+  width: 450px;
   height: 500px;
 }
 
