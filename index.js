@@ -31,8 +31,8 @@ app.use('/api/stats', statRoutes);
  
 // Register routes
 app.use('/debug', express.static(path.join(__dirname, 'viewer')));
-app.use('/report', reportRoutes);
-app.use('/assign', assignRoutes);
+app.use('/api/report', reportRoutes);
+app.use('/api/assign', assignRoutes);
 app.use('/api/occupancy', occupancyRoutes);
 
 app.listen(config.port, () => {
