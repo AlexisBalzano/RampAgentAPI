@@ -1,12 +1,13 @@
-const assignService = require('../services/assignService');
+const occupancyService = require('../services/occupancyService');
+const stat = require('../services/statService');
 
-exports.getAssignedStand = (req, res) => {
-  const { aircraftId } = req.body;
-  if (!aircraftId) return res.status(400).json({ error: 'Missing aircraftId' });
-
-  const assignedStand = assignService.getAssignedStand(aircraftId);
-  if (!assignedStand) {
-    return res.status(404).json({ error: 'No stand assigned to this aircraft' });
-  }
-  res.json({ assignedStand })
+exports.assignStand = (req, res) => {
+    const { standName, icao, callsign } = req.query;
+    try {
+        stat.incrementRequestCount();
+        const result = occupancyService.assignStandToPilot(standName, icao, callsign);
+        res.json({ success: true, message: result });
+    } catch (error) {
+        res.status(500).json({ success: false, message: error.message });
+    }
 };

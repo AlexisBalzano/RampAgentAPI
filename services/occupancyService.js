@@ -111,7 +111,7 @@ const haversineMeters = (lat1, lon1, lat2, lon2) => {
   return kR * c;
 };
 
-const isAircraftOnStand = (ac, airportList) => {
+const isAircraftOnStand = (callsign, ac, airportList) => {
   if (!ac || !ac.origin || !ac.position) {
     return "";
   }
@@ -149,7 +149,7 @@ const isAircraftOnStand = (ac, airportList) => {
     // If still N/A after checking all airports
     if (ac.origin === "N/A") {
       error(
-        `Could not determine airport for aircraft at position ${ac.position.lat}, ${ac.position.lon}`
+        `Could not determine airport for aircraft at position ${ac.position.lat}, ${ac.position.lon} for callsign: ${callsign}`
       );
     }
   }
@@ -443,7 +443,7 @@ clientReportParse = (aircrafts) => {
       });
     }
 
-    const aircraftOnStand = isAircraftOnStand(ac, airportList);
+    const aircraftOnStand = isAircraftOnStand(callsign, ac, airportList);
     if (aircraftOnStand) {
       ac.stand = aircraftOnStand;
       // Check if the stand is an apron by looking into json
@@ -500,6 +500,37 @@ const getGlobalOccupied = () => {
   return Array.from(occupied);
 };
 
+function assignStandToPilot(standName, icao, callsign) {
+  if (standName === "None") {
+    // Remove any existing assignment
+    const existingStand = registry
+      .getAllOccupied()
+      .find((s) => s.callsign === callsign);
+    if (existingStand) {
+      registry.removeOccupied(existingStand);
+    }
+    info(`Removed stand assignment for ${callsign}`);
+    return true;
+  }
+  if (registry.isOccupied(icao, standName)) {
+    warn(
+      `Cannot assign stand ${standName} at ${icao} to ${callsign} - already occupied`
+    );
+    return false;
+  }
+  if (registry.isBlocked(icao, standName)) {
+    warn(
+      `Cannot assign stand ${standName} at ${icao} to ${callsign} - already blocked`
+    );
+    return false;
+  }
+  const stand = new Stand(standName, icao, callsign);
+  registry.addOccupied(stand);
+  info(`Manually assigned stand ${standName} at ${icao} to ${callsign}`);
+  return true;
+}
+
+
 function standCleanup() {
   // Remove occupied stands if timestamp is older than 2 minutes without update
   const now = Date.now();
@@ -513,6 +544,7 @@ module.exports = {
   Stand,
   registry,
   clientReportParse,
+  assignStandToPilot,
   getGlobalOccupied,
   getAllOccupied: registry.getAllOccupied.bind(registry),
   getAllBlocked: registry.getAllBlocked.bind(registry),
