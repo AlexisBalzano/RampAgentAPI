@@ -1,4 +1,4 @@
-const { info } = require("../utils/logger");
+const { info, warn, error } = require("../utils/logger");
 const {
   getAirportList,
   getConfig,
@@ -6,7 +6,6 @@ const {
 } = require("./airportService");
 const path = require("path");
 const fs = require("fs");
-const { warn } = require("console");
 const { get } = require("http");
 
 class Stand {
@@ -74,7 +73,7 @@ class StandRegistry {
     for (const [key, stand] of this.occupied) {
       if (predicateFn(stand)) {
         this.occupied.delete(key);
-        info(
+        warn(
           `Clearing expired occupied stand ${stand.name} at ${stand.icao} for ${stand.callsign}`
         );
       }
@@ -82,7 +81,7 @@ class StandRegistry {
     for (const [key, stand] of this.blocked) {
       if (predicateFn(stand)) {
         this.blocked.delete(key);
-        info(
+        warn(
           `Clearing expired blocked stand ${stand.name} at ${stand.icao} for ${stand.callsign}`
         );
       }
@@ -112,25 +111,12 @@ const haversineMeters = (lat1, lon1, lat2, lon2) => {
   return kR * c;
 };
 
-const isAircraftOnStand = (ac) => {
+const isAircraftOnStand = (ac, airportList) => {
   if (!ac || !ac.origin || !ac.position) {
     return "";
   }
 
-  let airportList = [];
-  try {
-    const al = getAirportList();
-    if (Array.isArray(al)) {
-      airportList = al;
-      info(`Loaded airport list: ${airportList.join(", ")}`);
-    }
-  } catch (e) {
-    info(`Error loading airport list: ${e.message}`);
-    // ignore - we'll fallback to checking the file directly
-  }
-
   // Find current airport
-  info(`Aircraft has origin N/A, trying to determine from position...`);
   for (const airport of airportList) {
     try {
       const airportJson = require(getAirportConfigPath(airport));
@@ -150,30 +136,19 @@ const isAircraftOnStand = (ac) => {
         );
         if (aircraftDist <= radius) {
           ac.origin = airportJson.ICAO;
-          info(
-            `Found aircraft at airport ${
-              airportJson.ICAO
-            } (distance: ${aircraftDist.toFixed(0)}m)`
-          );
           break;
-        } else {
-          info(
-            `Aircraft not at airport ${
-              airportJson.ICAO
-            } (distance: ${aircraftDist.toFixed(0)}m)`
-          );
         }
       }
     } catch (error) {
       // Skip this airport if config cannot be loaded
-      info(`Could not load config for airport ${airport}: ${error.message}`);
+      error(`Could not load config for airport ${airport}: ${error.message}`);
       ac.origin = "N/A";
       continue;
     }
 
     // If still N/A after checking all airports
     if (ac.origin === "N/A") {
-      info(
+      error(
         `Could not determine airport for aircraft at position ${ac.position.lat}, ${ac.position.lon}`
       );
     }
@@ -230,9 +205,6 @@ const blockStands = (standDef, icao, callsign, standName) => {
         icao || "UNKNOWN",
         callsign
       );
-      info(
-        `Registering blocked stand ${blockedStandName} at ${icao} due to occupation of ${standName} for ${callsign}`
-      );
       registry.addBlocked(blockedStand);
     }
   }
@@ -243,22 +215,13 @@ function isConcernedArrival(callsign, ac, config) {
     return false;
   }
   if (ac.position.alt > config.max_alt) {
-    info(
-      `Aircraft ${callsign} is above maximum altitude at ${ac.position.alt}`
-    );
     return false;
   }
   if (ac.position.dist > config.max_distance) {
-    info(
-      `Aircraft ${callsign} is beyond maximum distance at ${ac.position.dist}`
-    );
     return false;
   }
   const airportList = getAirportList();
   if (!airportList.includes(ac.destination)) {
-    info(
-      `Aircraft ${callsign} is arriving at unsupported airport ${ac.destination}`
-    );
     return false;
   }
   return true;
@@ -351,7 +314,7 @@ function assignStand(airportConfig, config, callsign, ac) {
     .getAllOccupied()
     .find((s) => s.callsign === callsign);
   if (assignedStand) {
-    info(
+    warn(
       `Aircraft ${callsign} already assigned to stand ${assignedStand.name} at ${ac.destination}`
     );
     assignedStand.timestamp = Date.now();
@@ -359,15 +322,8 @@ function assignStand(airportConfig, config, callsign, ac) {
   }
 
   const schengen = isSchengen(ac.origin, ac.destination);
-  if (schengen) {
-    info(`Aircraft ${callsign} is a Schengen arrival at ${ac.destination}`);
-  }
   const code = getAircraftCode(config, ac.aircraftType);
-  info(
-    `Aircraft ${callsign} has aircraft type ${ac.aircraftType} (code: ${code})`
-  );
   const use = getAircraftUse(config, callsign, ac.aircraftType);
-  info(`Aircraft ${callsign} has use type ${use}`);
 
   let availableStandList = [];
 
@@ -443,7 +399,6 @@ function assignStand(airportConfig, config, callsign, ac) {
       (name) => airportConfig.Stands[name] === selectedStandDef
     );
     const stand = new Stand(standName, airportConfig.ICAO, callsign);
-    info(`Assigning stand ${standName} at ${ac.destination} to ${callsign}`);
     if (!selectedStandDef.Apron || selectedStandDef.Apron === false) {
       registry.addOccupied(stand);
       blockStands(selectedStandDef, ac.destination, callsign, standName);
@@ -455,6 +410,16 @@ function assignStand(airportConfig, config, callsign, ac) {
 
 clientReportParse = (aircrafts) => {
   // Parse JSON of all the reported aircraft positions/states
+  let airportList = [];
+  try {
+    const al = getAirportList();
+    if (Array.isArray(al)) {
+      airportList = al;
+    }
+  } catch (e) {
+    error(`Error loading airport list: ${e.message}`);
+    // ignore - we'll fallback to checking the file directly
+  }
 
   // Handle onGround aircraft
   for (const [callsign, ac] of Object.entries(aircrafts.onGround || {})) {
@@ -463,9 +428,6 @@ clientReportParse = (aircrafts) => {
       .find((s) => s.callsign === callsign);
 
     if (previouslyOnStand) {
-      info(
-        `Aircraft ${callsign} has left stand ${previouslyOnStand.name} at ${ac.origin}`
-      );
       registry.removeOccupied(previouslyOnStand);
 
       // Unblock any stands that were blocked due to this stand
@@ -474,26 +436,18 @@ clientReportParse = (aircrafts) => {
         .filter((s) => s.callsign === callsign);
 
       standsToUnblock.forEach((s) => {
-        info(
-          `Unblocking stand ${s.name} at ${s.icao} previously blocked due to ${callsign}`
-        );
         registry.removeBlocked(s);
       });
     }
-    const aircraftOnStand = isAircraftOnStand(ac);
+
+    const aircraftOnStand = isAircraftOnStand(ac, airportList);
     if (aircraftOnStand) {
       ac.stand = aircraftOnStand;
-      info(`Aircraft ${callsign} is on stand ${ac.stand} at ${ac.origin}`);
       // Check if the stand is an apron by looking into json
       const airportJson = require(getAirportConfigPath(ac.origin));
       const standDef = airportJson.Stands && airportJson.Stands[ac.stand];
-      if (standDef && standDef.Apron && standDef.Apron === true) {
-        info(`Stand ${ac.stand} at ${ac.origin} is an apron.`);
-      } else {
+      if (standDef || !standDef.Apron || standDef.Apron === false) {
         const stand = new Stand(ac.stand, ac.origin || "UNKNOWN", callsign);
-        info(
-          `Registering occupied stand ${ac.stand} at ${ac.origin} for ${callsign}`
-        );
         // Remove preceeding entry if any
         registry.removeOccupied(stand);
         registry.addOccupied(stand);
@@ -506,7 +460,7 @@ clientReportParse = (aircrafts) => {
   // get config.json for parameters
   const config = getConfig();
   if (!config) {
-    info("No config found, skipping assignment");
+    error("No config found, skipping assignment");
     return;
   }
 
@@ -518,13 +472,9 @@ clientReportParse = (aircrafts) => {
     }
 
     // Aircraft meets requirements for stand assignment
-    info(
-      `Processing stand assignment for ${callsign} arriving at ${ac.destination}`
-    );
-
     const airportConfig = require(getAirportConfigPath(ac.destination));
     if (!airportConfig || !airportConfig.Stands) {
-      info(
+      warn(
         `No stands found for airport ${ac.destination}, skipping assignment`
       );
       continue;
@@ -548,9 +498,9 @@ const getGlobalOccupied = () => {
 };
 
 function standCleanup() {
-  // Remove occupied stands if timestamp is older than 5 minutes without update
+  // Remove occupied stands if timestamp is older than 2 minutes without update
   const now = Date.now();
-  registry.clearExpired((stand) => now - stand.timestamp > 5 * 60 * 1000);
+  registry.clearExpired((stand) => now - stand.timestamp > 2 * 60 * 1000);
 }
 
 setInterval(standCleanup, 60 * 1000); // every minute
