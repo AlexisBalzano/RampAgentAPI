@@ -351,6 +351,20 @@ body.dark-mode #map {
   height: 500px;
 }
 
+.per-airport-chart-wrap {
+  justify-content: center;
+  max-width: 800px;
+  width: 600px;
+  height: 500px;
+}
+
+.time-chart-wrap {
+  justify-content: center;
+  max-width: 350px;
+  width: 350px;
+  height: 500px;
+}
+
 
 #reportsChart {
   width: 100%;
@@ -364,3 +378,65 @@ body.dark-mode #map {
 body.dark-mode #reportsChart {
   filter: brightness(0.8);
 }
+
+/* Config page */
+#configButtonContainer {
+  display: flex;
+  gap: 15px;
+  flex-wrap: wrap;
+}
+
+.configButton {
+  padding: 10px 20px;
+  border: 1px solid #ccc;
+  border-radius: 8px;
+  background-color: #4a5d83;
+  cursor: pointer;
+  font-weight: bold;
+  color: white;
+}
+body.dark-mode .configButton {
+  background-color: #3a3a3a;
+  border: 1px solid #666;
+  color: #e0e0e0;
+}
+
+.configButton:hover {
+  background-color: #3d5073;
+}
+body.dark-mode .configButton:hover {
+  background-color: #4a4a4a;
+}
+
+#configContainer {
+  margin-top: 20px;
+  border: 1px solid #ccc;
+  border-radius: 10px;
+  padding: 10px;
+  background-color: #3a3a3a;
+  color : #FFFFFF;
+  max-height: 600px;
+  overflow-y: auto;
+}
+body.dark-mode #configContainer {
+  background-color: #3a3a3a;
+  border: 1px solid #555;
+  color: #c0c0c0;
+}
+
+#configContent {
+  font-family: "Courier New", monospace;
+  font-size: 14px;
+  white-space: pre-wrap;
+  word-wrap: break-word;
+}
+#configContent code {
+  display: block;
+}
+
+/* JSON syntax highlighting */
+.json-key    { color: #84b8d4; }
+.json-string { color: #b8826d; }
+.json-number { color: #9db292; }
+.json-boolean{ color: #4c86b6; }
+.json-null   { color: #5087b7; }

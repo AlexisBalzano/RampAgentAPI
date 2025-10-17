@@ -7,6 +7,12 @@ router.get('/', (req, res) => {
   res.json(airportList);
 });
 
+router.get('/config/:icao', (req, res) => {
+  const icao = req.params.icao;
+  const airportConfig = require(airportService.getAirportConfigPath(icao.toUpperCase()));
+  res.json({ airportConfig });
+});
+
 router.get('/stands', (req, res) => {
   const stands = airportService.getAllStands();
   res.json(stands);

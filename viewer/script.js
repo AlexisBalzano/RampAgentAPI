@@ -363,6 +363,7 @@ function scrollToBottom() {
 document.addEventListener("DOMContentLoaded", () => {
   renderOccupiedStands();
   renderBlockedStands();
+  renderConfigButtons();
   renderLogs();
   setInterval(renderOccupiedStands, 10000);
   setInterval(renderBlockedStands, 10000);
@@ -762,3 +763,80 @@ homeControl.addTo(map);
 map.whenReady(function () {
   initialBounds = map.getBounds();
 });
+
+
+// Configs page
+// generate buttons for available config presets
+function renderConfigButtons() {
+  const container = document.getElementById("configButtonContainer");
+  if (!container) return;
+  container.innerHTML = "<p>Loading presets...</p>";
+  fetch("/api/airports", { headers: { "X-Internal-Request": "1" } })
+    .then((res) => {
+      if (!res.ok) throw new Error("Network response was not ok");
+      return res.json();
+    })
+    .then((presets) => {
+      container.innerHTML = "";
+      if (!Array.isArray(presets) || presets.length === 0) {
+        container.innerHTML = "<p>No presets available.</p>";
+        return;
+      }
+      presets.forEach((preset) => {
+        const button = document.createElement("button");
+        button.className = "configButton";
+        button.textContent = preset.name;
+        button.setAttribute("aria-label", `Load config ${preset.name}`);
+        button.onclick = () => loadConfig(preset.name);
+        container.appendChild(button);
+      });
+    })
+    .catch((error) => {
+      console.error("Error fetching config presets:", error);
+      container.innerHTML = "<p>Error loading presets.</p>";
+    });
+}
+
+function syntaxHighlight(json) {
+  if (typeof json != "string") {
+    json = JSON.stringify(json, null, 2);
+  }
+  json = json.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+  return json.replace(
+    /("(\\u[a-zA-Z0-9]{4}|\\[^u]|[^\\"])*"(\s*:)?|\b(true|false|null)\b|-?\d+(?:\.\d*)?(?:[eE][+\-]?\d+)?)/g,
+    function (match) {
+      let cls = "json-number";
+      if (/^"/.test(match)) {
+        if (/:$/.test(match)) {
+          cls = "json-key";
+        } else {
+          cls = "json-string";
+        }
+      } else if (/true|false/.test(match)) {
+        cls = "json-boolean";
+      } else if (/null/.test(match)) {
+        cls = "json-null";
+      }
+      return `<span class="${cls}">${match}</span>`;
+    }
+  );
+}
+
+function loadConfig(presetName) {
+  if (!presetName) return;
+  fetch(`/api/airports/config/${encodeURIComponent(presetName)}`, { method: "GET", headers: { "X-Internal-Request": "1" } })
+    .then((res) => {
+      if (!res.ok) throw new Error("Network response was not ok");
+      return res.json();
+    })
+    .then((data) => {
+      // load config json text into pre code of id configCode
+      const code = document.getElementById("configCode");
+      if (code) {
+        code.innerHTML = syntaxHighlight(data);
+      }
+    })
+    .catch((error) => {
+      console.error("Error loading config preset:", error);
+    });
+}
