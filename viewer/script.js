@@ -17,10 +17,6 @@ function toggleDarkMode() {
 
 // Status page
 
-// filter occupied stands by airport icao
-// add subcontainer child to status-container for each airport
-// add departure-board child to each airport subcontainer for each occupied stand
-
 function generateSpanforText(text) {
   const departureBoard = document.createElement("div");
   departureBoard.className = "departure-board";
