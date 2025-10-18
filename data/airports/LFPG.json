@@ -1,618 +1,648 @@
 {
-    "version": "v1.0.4",
+    "version": "v1.0.5",
     "ICAO": "LFPG",
     "Coordinates": "49.010965:2.560501:6000",
     "Stands": {
         "A01": {
-            "Coordinates": "48.999836:2.560711:25",
+            "Coordinates": "48.999947:2.560557:25",
+            "Code": "CDE",
             "Use": "A",
             "Schengen": false,
             "Callsigns": [
-                "DAH",
-                "KZR",
+                "TAM",
                 "ACA",
-                "SEY",
-                "THT",
-                "AAL",
-                "BAW",
-                "CPA",
-                "ETD",
-                "ETH",
-                "CHH",
-                "OMA",
-                "RJA",
-                "XLF"
+                "CES",
+                "AAL"
             ],
-            "WTC": "LM",
             "Priority": 1
         },
-        "A02": {
-            "Coordinates": "49.001942:2.560117:25",
-            "Use": "A",
-            "Schengen": false,
-            "Callsigns": [
-                "DAH",
-                "KZR",
-                "ACA",
-                "SEY",
-                "THT",
-                "AAL",
-                "BAW",
-                "CPA",
-                "ETD",
-                "ETH",
-                "CHH",
-                "OMA",
-                "RJA",
-                "XLF"
-            ],
-            "WTC": "LMH",
-            "Priority": 3
-        },
         "A03": {
-            "Coordinates": "48.999881:2.561539:25",
+            "Coordinates": "49.000000:2.561388:25",
+            "Code": "DE",
             "Use": "A",
             "Schengen": false,
             "Callsigns": [
-                "DAH",
-                "KZR",
+                "TAM",
                 "ACA",
-                "SEY",
-                "THT",
-                "AAL",
-                "BAW",
-                "CPA",
-                "ETD",
-                "ETH",
-                "CHH",
-                "OMA",
-                "RJA",
-                "XLF"
+                "CES",
+                "AAL"
             ],
-            "WTC": "LM",
             "Priority": 1
         },
         "A04": {
-            "Coordinates": "49.002006:2.560472:25",
+            "Coordinates": "49.001881:2.560160:25",
+            "Code": "DE",
             "Use": "A",
+            "Block": [
+                "A06"
+            ],
             "Schengen": false,
             "Callsigns": [
-                "DAH",
-                "KZR",
+                "TAM",
                 "ACA",
-                "SEY",
-                "THT",
-                "AAL",
-                "BAW",
-                "CPA",
-                "ETD",
-                "ETH",
-                "CHH",
-                "OMA",
-                "RJA",
-                "XLF"
+                "CES",
+                "AAL"
             ],
-            "WTC": "LMH",
-            "Priority": 3
+            "Priority": 2
         },
         "A05": {
-            "Coordinates": "48.999931:2.562447:25",
+            "Coordinates": "49.000075:2.562435:25",
+            "Code": "DE",
             "Use": "A",
             "Schengen": false,
             "Callsigns": [
-                "DAH",
-                "KZR",
+                "TAM",
                 "ACA",
-                "SEY",
-                "THT",
-                "AAL",
-                "BAW",
-                "CPA",
-                "ETD",
-                "ETH",
-                "CHH",
-                "OMA",
-                "RJA",
-                "XLF"
+                "CES",
+                "AAL"
             ],
-            "WTC": "LM",
             "Priority": 1
         },
         "A06": {
-            "Coordinates": "49.00195:2.560528:25",
+            "Coordinates": "49.001687:2.560681:25",
+            "Code": "C",
             "Use": "A",
+            "Block": [
+                "A04"
+            ],
             "Schengen": false,
             "Callsigns": [
-                "DAH",
-                "KZR",
+                "TAM",
                 "ACA",
-                "SEY",
-                "THT",
-                "AAL",
-                "BAW",
-                "CPA",
-                "ETD",
-                "ETH",
-                "CHH",
-                "OMA",
-                "RJA",
-                "XLF"
+                "CES",
+                "AAL"
             ],
-            "WTC": "LMH",
-            "Priority": 3
+            "Priority": 1
         },
         "A07": {
-            "Coordinates": "48.999981:2.563367:25",
+            "Coordinates": "49.000167:2.563342:25",
+            "Code": "DE",
             "Use": "A",
             "Schengen": false,
             "Callsigns": [
-                "DAH",
-                "KZR",
+                "TAM",
                 "ACA",
-                "SEY",
-                "THT",
-                "AAL",
-                "BAW",
-                "CPA",
-                "ETD",
-                "ETH",
-                "CHH",
-                "OMA",
-                "RJA",
-                "XLF"
+                "CES",
+                "AAL"
             ],
-            "WTC": "LM",
-            "Priority": 1
+            "Priority": 2
         },
         "A08": {
-            "Coordinates": "49.001931:2.561214:25",
+            "Coordinates": "49.001652:2.561325:25",
+            "Code": "DE",
             "Use": "A",
             "Schengen": false,
             "Callsigns": [
-                "DAH",
-                "KZR",
+                "TAM",
                 "ACA",
-                "SEY",
-                "THT",
-                "AAL",
-                "BAW",
-                "CPA",
-                "ETD",
-                "ETH",
-                "CHH",
-                "OMA",
-                "RJA",
-                "XLF"
+                "CES",
+                "AAL"
             ],
-            "WTC": "LMH",
-            "Priority": 3
+            "Priority": 1
         },
         "A09": {
-            "Coordinates": "49.000028:2.564286:25",
+            "Coordinates": "49.000172:2.564267:25",
+            "Code": "DE",
             "Use": "A",
             "Schengen": false,
             "Callsigns": [
-                "DAH",
-                "KZR",
+                "TAM",
                 "ACA",
-                "SEY",
-                "THT",
-                "AAL",
-                "BAW",
-                "CPA",
-                "ETD",
-                "ETH",
-                "CHH",
-                "OMA",
-                "RJA",
-                "XLF"
+                "CES",
+                "AAL"
             ],
-            "WTC": "LMH",
-            "Priority": 1
+            "Priority": 2
         },
         "A10": {
-            "Coordinates": "49.001842:2.561978:25",
+            "Coordinates": "49.001656:2.562258:25",
+            "Code": "DE",
             "Use": "A",
             "Schengen": false,
             "Callsigns": [
-                "DAH",
-                "KZR",
+                "TAM",
                 "ACA",
-                "SEY",
-                "THT",
-                "AAL",
-                "BAW",
-                "CPA",
-                "ETD",
-                "ETH",
-                "CHH",
-                "OMA",
-                "RJA",
-                "XLF"
+                "CES",
+                "AAL"
             ],
-            "WTC": "LMH",
-            "Priority": 3
+            "Priority": 1
         },
         "A12": {
-            "Coordinates": "49.001872:2.562706:25",
+            "Coordinates": "49.001689:2.563071:20",
+            "Code": "C",
             "Use": "A",
+            "Block": [
+                "A14"
+            ],
             "Schengen": false,
             "Callsigns": [
-                "DAH",
-                "KZR",
+                "TAM",
                 "ACA",
-                "SEY",
-                "THT",
-                "AAL",
-                "BAW",
-                "CPA",
-                "ETD",
-                "ETH",
-                "CHH",
-                "OMA",
-                "RJA",
-                "XLF"
+                "CES",
+                "AAL"
             ],
-            "WTC": "LMH",
-            "Priority": 3
+            "Priority": 1
         },
         "A14": {
-            "Coordinates": "49.001975:2.563453:25",
+            "Coordinates": "49.001737:2.563443:16",
+            "Code": "DE",
+            "Use": "A",
+            "Block": [
+                "A12",
+                "A16"
+            ],
+            "Schengen": false,
+            "Callsigns": [
+                "TAM",
+                "ACA",
+                "CES",
+                "AAL"
+            ],
+            "Priority": 2
+        },
+        "A16": {
+            "Coordinates": "49.001719:2.563881:20",
+            "Code": "C",
+            "Use": "A",
+            "Block": [
+                "A14"
+            ],
+            "Schengen": false,
+            "Callsigns": [
+                "TAM",
+                "ACA",
+                "CES",
+                "AAL"
+            ],
+            "Priority": 1
+        },
+        "A18": {
+            "Coordinates": "49.002001:2.564366:25",
+            "Code": "CDE",
             "Use": "A",
             "Schengen": false,
             "Callsigns": [
-                "DAH",
-                "KZR",
+                "TAM",
                 "ACA",
-                "SEY",
-                "THT",
-                "AAL",
-                "BAW",
-                "CPA",
-                "ETD",
-                "ETH",
-                "CHH",
-                "OMA",
-                "RJA",
-                "XLF"
+                "CES",
+                "AAL"
             ],
-            "WTC": "LM",
-            "Priority": 3
+            "Priority": 1
         },
         "A30": {
-            "Coordinates": "49.0023:2.558264:25",
+            "Coordinates": "49.002356:2.558033:25",
+            "Remark": {
+                "DE": "Push W",
+                "C": "Push S/W"
+            },
+            "Code": "CDE",
             "Use": "A",
             "Schengen": false,
             "Callsigns": [
-                "DAH",
-                "KZR",
+                "TAM",
                 "ACA",
-                "SEY",
-                "THT",
-                "AAL",
-                "BAW",
-                "CPA",
-                "ETD",
-                "ETH",
-                "CHH",
-                "OMA",
-                "RJA",
-                "XLF"
+                "CES",
+                "AAL"
             ],
-            "WTC": "LMH",
-            "Priority": 3
+            "Priority": 1
         },
         "A32": {
-            "Coordinates": "49.001922:2.558197:25",
+            "Coordinates": "49.001826:2.557972:20",
+            "Remark": {
+                "C": "Push S"
+            },
+            "Code": "C",
             "Use": "A",
+            "Block": [
+                "A34"
+            ],
             "Schengen": false,
             "Callsigns": [
-                "DAH",
-                "KZR",
+                "TAM",
                 "ACA",
-                "SEY",
-                "THT",
-                "AAL",
-                "BAW",
-                "CPA",
-                "ETD",
-                "ETH",
-                "CHH",
-                "OMA",
-                "RJA",
-                "XLF"
+                "CES",
+                "AAL"
             ],
-            "WTC": "LMH",
-            "Priority": 3
+            "Priority": 1
         },
         "A34": {
-            "Coordinates": "49.001883:2.558569:25",
+            "Coordinates": "49.001800:2.558379:20",
+            "Remark": {
+                "DE": "Push W",
+                "C": "Push S/W"
+            },
+            "Code": "CDE",
             "Use": "A",
+            "Block": [
+                "A32"
+            ],
             "Schengen": false,
             "Callsigns": [
-                "DAH",
-                "KZR",
+                "TAM",
                 "ACA",
-                "SEY",
-                "THT",
-                "AAL",
-                "BAW",
-                "CPA",
-                "ETD",
-                "ETH",
-                "CHH",
-                "OMA",
-                "RJA",
-                "XLF"
+                "CES",
+                "AAL"
             ],
-            "WTC": "LMH",
-            "Priority": 3
-        },
-        "A36": {
-            "Coordinates": "49.001831:2.55855:25",
-            "Use": "A",
-            "Schengen": false,
-            "Callsigns": [
-                "DAH",
-                "KZR",
-                "ACA",
-                "SEY",
-                "THT",
-                "AAL",
-                "BAW",
-                "CPA",
-                "ETD",
-                "ETH",
-                "CHH",
-                "OMA",
-                "RJA",
-                "XLF"
-            ],
-            "WTC": "LMH",
-            "Priority": 3
+            "Priority": 2
         },
         "A38": {
-            "Coordinates": "49.001697:2.559081:25",
+            "Coordinates": "49.001492:2.559018:25",
+            "Remark": {
+                "CDE": "Push W"
+            },
+            "Code": "CDE",
             "Use": "A",
             "Schengen": false,
             "Callsigns": [
-                "DAH",
-                "KZR",
+                "TAM",
                 "ACA",
-                "SEY",
-                "THT",
-                "AAL",
-                "BAW",
-                "CPA",
-                "ETD",
-                "ETH",
-                "CHH",
-                "OMA",
-                "RJA",
-                "XLF"
+                "CES",
+                "AAL"
             ],
-            "WTC": "LMH",
-            "Priority": 3
+            "Priority": 1
+        },
+        "A39": {
+            "Coordinates": "48.999929:2.558964:25",
+            "Remark": {
+                "DE": "Push W"
+            },
+            "Code": "DE",
+            "Use": "A",
+            "Schengen": false,
+            "Callsigns": [
+                "TAM",
+                "ACA",
+                "CES",
+                "AAL"
+            ],
+            "Priority": 2
         },
         "C02": {
-            "Coordinates": "49.002125:2.565903:25",
+            "Coordinates": "49.001988:2.565509:20",
+            "Code": "DE",
             "Use": "A",
+            "Block": [
+                "CFW"
+            ],
             "Schengen": false,
             "Callsigns": [
-                "AFL",
-                "REU",
+                "ACI",
+                "AMX",
                 "AIC",
-                "MDG",
-                "UAE",
-                "ETD",
+                "BAW",
+                "ETH",
                 "GFA",
-                "JAI",
-                "KQA",
-                "SVA",
-                "UZB"
+                "LAN",
+                "MEA",
+                "QFA",
+                "RJA",
+                "SZN",
+                "TAM",
+                "UAE",
+                "VRE"
             ],
-            "WTC": "LMH",
-            "Priority": 3
+            "Priority": 2
         },
         "C03": {
-            "Coordinates": "49.000294:2.566942:25",
+            "Coordinates": "49.000456:2.566853:25",
+            "Code": "DE",
             "Use": "A",
             "Schengen": false,
             "Callsigns": [
-                "AFL",
-                "REU",
+                "ACI",
+                "AMX",
                 "AIC",
-                "MDG",
-                "UAE",
-                "ETD",
+                "BAW",
+                "ETH",
                 "GFA",
-                "JAI",
-                "KQA",
-                "SVA",
-                "UZB"
+                "LAN",
+                "MEA",
+                "QFA",
+                "RJA",
+                "SZN",
+                "TAM",
+                "UAE",
+                "VRE"
             ],
-            "WTC": "LM",
-            "Priority": 1
+            "Priority": 3
         },
         "C04": {
-            "Coordinates": "49.0021:2.566683:25",
+            "Coordinates": "49.001918:2.566381:20",
+            "Code": "DE",
             "Use": "A",
+            "Block": [
+                "C4A"
+            ],
             "Schengen": false,
             "Callsigns": [
-                "AFL",
-                "REU",
+                "ACI",
+                "AMX",
                 "AIC",
-                "MDG",
-                "UAE",
-                "ETD",
+                "BAW",
+                "ETH",
                 "GFA",
-                "JAI",
-                "KQA",
-                "SVA",
-                "UZB"
+                "LAN",
+                "MEA",
+                "QFA",
+                "RJA",
+                "SZN",
+                "TAM",
+                "UAE",
+                "VRE"
             ],
-            "WTC": "LMH",
-            "Priority": 3
+            "Priority": 2
+        },
+        "C4A": {
+            "Coordinates": "49.001833:2.566874:20",
+            "Code": "C",
+            "Use": "A",
+            "Block": [
+                "C04"
+            ],
+            "Schengen": false,
+            "Callsigns": [
+                "ACI",
+                "AMX",
+                "AIC",
+                "BAW",
+                "ETH",
+                "GFA",
+                "LAN",
+                "MEA",
+                "QFA",
+                "RJA",
+                "SZN",
+                "TAM",
+                "UAE",
+                "VRE"
+            ],
+            "Priority": 1
         },
         "C05": {
-            "Coordinates": "49.000206:2.567861:25",
+            "Coordinates": "49.000403:2.567754:20",
+            "Code": "DE",
             "Use": "A",
+            "Block": [
+                "CF9"
+            ],
             "Schengen": false,
             "Callsigns": [
-                "AFL",
-                "REU",
+                "ACI",
+                "AMX",
                 "AIC",
-                "MDG",
-                "UAE",
-                "ETD",
+                "BAW",
+                "ETH",
                 "GFA",
-                "JAI",
-                "KQA",
-                "SVA",
-                "UZB"
+                "LAN",
+                "MEA",
+                "QFA",
+                "RJA",
+                "SZN",
+                "TAM",
+                "UAE",
+                "VRE"
             ],
-            "WTC": "LM",
-            "Priority": 1
+            "Priority": 3
         },
         "C06": {
-            "Coordinates": "49.002028:2.567372:25",
+            "Coordinates": "49.001828:2.567397:25",
+            "Code": "DE",
             "Use": "A",
             "Schengen": false,
             "Callsigns": [
-                "AFL",
-                "REU",
+                "ACI",
+                "AMX",
                 "AIC",
-                "MDG",
-                "UAE",
-                "ETD",
+                "BAW",
+                "ETH",
                 "GFA",
-                "JAI",
-                "KQA",
-                "SVA",
-                "UZB"
-            ],
-            "WTC": "LMH",
-            "Priority": 3
-        },
-        "C07": {
-            "Coordinates": "49.00025:2.568675:25",
-            "Use": "A",
-            "Schengen": false,
-            "Callsigns": [
-                "AFL",
-                "REU",
-                "AIC",
-                "MDG",
+                "LAN",
+                "MEA",
+                "QFA",
+                "RJA",
+                "SZN",
+                "TAM",
                 "UAE",
-                "ETD",
-                "GFA",
-                "JAI",
-                "KQA",
-                "SVA",
-                "UZB"
+                "VRE"
             ],
-            "WTC": "LM",
             "Priority": 1
         },
-        "C08": {
-            "Coordinates": "49.002189:2.568208:25",
+        "C07": {
+            "Coordinates": "49.000380:2.568663:15",
+            "Code": "DE",
             "Use": "A",
+            "Block": [
+                "CF9"
+            ],
             "Schengen": false,
             "Callsigns": [
-                "AFL",
-                "REU",
+                "ACI",
+                "AMX",
                 "AIC",
-                "MDG",
-                "UAE",
-                "ETD",
+                "BAW",
+                "ETH",
                 "GFA",
-                "JAI",
-                "KQA",
-                "SVA",
-                "UZB"
+                "LAN",
+                "MEA",
+                "QFA",
+                "RJA",
+                "SZN",
+                "TAM",
+                "UAE",
+                "VRE"
             ],
-            "WTC": "LM",
             "Priority": 3
         },
-        "C09": {
-            "Coordinates": "49.000258:2.568031:25",
+        "C08": {
+            "Coordinates": "49.001948:2.568253:25",
+            "Code": "DE",
             "Use": "A",
             "Schengen": false,
             "Callsigns": [
-                "AFL",
-                "REU",
+                "ACI",
+                "AMX",
                 "AIC",
-                "MDG",
-                "UAE",
-                "ETD",
+                "BAW",
+                "ETH",
                 "GFA",
-                "JAI",
-                "KQA",
-                "SVA",
-                "UZB"
+                "LAN",
+                "MEA",
+                "QFA",
+                "RJA",
+                "SZN",
+                "TAM",
+                "UAE",
+                "VRE"
             ],
-            "WTC": "LMH",
             "Priority": 1
         },
         "C10": {
-            "Coordinates": "49.002261:2.569625:25",
+            "Coordinates": "49.001877:2.568958:17",
+            "Code": "C",
             "Use": "A",
             "Schengen": false,
             "Callsigns": [
-                "AFL",
-                "REU",
+                "ACI",
+                "AMX",
                 "AIC",
-                "MDG",
-                "UAE",
-                "ETD",
+                "BAW",
+                "ETH",
                 "GFA",
-                "JAI",
-                "KQA",
-                "SVA",
-                "UZB"
+                "LAN",
+                "MEA",
+                "QFA",
+                "RJA",
+                "SZN",
+                "TAM",
+                "UAE",
+                "VRE"
             ],
-            "WTC": "LMH",
-            "Priority": 3
+            "Priority": 2,
+            "Block": [
+                "C12"
+            ]
         },
         "C12": {
-            "Coordinates": "49.002261:2.568989:25",
+            "Coordinates": "49.002106:2.569106:16",
+            "Code": "DE",
             "Use": "A",
             "Schengen": false,
             "Callsigns": [
-                "AFL",
-                "REU",
+                "ACI",
+                "AMX",
                 "AIC",
-                "MDG",
-                "UAE",
-                "ETD",
+                "BAW",
+                "ETH",
                 "GFA",
-                "JAI",
-                "KQA",
-                "SVA",
-                "UZB"
+                "LAN",
+                "MEA",
+                "QFA",
+                "RJA",
+                "SZN",
+                "TAM",
+                "UAE",
+                "VRE"
             ],
-            "WTC": "LM",
-            "Priority": 3
+            "Priority": 1,
+            "Block": [
+                "C10",
+                "CFE"
+            ]
         },
-        "C16": {
-            "Coordinates": "49.002594:2.569625:25",
+        "C14": {
+            "Coordinates": "49.002442:2.569843:10",
+            "Code": "DE",
             "Use": "A",
+            "Block": [
+                "CFE"
+            ],
             "Schengen": false,
             "Callsigns": [
-                "AFL",
-                "REU",
+                "ACI",
+                "AMX",
                 "AIC",
-                "MDG",
-                "UAE",
-                "ETD",
+                "BAW",
+                "ETH",
                 "GFA",
-                "JAI",
-                "KQA",
-                "SVA",
-                "UZB"
+                "LAN",
+                "MEA",
+                "QFA",
+                "RJA",
+                "SZN",
+                "TAM",
+                "UAE",
+                "VRE"
             ],
-            "WTC": "LMH",
-            "Priority": 3
+            "Priority": 2
+        },
+        "CF9": {
+            "Coordinates": "49.000544:2.568218:25",
+            "Remark": {
+                "F": "Push W, pull TA3"
+            },
+            "Code": "F",
+            "Use": "A",
+            "Block": [
+                "C05",
+                "C07"
+            ],
+            "Schengen": false,
+            "Callsigns": [
+                "ACI",
+                "AMX",
+                "AIC",
+                "BAW",
+                "ETH",
+                "GFA",
+                "LAN",
+                "MEA",
+                "QFA",
+                "RJA",
+                "SZN",
+                "TAM",
+                "UAE",
+                "VRE"
+            ],
+            "Priority": 2
+        },
+        "CFE": {
+            "Coordinates": "49.002268:2.569808:15",
+            "Remark": {
+                "F": "Push W, pull TA3"
+            },
+            "Code": "F",
+            "Use": "A",
+            "Block": [
+                "C14",
+                "C12"
+            ],
+            "Schengen": false,
+            "Callsigns": [
+                "ACI",
+                "AMX",
+                "AIC",
+                "BAW",
+                "ETH",
+                "GFA",
+                "LAN",
+                "MEA",
+                "QFA",
+                "RJA",
+                "SZN",
+                "TAM",
+                "UAE",
+                "VRE"
+            ],
+            "Priority": 1
+        },
+        "CFW": {
+            "Coordinates": "49.001856:2.565989:20",
+            "Remark": {
+                "F": "Push W, exit TA2"
+            },
+            "Code": "F",
+            "Use": "A",
+            "Block": [
+                "C02",
+                "C04"
+            ],
+            "Schengen": false,
+            "Callsigns": [
+                "ACI",
+                "AMX",
+                "AIC",
+                "BAW",
+                "ETH",
+                "GFA",
+                "LAN",
+                "MEA",
+                "QFA",
+                "RJA",
+                "SZN",
+                "TAM",
+                "UAE",
+                "VRE"
+            ],
+            "Priority": 1
         },
         "D02": {
             "Coordinates": "49.005339:2.569358:25",
@@ -1245,517 +1275,378 @@
             "Priority": 3
         },
         "E01": {
-            "Coordinates": "49.003667:2.584069:25",
+            "Coordinates": "49.003663:2.583777:20",
+            "Remark": {
+                "C": "Push E"
+            },
+            "Code": "C",
             "Use": "A",
             "Schengen": false,
             "Callsigns": [
                 "AFR",
-                "AMX",
-                "MAU",
-                "CES",
-                "CSN",
-                "DAL",
-                "BEE",
-                "JAL",
-                "KAL",
+                "KQA",
                 "MEA",
-                "ROT",
                 "HVN"
-            ],
-            "WTC": "LM",
-            "Block": [
-                "E02"
             ],
             "Priority": 1
         },
         "E05": {
-            "Coordinates": "49.003283:2.584119:25",
+            "Coordinates": "49.003282:2.583831:20",
+            "Remark": {
+                "C": "Push E"
+            },
+            "Code": "C",
             "Use": "A",
             "Schengen": false,
             "Callsigns": [
                 "AFR",
-                "AMX",
-                "MAU",
-                "CES",
-                "CSN",
-                "DAL",
-                "BEE",
-                "JAL",
-                "KAL",
+                "KQA",
                 "MEA",
-                "ROT",
-                "HVN"
+                "HVN",
+                "AMX"
             ],
-            "WTC": "LMH",
-            "Priority": 3
+            "Priority": 1
+        },
+        "E08": {
+            "Coordinates": "49.001114:2.573580:20",
+            "Remark": {
+                "C": "Push/pull E"
+            },
+            "Code": "C",
+            "Use": "A",
+            "Schengen": false,
+            "Callsigns": [
+                "AFR",
+                "KQA",
+                "MEA",
+                "HVN",
+                "AMX"
+            ],
+            "Priority": 1
         },
         "E09": {
-            "Coordinates": "49.002906:2.584206:25",
+            "Coordinates": "49.002900:2.583890:20",
+            "Remark": {
+                "C": "Push S, blue/yellow line"
+            },
+            "Code": "C",
             "Use": "A",
             "Schengen": false,
             "Callsigns": [
                 "AFR",
-                "AMX",
-                "MAU",
-                "CES",
-                "CSN",
-                "DAL",
-                "BEE",
-                "JAL",
-                "KAL",
+                "KQA",
                 "MEA",
-                "ROT",
-                "HVN"
-            ],
-            "WTC": "LMH",
-            "Priority": 3
-        },
-        "E10": {
-            "Coordinates": "49.001214:2.573658:25",
-            "Use": "A",
-            "Schengen": false,
-            "Callsigns": [
-                "AFR",
-                "AMX",
-                "MAU",
-                "CES",
-                "CSN",
-                "DAL",
-                "BEE",
-                "JAL",
-                "KAL",
-                "MEA",
-                "ROT",
                 "HVN",
-                "ELY"
+                "AMX"
             ],
-            "WTC": "LMH",
-            "Priority": 3
+            "Priority": 1
         },
-        "E12": {
-            "Coordinates": "49.001231:2.573881:25",
+        "E15": {
+            "Coordinates": "49.002516:2.583992:20",
+            "Remark": {
+                "C": "Push S, blue/yellow line"
+            },
+            "Code": "C",
             "Use": "A",
             "Schengen": false,
             "Callsigns": [
                 "AFR",
-                "AMX",
-                "MAU",
-                "CES",
-                "CSN",
-                "DAL",
-                "BEE",
-                "JAL",
-                "KAL",
+                "KQA",
                 "MEA",
-                "ROT",
                 "HVN",
-                "ELY"
+                "AMX"
             ],
-            "WTC": "LM",
-            "Priority": 3
-        },
-        "E13": {
-            "Coordinates": "49.002525:2.584253:25",
-            "Use": "A",
-            "Schengen": false,
-            "Callsigns": [
-                "AFR",
-                "AMX",
-                "MAU",
-                "CES",
-                "CSN",
-                "DAL",
-                "BEE",
-                "JAL",
-                "KAL",
-                "MEA",
-                "ROT",
-                "HVN",
-                "ELY"
-            ],
-            "WTC": "LMH",
-            "Priority": 3
-        },
-        "E14": {
-            "Coordinates": "49.001406:2.574419:25",
-            "Use": "A",
-            "Schengen": false,
-            "Callsigns": [
-                "AFR",
-                "AMX",
-                "MAU",
-                "CES",
-                "CSN",
-                "DAL",
-                "BEE",
-                "JAL",
-                "KAL",
-                "MEA",
-                "ROT",
-                "HVN",
-                "ELY"
-            ],
-            "WTC": "LM",
-            "Priority": 3
+            "Priority": 1
         },
         "E16": {
-            "Coordinates": "49.001347:2.574367:25",
+            "Coordinates": "49.001216:2.574360:20",
+            "Remark": {
+                "DE": "Push E"
+            },
+            "Code": "DE",
             "Use": "A",
             "Schengen": false,
             "Callsigns": [
                 "AFR",
-                "AMX",
-                "MAU",
-                "CES",
-                "CSN",
-                "DAL",
-                "BEE",
-                "JAL",
-                "KAL",
+                "KQA",
                 "MEA",
-                "ROT",
                 "HVN",
-                "ELY"
+                "AMX"
             ],
-            "WTC": "LMH",
-            "Priority": 3
+            "Priority": 2
         },
         "E17": {
-            "Coordinates": "49.002039:2.584311:25",
+            "Coordinates": "49.002045:2.584019:20",
+            "Remark": {
+                "C": "Push S, blue/yellow line"
+            },
+            "Code": "C",
             "Use": "A",
             "Schengen": false,
             "Callsigns": [
                 "AFR",
-                "AMX",
-                "MAU",
-                "CES",
-                "CSN",
-                "DAL",
-                "BEE",
-                "JAL",
-                "KAL",
+                "KQA",
                 "MEA",
-                "ROT",
                 "HVN",
-                "ELY"
+                "AMX"
             ],
-            "WTC": "LMH",
-            "Priority": 3
+            "Priority": 1
         },
         "E18": {
-            "Coordinates": "49.001506:2.575222:25",
+            "Coordinates": "49.001228:2.575280:25",
+            "Remark": {
+                "DE": "Push E"
+            },
+            "Code": "DE",
             "Use": "A",
             "Schengen": false,
             "Callsigns": [
                 "AFR",
-                "AMX",
-                "MAU",
-                "CES",
-                "CSN",
-                "DAL",
-                "BEE",
-                "JAL",
-                "KAL",
+                "KQA",
                 "MEA",
-                "ROT",
-                "HVN"
+                "HVN",
+                "AMX"
             ],
-            "WTC": "LM",
-            "Priority": 3
+            "Priority": 1
         },
         "E20": {
-            "Coordinates": "49.001567:2.576206:25",
+            "Coordinates": "49.001235:2.576264:30",
+            "Remark": {
+                "DE": "Push E"
+            },
+            "Code": "DE",
             "Use": "A",
             "Schengen": false,
             "Callsigns": [
                 "AFR",
-                "AMX",
-                "MAU",
-                "CES",
-                "CSN",
-                "DAL",
-                "BEE",
-                "JAL",
-                "KAL",
+                "KQA",
                 "MEA",
-                "ROT",
-                "HVN"
+                "HVN",
+                "AMX"
             ],
-            "WTC": "LM",
-            "Priority": 3
+            "Priority": 1
         },
         "E21": {
-            "Coordinates": "49.001658:2.584358:25",
+            "Coordinates": "49.001689:2.584064:20",
+            "Remark": {
+                "C": "Push S, blue/yellow line"
+            },
+            "Code": "C",
             "Use": "A",
             "Schengen": false,
             "Callsigns": [
                 "AFR",
-                "AMX",
-                "MAU",
-                "CES",
-                "CSN",
-                "DAL",
-                "BEE",
-                "JAL",
-                "KAL",
+                "KQA",
                 "MEA",
-                "ROT",
-                "HVN"
+                "HVN",
+                "AMX"
             ],
-            "WTC": "LMH",
-            "Priority": 3
+            "Priority": 1
         },
         "E22": {
-            "Coordinates": "49.00165:2.577192:25",
+            "Coordinates": "49.001342:2.577233:30",
+            "Remark": {
+                "DE": "Push E"
+            },
+            "Code": "DE",
             "Use": "A",
             "Schengen": false,
             "Callsigns": [
                 "AFR",
-                "AMX",
-                "MAU",
-                "CES",
-                "CSN",
-                "DAL",
-                "BEE",
-                "JAL",
-                "KAL",
+                "KQA",
                 "MEA",
-                "ROT",
-                "HVN"
+                "HVN",
+                "AMX"
             ],
-            "WTC": "LMH",
-            "Priority": 3
+            "Priority": 1
         },
         "E24": {
-            "Coordinates": "49.001711:2.578178:25",
+            "Coordinates": "49.001429:2.578214:30",
+            "Remark": {
+                "DE": "Push E"
+            },
+            "Code": "DE",
             "Use": "A",
             "Schengen": false,
             "Callsigns": [
                 "AFR",
-                "AMX",
-                "MAU",
-                "CES",
-                "CSN",
-                "DAL",
-                "BEE",
-                "JAL",
-                "KAL",
+                "KQA",
                 "MEA",
-                "ROT",
-                "HVN"
+                "HVN",
+                "AMX"
             ],
-            "WTC": "LMHJ",
-            "Priority": 3
+            "Priority": 1
         },
         "E25": {
-            "Coordinates": "49.001278:2.584406:25",
+            "Coordinates": "49.001276:2.584099:20",
+            "Remark": {
+                "C": "Push S, blue/yellow line"
+            },
+            "Code": "C",
             "Use": "A",
             "Schengen": false,
             "Callsigns": [
                 "AFR",
-                "AMX",
-                "MAU",
-                "CES",
-                "CSN",
-                "DAL",
-                "BEE",
-                "JAL",
-                "KAL",
+                "KQA",
                 "MEA",
-                "ROT",
-                "HVN"
+                "HVN",
+                "AMX"
             ],
-            "WTC": "LMH",
-            "Priority": 3
+            "Priority": 1
         },
         "E26": {
-            "Coordinates": "49.001747:2.579167:25",
+            "Coordinates": "49.001446:2.579212:30",
+            "Remark": {
+                "DE": "Push E"
+            },
+            "Code": "DE",
             "Use": "A",
             "Schengen": false,
             "Callsigns": [
                 "AFR",
-                "AMX",
-                "MAU",
-                "CES",
-                "CSN",
-                "DAL",
-                "BEE",
-                "JAL",
-                "KAL",
+                "KQA",
                 "MEA",
-                "ROT",
-                "HVN"
+                "HVN",
+                "AMX"
             ],
-            "WTC": "LMH",
-            "Priority": 3
+            "Priority": 1
         },
         "E29": {
-            "Coordinates": "49.000897:2.584453:25",
+            "Coordinates": "49.000894:2.584164:20",
+            "Remark": {
+                "C": "Push S, blue/yellow line"
+            },
+            "Code": "C",
             "Use": "A",
             "Schengen": false,
             "Callsigns": [
                 "AFR",
-                "AMX",
-                "MAU",
-                "CES",
-                "CSN",
-                "DAL",
-                "BEE",
-                "JAL",
-                "KAL",
+                "KQA",
                 "MEA",
-                "ROT",
-                "HVN"
+                "HVN",
+                "AMX"
             ],
-            "WTC": "LMH",
-            "Priority": 3
+            "Priority": 1
         },
         "E30": {
-            "Coordinates": "49.001742:2.580164:25",
+            "Coordinates": "49.001473:2.580197:30",
+            "Remark": {
+                "DE": "Push E"
+            },
+            "Code": "DE",
             "Use": "A",
             "Schengen": false,
             "Callsigns": [
                 "AFR",
-                "AMX",
-                "MAU",
-                "CES",
-                "CSN",
-                "DAL",
-                "BEE",
-                "JAL",
-                "KAL",
+                "KQA",
                 "MEA",
-                "ROT",
-                "HVN"
+                "HVN",
+                "AMX"
             ],
-            "WTC": "LMH",
-            "Priority": 3
+            "Priority": 1
         },
         "E32": {
-            "Coordinates": "49.001719:2.581128:25",
+            "Coordinates": "49.001455:2.581173:25",
+            "Remark": {
+                "DE": "Push E"
+            },
+            "Code": "DE",
             "Use": "A",
             "Schengen": false,
             "Callsigns": [
                 "AFR",
-                "AMX",
-                "MAU",
-                "CES",
-                "CSN",
-                "DAL",
-                "BEE",
-                "JAL",
-                "KAL",
+                "KQA",
                 "MEA",
-                "ROT",
-                "HVN"
+                "HVN",
+                "AMX"
             ],
-            "WTC": "LMH",
-            "Priority": 3
+            "Priority": 1
         },
         "E34": {
-            "Coordinates": "49.001703:2.5822:25",
+            "Coordinates": "49.001481:2.582074:25",
+            "Remark": {
+                "DE": "Push E"
+            },
+            "Code": "DE",
             "Use": "A",
             "Schengen": false,
             "Callsigns": [
                 "AFR",
-                "AMX",
-                "MAU",
-                "CES",
-                "CSN",
-                "DAL",
-                "BEE",
-                "JAL",
-                "KAL",
+                "KQA",
                 "MEA",
-                "ROT",
-                "HVN"
+                "HVN",
+                "AMX"
             ],
-            "WTC": "LMH",
-            "Priority": 3
+            "Priority": 1
         },
         "E38": {
-            "Coordinates": "49.002478:2.581344:25",
+            "Coordinates": "49.002652:2.581747:30",
+            "Remark": {
+                "C": "Push S/E",
+                "DE": "Push S"
+            },
+            "Code": "CDE",
             "Use": "A",
             "Schengen": false,
             "Callsigns": [
                 "AFR",
-                "AMX",
-                "MAU",
-                "CES",
-                "CSN",
-                "DAL",
-                "BEE",
-                "JAL",
-                "KAL",
+                "KQA",
                 "MEA",
-                "ROT",
-                "HVN"
+                "HVN",
+                "AMX"
             ],
-            "WTC": "LMH",
-            "Priority": 3
+            "Priority": 1
         },
         "E40": {
-            "Coordinates": "49.002625:2.580581:25",
+            "Coordinates": "49.002734:2.580886:22",
+            "Remark": {
+                "C": "Push E"
+            },
+            "Code": "C",
             "Use": "A",
             "Schengen": false,
             "Callsigns": [
                 "AFR",
-                "AMX",
-                "MAU",
-                "CES",
-                "CSN",
-                "DAL",
-                "BEE",
-                "JAL",
-                "KAL",
+                "KQA",
                 "MEA",
-                "ROT",
-                "HVN"
+                "HVN",
+                "AMX"
             ],
-            "WTC": "LMH",
-            "Priority": 3
+            "Priority": 1
         },
         "E42": {
-            "Coordinates": "49.002422:2.580289:25",
+            "Coordinates": "49.002562:2.580304:20",
+            "Remark": {
+                "C": "Push S"
+            },
+            "Code": "C",
             "Use": "A",
             "Schengen": false,
             "Callsigns": [
                 "AFR",
-                "AMX",
-                "MAU",
-                "CES",
-                "CSN",
-                "DAL",
-                "BEE",
-                "JAL",
-                "KAL",
+                "KQA",
                 "MEA",
-                "ROT",
-                "HVN"
+                "HVN",
+                "AMX"
             ],
-            "WTC": "LMH",
-            "Priority": 3
+            "Priority": 1
         },
         "E44": {
-            "Coordinates": "49.002586:2.579425:25",
+            "Coordinates": "49.002708:2.579631:20",
+            "Remark": {
+                "C": "Push S"
+            },
+            "Code": "C",
             "Use": "A",
             "Schengen": false,
             "Callsigns": [
                 "AFR",
-                "AMX",
-                "MAU",
-                "CES",
-                "CSN",
-                "DAL",
-                "BEE",
-                "JAL",
-                "KAL",
+                "KQA",
                 "MEA",
-                "ROT",
-                "HVN"
+                "HVN",
+                "AMX"
             ],
-            "WTC": "LM",
-            "Priority": 3
+            "Priority": 1
         },
         "F02": {
             "Coordinates": "49.005481:2.573622:25",
@@ -2237,6 +2128,162 @@
             ],
             "WTC": "LMH",
             "Priority": 3
+        },
+        "G10": {
+            "Coordinates": "49.003366:2.556156:10",
+            "Code": "A",
+            "Use": "A",
+            "Block": [
+                "G11"
+            ],
+            "Schengen": true,
+            "Callsigns": [],
+            "Priority": 1
+        },
+        "G11": {
+            "Coordinates": "49.003361:2.556397:10",
+            "Remark": {
+                "B": "Push/Pull"
+            },
+            "Code": "B",
+            "Use": "A",
+            "Block": [
+                "G10"
+            ],
+            "Schengen": true,
+            "Callsigns": [],
+            "Priority": 2
+        },
+        "G12": {
+            "Coordinates": "49.003403:2.556625:10",
+            "Code": "A",
+            "Use": "A",
+            "Schengen": true,
+            "Callsigns": [],
+            "Priority": 1
+        },
+        "G13": {
+            "Coordinates": "49.003384:2.556802:10",
+            "Remark": {
+                "B": "Push/Pull"
+            },
+            "Code": "B",
+            "Use": "A",
+            "Block": [
+                "G14"
+            ],
+            "Schengen": true,
+            "Callsigns": [],
+            "Priority": 2
+        },
+        "G14": {
+            "Coordinates": "49.003410:2.557060:10",
+            "Code": "A",
+            "Use": "A",
+            "Block": [
+                "G13"
+            ],
+            "Schengen": true,
+            "Callsigns": [],
+            "Priority": 1
+        },
+        "G20": {
+            "Coordinates": "49.004096:2.555898:12",
+            "Remark": {
+                "A": "Taxi Out"
+            },
+            "Code": "A",
+            "Use": "A",
+            "Block": [
+                "G21"
+            ],
+            "Schengen": true,
+            "Callsigns": [],
+            "Priority": 1
+        },
+        "G21": {
+            "Coordinates": "49.004101:2.556180:10",
+            "Remark": {
+                "B": "Taxi Out"
+            },
+            "Code": "B",
+            "Use": "A",
+            "Block": [
+                "G20",
+                "G22"
+            ],
+            "Schengen": true,
+            "Callsigns": [],
+            "Priority": 2
+        },
+        "G22": {
+            "Coordinates": "49.004144:2.556478:12",
+            "Remark": {
+                "A": "Taxi Out"
+            },
+            "Code": "A",
+            "Use": "A",
+            "Block": [
+                "G21",
+                "G24"
+            ],
+            "Schengen": true,
+            "Callsigns": [],
+            "Priority": 2
+        },
+        "G23": {
+            "Coordinates": "49.004130:2.556990:10",
+            "Remark": {
+                "A": "Taxi Out"
+            },
+            "Code": "A",
+            "Use": "A",
+            "Block": [
+                "G21",
+                "G24"
+            ],
+            "Schengen": true,
+            "Callsigns": [],
+            "Priority": 2
+        },
+        "G24": {
+            "Coordinates": "49.004123:2.556767:11",
+            "Remark": {
+                "B": "Taxi Out"
+            },
+            "Code": "B",
+            "Use": "A",
+            "Block": [
+                "G22",
+                "G23"
+            ],
+            "Schengen": true,
+            "Callsigns": [],
+            "Priority": 1
+        },
+        "G31": {
+            "Coordinates": "49.004819:2.556167:20",
+            "Code": "C",
+            "Use": "A",
+            "Schengen": true,
+            "Callsigns": [
+                "EZY",
+                "EJU",
+                "EZS"
+            ],
+            "Priority": 2
+        },
+        "G35": {
+            "Coordinates": "49.004835:2.556977:20",
+            "Code": "C",
+            "Use": "A",
+            "Schengen": true,
+            "Callsigns": [
+                "EZY",
+                "EJU",
+                "EZS"
+            ],
+            "Priority": 2
         },
         "I14": {
             "Coordinates": "49.011508:2.505825:25",
@@ -2905,546 +2952,408 @@
             "Priority": 3
         },
         "K01": {
-            "Coordinates": "49.00755:2.585256:25",
+            "Coordinates": "49.007733:2.585671:19",
+            "Remark": {"DE":"Push N"},
+            "Code": "DE",
             "Use": "A",
+            "Block": ["K05"],
             "Schengen": false,
             "Callsigns": [
                 "AFR",
-                "AMX",
-                "MAU",
                 "CES",
-                "CSN",
+                "CXA",
                 "DAL",
-                "BEE",
                 "JAL",
                 "KAL",
-                "MEA",
-                "ROT",
-                "HVN"
+                "MAU"
             ],
-            "WTC": "LM",
-            "Priority": 3
+            "Priority": 1
         },
         "K05": {
-            "Coordinates": "49.007481:2.585244:25",
+            "Coordinates": "49.007367:2.585730:19",
+            "Remark": {"F":"Push N"},
+            "Code": "F",
             "Use": "A",
+            "Block": ["K05"],
             "Schengen": false,
             "Callsigns": [
                 "AFR",
-                "AMX",
-                "MAU",
                 "CES",
-                "CSN",
+                "CXA",
                 "DAL",
-                "BEE",
                 "JAL",
                 "KAL",
-                "MEA",
-                "ROT",
-                "HVN"
+                "MAU"
             ],
-            "WTC": "L",
-            "Priority": 3
+            "Priority": 2
         },
         "K09": {
-            "Coordinates": "49.006881:2.585339:25",
+            "Coordinates": "49.006910:2.585757:25",
+            "Code": "DE",
             "Use": "A",
             "Schengen": false,
             "Callsigns": [
                 "AFR",
-                "AMX",
-                "MAU",
                 "CES",
-                "CSN",
+                "CXA",
                 "DAL",
-                "BEE",
                 "JAL",
                 "KAL",
-                "MEA",
-                "ROT",
-                "HVN"
+                "MAU"
             ],
-            "WTC": "L",
-            "Priority": 3
+            "Priority": 1
         },
         "K13": {
-            "Coordinates": "49.006294:2.585408:25",
+            "Coordinates": "49.006457:2.585829:22",
+            "Code": "F",
             "Use": "A",
+            "Block": ["K17"],
             "Schengen": false,
             "Callsigns": [
                 "AFR",
-                "AMX",
-                "MAU",
                 "CES",
-                "CSN",
+                "CXA",
                 "DAL",
-                "BEE",
                 "JAL",
                 "KAL",
-                "MEA",
-                "ROT",
-                "HVN"
+                "MAU"
             ],
-            "WTC": "L",
-            "Priority": 3
+            "Priority": 2
         },
         "K17": {
-            "Coordinates": "49.006228:2.585419:25",
+            "Coordinates": "49.006123:2.585875:22",
+            "Code": "DE",
             "Use": "A",
+            "Block": ["K13"],
             "Schengen": false,
             "Callsigns": [
                 "AFR",
-                "AMX",
-                "MAU",
                 "CES",
-                "CSN",
+                "CXA",
                 "DAL",
-                "BEE",
                 "JAL",
                 "KAL",
-                "MEA",
-                "ROT",
-                "HVN"
+                "MAU"
             ],
-            "WTC": "LM",
-            "Priority": 3
+            "Priority": 1
         },
         "K21": {
-            "Coordinates": "49.005578:2.5855:25",
+            "Coordinates": "49.005597:2.586012:25",
+            "Code": "DE",
             "Use": "A",
             "Schengen": false,
             "Callsigns": [
                 "AFR",
-                "AMX",
-                "MAU",
                 "CES",
-                "CSN",
+                "CXA",
                 "DAL",
-                "BEE",
                 "JAL",
                 "KAL",
-                "MEA",
-                "ROT",
-                "HVN"
+                "MAU"
             ],
-            "WTC": "L",
-            "Priority": 3
+            "Priority": 1
         },
         "K26": {
-            "Coordinates": "49.0077:2.589967:25",
+            "Coordinates": "49.007671:2.589303:25",
+            "Remark": {"DE":"Push N"},
+            "Code": "DE",
             "Use": "A",
             "Schengen": false,
             "Callsigns": [
                 "AFR",
-                "AMX",
-                "MAU",
                 "CES",
-                "CSN",
+                "CXA",
                 "DAL",
-                "BEE",
                 "JAL",
                 "KAL",
-                "MEA",
-                "ROT",
-                "HVN"
+                "MAU"
             ],
-            "WTC": "L",
-            "Priority": 3
+            "Priority": 1
         },
         "K32": {
-            "Coordinates": "49.00705:2.589828:25",
+            "Coordinates": "49.007038:2.589399:25",
+            "Code": "DE",
             "Use": "A",
             "Schengen": false,
             "Callsigns": [
                 "AFR",
-                "AMX",
-                "MAU",
                 "CES",
-                "CSN",
+                "CXA",
                 "DAL",
-                "BEE",
                 "JAL",
                 "KAL",
-                "MEA",
-                "ROT",
-                "HVN"
+                "MAU"
             ],
-            "WTC": "L",
-            "Priority": 3
+            "Priority": 1
         },
         "K38": {
-            "Coordinates": "49.006494:2.589906:25",
+            "Coordinates": "49.006375:2.589439:25",
+            "Code": "DE",
             "Use": "A",
             "Schengen": false,
             "Callsigns": [
                 "AFR",
-                "AMX",
-                "MAU",
                 "CES",
-                "CSN",
+                "CXA",
                 "DAL",
-                "BEE",
                 "JAL",
                 "KAL",
-                "MEA",
-                "ROT",
-                "HVN"
+                "MAU"
             ],
-            "WTC": "L",
-            "Priority": 3
+            "Priority": 1
         },
         "K44": {
-            "Coordinates": "49.00575:2.589986:25",
+            "Coordinates": "49.005734:2.589525:25",
+            "Code": "DE",
             "Use": "A",
             "Schengen": false,
             "Callsigns": [
                 "AFR",
-                "AMX",
-                "MAU",
                 "CES",
-                "CSN",
+                "CXA",
                 "DAL",
-                "BEE",
                 "JAL",
                 "KAL",
-                "MEA",
-                "ROT",
-                "HVN"
+                "MAU"
             ],
-            "WTC": "L",
-            "Priority": 3
+            "Priority": 1
         },
         "K52": {
-            "Coordinates": "49.003953:2.590206:25",
+            "Coordinates": "49.003931:2.589769:25",
+            "Code": "DE",
             "Use": "A",
             "Schengen": false,
             "Callsigns": [
                 "AFR",
-                "AMX",
-                "MAU",
                 "CES",
-                "CSN",
+                "CXA",
                 "DAL",
-                "BEE",
                 "JAL",
                 "KAL",
-                "MEA",
-                "ROT",
-                "HVN"
+                "MAU"
             ],
-            "WTC": "L",
-            "Priority": 3
+            "Priority": 1
         },
         "K53": {
-            "Coordinates": "49.003639:2.585717:25",
+            "Coordinates": "49.003674:2.586127:25",
+            "Code": "DE",
             "Use": "A",
             "Schengen": false,
             "Callsigns": [
                 "AFR",
-                "AMX",
-                "MAU",
                 "CES",
-                "CSN",
+                "CXA",
                 "DAL",
-                "BEE",
                 "JAL",
                 "KAL",
-                "MEA",
-                "ROT",
-                "HVN"
+                "MAU"
             ],
-            "WTC": "L",
-            "Priority": 3
+            "Priority": 1
         },
         "K58": {
-            "Coordinates": "49.003303:2.590369:25",
+            "Coordinates": "49.003266:2.589823:25",
+            "Code": "DE",
             "Use": "A",
             "Schengen": false,
             "Callsigns": [
                 "AFR",
-                "AMX",
-                "MAU",
                 "CES",
-                "CSN",
+                "CXA",
                 "DAL",
-                "BEE",
                 "JAL",
                 "KAL",
-                "MEA",
-                "ROT",
-                "HVN"
+                "MAU"
             ],
-            "WTC": "L",
-            "Priority": 3
+            "Priority": 1
         },
         "K59": {
-            "Coordinates": "49.002833:2.585836:25",
+            "Coordinates": "49.002868:2.586245:25",
+            "Code": "DEF",
             "Use": "A",
             "Schengen": false,
             "Callsigns": [
                 "AFR",
-                "AMX",
-                "MAU",
                 "CES",
-                "CSN",
+                "CXA",
                 "DAL",
-                "BEE",
                 "JAL",
                 "KAL",
-                "MEA",
-                "ROT",
-                "HVN"
+                "MAU"
             ],
-            "WTC": "L",
-            "Priority": 3
+            "Priority": 2
         },
         "K64": {
-            "Coordinates": "49.002653:2.590369:25",
+            "Coordinates": "49.002629:2.589909:25",
+            "Code": "DE",
             "Use": "A",
             "Schengen": false,
             "Callsigns": [
                 "AFR",
-                "AMX",
-                "MAU",
                 "CES",
-                "CSN",
+                "CXA",
                 "DAL",
-                "BEE",
                 "JAL",
                 "KAL",
-                "MEA",
-                "ROT",
-                "HVN"
+                "MAU"
             ],
-            "WTC": "L",
-            "Priority": 3
+            "Priority": 1
         },
         "K65": {
-            "Coordinates": "49.002028:2.585936:25",
+            "Coordinates": "49.002069:2.586374:25",
+            "Code": "DEF",
             "Use": "A",
             "Schengen": false,
             "Callsigns": [
                 "AFR",
-                "AMX",
-                "MAU",
                 "CES",
-                "CSN",
+                "CXA",
                 "DAL",
-                "BEE",
                 "JAL",
                 "KAL",
-                "MEA",
-                "ROT",
-                "HVN"
+                "MAU"
             ],
-            "WTC": "L",
-            "Priority": 3
+            "Priority": 2
         },
         "K70": {
-            "Coordinates": "49.002003:2.590447:25",
+            "Coordinates": "49.001971:2.589989:25",
+            "Code": "DE",
             "Use": "A",
             "Schengen": false,
             "Callsigns": [
                 "AFR",
-                "AMX",
-                "MAU",
                 "CES",
-                "CSN",
+                "CXA",
                 "DAL",
-                "BEE",
                 "JAL",
                 "KAL",
-                "MEA",
-                "ROT",
-                "HVN"
+                "MAU"
             ],
-            "WTC": "L",
-            "Priority": 3
+            "Priority": 1
         },
         "K71": {
-            "Coordinates": "49.001389:2.586003:25",
+            "Coordinates": "49.001313:2.586626:25",
+            "Remark": {"DEF":"Push S"},
+            "Code": "DEF",
             "Use": "A",
             "Schengen": false,
             "Callsigns": [
                 "AFR",
-                "AMX",
-                "MAU",
                 "CES",
-                "CSN",
+                "CXA",
                 "DAL",
-                "BEE",
                 "JAL",
                 "KAL",
-                "MEA",
-                "ROT",
-                "HVN"
+                "MAU"
             ],
-            "WTC": "L",
-            "Priority": 3
+            "Priority": 2
         },
         "K76": {
-            "Coordinates": "49.001347:2.590528:25",
+            "Coordinates": "49.001320:2.590064:25",
+            "Remark": {"DE":"Push S"},
+            "Code": "DE",
             "Use": "A",
             "Schengen": false,
             "Callsigns": [
                 "AFR",
-                "AMX",
-                "MAU",
                 "CES",
-                "CSN",
+                "CXA",
                 "DAL",
-                "BEE",
                 "JAL",
                 "KAL",
-                "MEA",
-                "ROT",
-                "HVN"
+                "MAU"
             ],
-            "WTC": "L",
-            "Priority": 3
+            "Priority": 1
         },
         "L27": {
-            "Coordinates": "49.007747:2.591078:25",
+            "Coordinates": "49.007788:2.591545:25",
+            "Remark": {"DEF":"Push N"},
+            "Code": "DEF",
             "Use": "A",
             "Schengen": false,
             "Callsigns": [
                 "AFR",
-                "AMX",
-                "MAU",
-                "CES",
-                "CSN",
                 "DAL",
-                "BEE",
-                "JAL",
-                "KAL",
-                "MEA",
-                "ROT",
                 "HVN"
             ],
-            "WTC": "L",
-            "Priority": 3
+            "Priority": 1
         },
         "L33": {
-            "Coordinates": "49.007144:2.591175:25",
+            "Coordinates": "49.006999:2.591631:25",
+            "Remark": {"DEF":"Push N"},
+            "Code": "DEF",
             "Use": "A",
             "Schengen": false,
             "Callsigns": [
                 "AFR",
-                "AMX",
-                "MAU",
-                "CES",
-                "CSN",
                 "DAL",
-                "BEE",
-                "JAL",
-                "KAL",
-                "MEA",
-                "ROT",
                 "HVN"
             ],
-            "WTC": "L",
-            "Priority": 3
+            "Priority": 1
         },
         "L39": {
-            "Coordinates": "49.006181:2.591272:25",
+            "Coordinates": "49.006215:2.591706:25",
+            "Remark": {"DEF":"Push N"},
+            "Code": "DEF",
             "Use": "A",
             "Schengen": false,
             "Callsigns": [
                 "AFR",
-                "AMX",
-                "MAU",
-                "CES",
-                "CSN",
                 "DAL",
-                "BEE",
-                "JAL",
-                "KAL",
-                "MEA",
-                "ROT",
                 "HVN"
             ],
-            "WTC": "L",
-            "Priority": 3
+            "Priority": 1
         },
         "L53": {
-            "Coordinates": "49.003878:2.591636:25",
+            "Coordinates": "49.003913:2.592065:25",
+            "Remark": {"DEF":"Push S"},
+            "Code": "DEF",
             "Use": "A",
             "Schengen": false,
             "Callsigns": [
                 "AFR",
-                "AMX",
-                "MAU",
-                "CES",
-                "CSN",
                 "DAL",
-                "BEE",
-                "JAL",
-                "KAL",
-                "MEA",
-                "ROT",
                 "HVN"
             ],
-            "WTC": "L",
-            "Priority": 3
+            "Priority": 1
         },
         "L59": {
-            "Coordinates": "49.003094:2.591731:25",
+            "Coordinates": "49.003118:2.592194:25",
+            "Remark": {"DEF":"Push S"},
+            "Code": "DEF",
             "Use": "A",
             "Schengen": false,
             "Callsigns": [
                 "AFR",
-                "AMX",
-                "MAU",
-                "CES",
-                "CSN",
                 "DAL",
-                "BEE",
-                "JAL",
-                "KAL",
-                "MEA",
-                "ROT",
                 "HVN"
             ],
-            "WTC": "L",
-            "Priority": 3
+            "Priority": 1
         },
         "L65": {
-            "Coordinates": "49.002308:2.591828:25",
+            "Coordinates": "49.002333:2.592253:25",
+            "Remark": {"DEF":"Push S"},
+            "Code": "DEF",
             "Use": "A",
+            "Schengen": false,
             "Callsigns": [
                 "AFR",
-                "AMX",
-                "MAU",
-                "CES",
-                "CSN",
                 "DAL",
-                "BEE",
-                "JAL",
-                "KAL",
-                "MEA",
-                "ROT",
                 "HVN"
             ],
-            "Priority": 3
+            "Priority": 1
         },
         "L71": {
-            "Coordinates": "49.001525:2.591925:25",
+            "Coordinates": "49.001552:2.592334:25",
+            "Remark": {"DEF":"Push S"},
+            "Code": "DEF",
             "Use": "A",
+            "Schengen": false,
             "Callsigns": [
                 "AFR",
-                "AMX",
-                "MAU",
-                "CES",
-                "CSN",
                 "DAL",
-                "BEE",
-                "JAL",
-                "KAL",
-                "MEA",
-                "ROT",
                 "HVN"
             ],
-            "Priority": 3
+            "Priority": 1
         },
         "M06": {
             "Coordinates": "49.000114:2.545950:25",
