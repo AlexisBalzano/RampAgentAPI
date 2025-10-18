@@ -13,11 +13,11 @@ class RedisService {
     try {
       this.client = redis.createClient({
         socket: {
-          host: 'localhost',
-          port: 6379,
+          host: process.env.REDIS_HOST || 'localhost',
+          port: parseInt(process.env.REDIS_PORT) || 6379,
           reconnectStrategy: false, // Don't auto-reconnect if Redis is down
         },
-        // password: 'your-password', // if needed
+        password: process.env.REDIS_PASSWORD || undefined,
       });
 
       this.client.on('error', (err) => {
