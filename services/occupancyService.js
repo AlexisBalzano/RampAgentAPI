@@ -441,7 +441,7 @@ clientReportParse = async (aircrafts) => {
       // Check if the stand is an apron by looking into json
       const airportJson = await airportService.getAirportConfig(ac.origin);
       const standDef = airportJson.Stands && airportJson.Stands[ac.stand];
-      if (standDef || !standDef.Apron || standDef.Apron === false) {
+      if (standDef && (!standDef.Apron || standDef.Apron === false)) {
         const stand = new Stand(ac.stand, ac.origin || "UNKNOWN", callsign);
         // Remove preceeding entry if any
         registry.removeOccupied(stand);
