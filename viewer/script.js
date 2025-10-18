@@ -100,7 +100,7 @@ async function renderAirportsStatus() {
       subContainer.appendChild(generateSpanforText("None"));
     } else {
       stands.blocked.forEach((stand) => {
-        subContainer.appendChild(generateSpanforText(stand.name));
+        subContainer.appendChild(generateSpanforText(stand.name + "  " + stand.callsign));
       });
     }
     statusContainer.appendChild(subContainer);
