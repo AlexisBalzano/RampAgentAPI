@@ -3,12 +3,6 @@ module.exports = {
   logLevel: 'info',             // 'debug', 'info', 'warn', 'error'
   staleTimeout: 10_000,         // (ms) before a client report is considered outdated
 
-// For c++ node addon
-//   native: {
-//     enabled: true,                              // disable to mock in JS
-//     modulePath: './native/build/Release/assign.node', // path to compiled addon
-//   },
-
   storage: {
     type: 'memory', // 'redis' | 'file' | 'sqlite'
     redisUrl: 'redis://localhost:6379',
