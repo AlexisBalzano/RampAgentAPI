@@ -45,6 +45,9 @@ function generateSpanforText(text) {
 function padStandName(name) {
   return name.padStart(3, " ");
 }
+function padAirportIcao(name) {
+  return name.padStart(9, " ");
+}
 
 async function renderAirportsStatus() {
   // Fetch all airports
@@ -91,7 +94,7 @@ async function renderAirportsStatus() {
     const subContainer = document.createElement("div");
     subContainer.className = "airport-display subContainer";
     subContainer.id = `airport-${airportIcao}`;
-    subContainer.appendChild(generateSpanforText(" " + airportIcao));
+    subContainer.appendChild(generateSpanforText(padAirportIcao(airportIcao)));
     subContainer.appendChild(generateSpanforText("Occupied Stands"));
     if (stands.occupied.length === 0) {
       subContainer.appendChild(generateSpanforText("None"));
