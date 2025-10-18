@@ -501,14 +501,20 @@ const getGlobalOccupied = () => {
 };
 
 function assignStandToPilot(standName, icao, callsign) {
+  // Remove any existing assignment
+  const existingStand = registry
+  .getAllOccupied()
+  .filter((s) => s.callsign === callsign);
+  existingStand.forEach((existingStand) => {
+    registry.removeOccupied(existingStand);
+  });
+  const blockedStands = registry
+  .getAllBlocked()
+  .filter((s) => s.callsign === callsign);
+  blockedStands.forEach((s) => {
+    registry.removeBlocked(s);
+  });
   if (standName === "None") {
-    // Remove any existing assignment
-    const existingStand = registry
-      .getAllOccupied()
-      .find((s) => s.callsign === callsign);
-    if (existingStand) {
-      registry.removeOccupied(existingStand);
-    }
     info(`Removed stand assignment for ${callsign}`);
     return true;
   }
