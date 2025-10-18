@@ -18,7 +18,7 @@ function toggleDarkMode() {
 // High volume detection and performance mode
 let performanceMode = false;
 let lastStandCount = 0;
-const HIGH_VOLUME_THRESHOLD = 30; // Number of stands that triggers performance mode
+const HIGH_VOLUME_THRESHOLD = 50; // Number of stands that triggers performance mode
 
 function checkVolumeAndTogglePerformanceMode(standCount) {
   const shouldBeInPerformanceMode = standCount >= HIGH_VOLUME_THRESHOLD;
@@ -26,7 +26,7 @@ function checkVolumeAndTogglePerformanceMode(standCount) {
   if (shouldBeInPerformanceMode && !performanceMode) {
     enablePerformanceMode();
     console.log(`Performance mode enabled: ${standCount} stands detected (threshold: ${HIGH_VOLUME_THRESHOLD})`);
-  } else if (!shouldBeInPerformanceMode && performanceMode) {
+  } else if (!shouldBeInPerformanceMode && performanceMode && !manualToggle) {
     disablePerformanceMode();
     console.log(`Performance mode disabled: ${standCount} stands detected`);
   }
@@ -71,11 +71,13 @@ function showPerformanceModeNotification(enabled) {
   }, 3000);
 }
 
+let manualToggle = false;
 function togglePerformanceModeManual() {
   if (performanceMode) {
     disablePerformanceMode();
   } else {
     enablePerformanceMode();
+    manualToggle = true;
   }
   updatePerformanceToggleButton();
 }
