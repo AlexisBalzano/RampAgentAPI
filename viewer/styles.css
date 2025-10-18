@@ -1766,27 +1766,104 @@ body.dark-mode .letter::after {
     transform: rotateX(0deg);
   }
   20% {
-    content: "2";
+    content: "G";
     transform: rotateX(360deg);
   }
   40% {
     color: #afafaf;
-    content: "L";
+    content: "I";
     transform: rotateX(0deg);
   }
   60% {
     color: #afafaf;
-    content: "O";
+    content: "Q";
     transform: rotateX(360deg);
   }
   80% {
     color: #afafaf;
-    content: "J";
+    content: "3";
     transform: rotateX(0deg);
   }
   100% {
     transform: rotateX(360deg);
   }
+}
+/* Performance mode - disable animations when high volume detected */
+body.performance-mode .departure-board span:before,
+body.performance-mode .departure-board span:after {
+  animation: none !important;
+  transition: none !important;
+}
+
+body.performance-mode .letter {
+  animation: none !important;
+  transition: none !important;
+}
+
+body.performance-mode .letter::before,
+body.performance-mode .letter::after {
+  animation: none !important;
+  transition: none !important;
+}
+
+/* Performance mode notification */
+.performance-notification {
+  position: fixed;
+  top: 80px;
+  right: 20px;
+  background-color: #f5a623;
+  color: white;
+  padding: 12px 20px;
+  border-radius: 8px;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.2);
+  z-index: 10000;
+  font-weight: bold;
+  font-size: 14px;
+  transition: opacity 0.5s ease;
+  opacity: 1;
+}
+
+body.dark-mode .performance-notification {
+  background-color: #e67e22;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.4);
+}
+
+/* Performance mode toggle button */
+.performance-toggle {
+  position: absolute;
+  top: 0.9em;
+  right: 3.5em;
+  background: rgba(255, 255, 255, 0.1);
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  border-radius: 50%;
+  width: 40px;
+  height: 40px;
+  font-size: 20px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  color: #c9c9c9;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.performance-toggle:hover {
+  background: rgba(255, 255, 255, 0.2);
+  border-color: rgba(255, 255, 255, 0.5);
+  transform: scale(1.1);
+}
+
+.performance-toggle.active {
+  background: #a16d18;
+  border-color: #f5a623;
+  color: white;
+  box-shadow: 0 0 10px rgba(245, 166, 35, 0.5);
+}
+
+body.dark-mode .performance-toggle.active {
+  background: #804a1b;
+  border-color: #e67e22;
+  box-shadow: 0 0 10px rgba(230, 126, 34, 0.5);
 }
 
 /*# sourceMappingURL=styles.css.map */

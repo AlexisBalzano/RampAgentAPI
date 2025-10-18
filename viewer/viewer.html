@@ -1,6 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
-
+<html>
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -23,6 +22,9 @@
   <header>
     <i class="bx bx-menu" onclick="openNav()"></i>
     <h1>Ramp Agent API</h1>
+    <button id="performanceModeToggle" class="performance-toggle" onclick="togglePerformanceModeManual()" title="Toggle Performance Mode">
+      ⚡
+    </button>
     <i id="darkModeMoon" class="bx bxs-moon" onclick="toggleDarkMode()"></i>
     <i id="darkModeSun" class="bx bxs-sun" onclick="toggleDarkMode()"></i>
   </header>

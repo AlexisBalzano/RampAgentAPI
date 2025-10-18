@@ -15,6 +15,84 @@ function toggleDarkMode() {
   localStorage.setItem("darkMode", isDarkMode ? "enabled" : "disabled");
 }
 
+// High volume detection and performance mode
+let performanceMode = false;
+let lastStandCount = 0;
+const HIGH_VOLUME_THRESHOLD = 30; // Number of stands that triggers performance mode
+
+function checkVolumeAndTogglePerformanceMode(standCount) {
+  const shouldBeInPerformanceMode = standCount >= HIGH_VOLUME_THRESHOLD;
+  
+  if (shouldBeInPerformanceMode && !performanceMode) {
+    enablePerformanceMode();
+    console.log(`Performance mode enabled: ${standCount} stands detected (threshold: ${HIGH_VOLUME_THRESHOLD})`);
+  } else if (!shouldBeInPerformanceMode && performanceMode) {
+    disablePerformanceMode();
+    console.log(`Performance mode disabled: ${standCount} stands detected`);
+  }
+  
+  lastStandCount = standCount;
+}
+
+function enablePerformanceMode() {
+  performanceMode = true;
+  document.body.classList.add("performance-mode");
+  updatePerformanceToggleButton();
+  
+  // Show notification to user
+  showPerformanceModeNotification(true);
+}
+
+function disablePerformanceMode() {
+  performanceMode = false;
+  document.body.classList.remove("performance-mode");
+  updatePerformanceToggleButton();
+  
+  // Show notification to user
+  showPerformanceModeNotification(false);
+}
+
+function showPerformanceModeNotification(enabled) {
+  const existingNotification = document.querySelector('.performance-notification');
+  if (existingNotification) {
+    existingNotification.remove();
+  }
+  
+  const notification = document.createElement('div');
+  notification.className = 'performance-notification';
+  notification.textContent = enabled 
+    ? `⚡ Performance Mode: Animations disabled (${lastStandCount} stands)` 
+    : '✓ Performance Mode: Animations re-enabled';
+  document.body.appendChild(notification);
+  
+  setTimeout(() => {
+    notification.style.opacity = '0';
+    setTimeout(() => notification.remove(), 500);
+  }, 3000);
+}
+
+function togglePerformanceModeManual() {
+  if (performanceMode) {
+    disablePerformanceMode();
+  } else {
+    enablePerformanceMode();
+  }
+  updatePerformanceToggleButton();
+}
+
+function updatePerformanceToggleButton() {
+  const button = document.getElementById('performanceModeToggle');
+  if (button) {
+    if (performanceMode) {
+      button.classList.add('active');
+      button.title = 'Performance Mode: ON (Click to disable)';
+    } else {
+      button.classList.remove('active');
+      button.title = 'Performance Mode: OFF (Click to enable)';
+    }
+  }
+}
+
 // Status page
 
 function generateSpanforText(text) {
@@ -60,6 +138,10 @@ async function renderAirportsStatus() {
   const getAllBlockedStands = await fetch("/api/occupancy/blocked", {
     headers: { "X-Internal-Request": "1" },
   }).then((res) => res.json());
+
+  // Check volume and toggle performance mode
+  const totalStands = allOccupiedStands.length + getAllBlockedStands.length;
+  checkVolumeAndTogglePerformanceMode(totalStands);
 
   const statusContainer = document.getElementById("status-container");
   statusContainer.innerHTML = "";
