@@ -497,6 +497,10 @@ body.dark-mode #configContainer {
 }
 
 /* testing airport display */
+.airport-display {
+  align-items: start;
+}
+
 .departure-board {
   display: inline-flex;
 }
@@ -1762,17 +1766,17 @@ body.dark-mode .letter::after {
   }
   40% {
     color: #afafaf;
-    content: "Z";
+    content: "C";
     transform: rotateX(0deg);
   }
   60% {
     color: #afafaf;
-    content: "P";
+    content: "C";
     transform: rotateX(360deg);
   }
   80% {
     color: #afafaf;
-    content: "X";
+    content: "V";
     transform: rotateX(0deg);
   }
   100% {

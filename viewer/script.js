@@ -25,6 +25,11 @@ function generateSpanforText(text) {
   const departureBoard = document.createElement("div");
   departureBoard.className = "departure-board";
   const chars = Array.from(text);
+  const blanksNeeded = 16 - chars.length;
+  chars.unshift(" ");
+  for (let i = 0; i < blanksNeeded; i++) {
+    chars.push(" ");
+  }
   chars.forEach((char, index) => {
     const charSpan = document.createElement("span");
     if (char === " ") {
@@ -35,32 +40,6 @@ function generateSpanforText(text) {
     departureBoard.appendChild(charSpan);
   });
   return departureBoard;
-}
-
-function initializeStatusPage() {
-  // fetch("/api/airports", { headers: { "X-Internal-Request": "1" } })
-  //   .then((res) => {
-  //     if (!res.ok) throw new Error("Network response was not ok");
-  //     return res.json();
-  //   })
-  //   .then((presets) => {
-  //     if (!Array.isArray(presets) || presets.length === 0) {
-  //       return;
-  //     }
-  //     console.log("Config presets:", presets);
-  //     const container = document.getElementById("status-container");
-  //     presets.forEach((preset) => {
-  //       const subContainer = document.createElement("div");
-  //       subContainer.className = "subContainer";
-  //       subContainer.id = `airport-${preset.icao}`;
-  //       subContainer.appendChild(generateSpanforText(preset.name));
-  //       container.appendChild(subContainer);
-  //     });
-  //   })
-  //   .catch((error) => {
-  //     console.error("Error fetching config presets:", error);
-  //     container.innerHTML = "<p>Error loading presets.</p>";
-  //   });
 }
 
 async function renderAirportsStatus() {
@@ -105,15 +84,15 @@ async function renderAirportsStatus() {
   // Render all airports
   for (const [airportIcao, stands] of Object.entries(airports)) {
     const subContainer = document.createElement("div");
-    subContainer.className = "subContainer";
+    subContainer.className = "airport-display subContainer";
     subContainer.id = `airport-${airportIcao}`;
-    subContainer.appendChild(generateSpanforText(stands.name || airportIcao));
+    subContainer.appendChild(generateSpanforText(" " + airportIcao));
     subContainer.appendChild(generateSpanforText("Occupied Stands"));
     if (stands.occupied.length === 0) {
       subContainer.appendChild(generateSpanforText("None"));
     } else {
       stands.occupied.forEach((stand) => {
-        subContainer.appendChild(generateSpanforText(stand.name));
+        subContainer.appendChild(generateSpanforText(stand.name + "  " + stand.callsign));
       });
     }
     subContainer.appendChild(generateSpanforText("Blocked Stands"));
@@ -487,7 +466,6 @@ function scrollToBottom() {
 
 // Initial render and periodic refresh
 document.addEventListener("DOMContentLoaded", () => {
-  initializeStatusPage();
   renderAirportsStatus();
   renderConfigButtons();
   renderLogs();
