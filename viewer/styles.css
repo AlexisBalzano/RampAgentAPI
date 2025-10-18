@@ -499,6 +499,7 @@ body.dark-mode #configContainer {
 /* testing airport display */
 .airport-display {
   align-items: start;
+  height: min-content;
 }
 
 .departure-board {
@@ -1761,22 +1762,22 @@ body.dark-mode .letter::after {
     transform: rotateX(0deg);
   }
   20% {
-    content: "V";
+    content: "T";
     transform: rotateX(360deg);
   }
   40% {
     color: #afafaf;
-    content: "C";
+    content: "3";
     transform: rotateX(0deg);
   }
   60% {
     color: #afafaf;
-    content: "C";
+    content: "7";
     transform: rotateX(360deg);
   }
   80% {
     color: #afafaf;
-    content: "V";
+    content: "3";
     transform: rotateX(0deg);
   }
   100% {
