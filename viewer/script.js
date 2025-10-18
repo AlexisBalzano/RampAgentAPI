@@ -42,6 +42,10 @@ function generateSpanforText(text) {
   return departureBoard;
 }
 
+function padStandName(name) {
+  return name.padStart(3, " ");
+}
+
 async function renderAirportsStatus() {
   // Fetch all airports
   const airportList = await fetch("/api/airports", {
@@ -58,10 +62,9 @@ async function renderAirportsStatus() {
     headers: { "X-Internal-Request": "1" },
   }).then((res) => res.json());
 
-  
   const statusContainer = document.getElementById("status-container");
   statusContainer.innerHTML = "";
-  
+
   // Build airport map
   const airports = {};
   airportList.forEach((airport) => {
@@ -81,7 +84,7 @@ async function renderAirportsStatus() {
       airports[airportIcao].blocked.push(stand);
     }
   });
-  
+
   renderAirportChart(airports);
 
   // Render all airports
@@ -95,10 +98,9 @@ async function renderAirportsStatus() {
       subContainer.appendChild(generateSpanforText("None"));
     } else {
       stands.occupied.forEach((stand) => {
-        if (stand.name.length < 3) {
-          stand.name = Array(2 - stand.name.length).fill(" ").concat(stand.name);
-        }
-        subContainer.appendChild(generateSpanforText(stand.name + "  " + stand.callsign));
+        subContainer.appendChild(
+          generateSpanforText(padStandName(stand.name) + "  " + stand.callsign)
+        );
       });
     }
     subContainer.appendChild(generateSpanforText("Blocked Stands"));
@@ -106,10 +108,9 @@ async function renderAirportsStatus() {
       subContainer.appendChild(generateSpanforText("None"));
     } else {
       stands.blocked.forEach((stand) => {
-        if (stand.name.length < 3) {
-          stand.name = Array(2 - stand.name.length).fill(" ").concat(stand.name);
-        }
-        subContainer.appendChild(generateSpanforText(stand.name + "  " + stand.callsign));
+        subContainer.appendChild(
+          generateSpanforText(padStandName(stand.name) + "  " + stand.callsign)
+        );
       });
     }
     statusContainer.appendChild(subContainer);
@@ -348,7 +349,9 @@ function renderAirportChart(airports) {
     });
   } else {
     airportChart.data.labels = airportArr.map((a) => a.name);
-    airportChart.data.datasets[0].data = airportArr.map((a) => a.occupied.length);
+    airportChart.data.datasets[0].data = airportArr.map(
+      (a) => a.occupied.length
+    );
     airportChart.update("none");
   }
 }
