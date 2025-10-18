@@ -1,5 +1,5 @@
 {
-  "update_interval": 5,
+  "version": "1.0.0",
   "max_alt": 15000,
   "max_distance": 50.0,
   "CargoOperator": [
