@@ -206,6 +206,7 @@ body.dark-mode .subContainer {
 
 .status-container {
   display: grid;
+  justify-items: center;
   grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
   gap: 20px;
 }
@@ -1765,22 +1766,22 @@ body.dark-mode .letter::after {
     transform: rotateX(0deg);
   }
   20% {
-    content: "6";
+    content: "2";
     transform: rotateX(360deg);
   }
   40% {
     color: #afafaf;
-    content: "V";
+    content: "L";
     transform: rotateX(0deg);
   }
   60% {
     color: #afafaf;
-    content: "T";
+    content: "O";
     transform: rotateX(360deg);
   }
   80% {
     color: #afafaf;
-    content: "I";
+    content: "J";
     transform: rotateX(0deg);
   }
   100% {
