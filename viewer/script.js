@@ -15,66 +15,117 @@ function toggleDarkMode() {
   localStorage.setItem("darkMode", isDarkMode ? "enabled" : "disabled");
 }
 
-// Fetch occupied stands from server and render into the viewer
-function renderOccupiedStands() {
-  const ul = document.getElementById("occupiedStands");
-  if (!ul) return;
-  ul.innerHTML = "<li>Loading...</li>";
+// Status page
 
-  fetch("/api/occupancy/occupied", {headers:{"X-Internal-Request": "1"}})
-    .then((res) => {
-      if (!res.ok) throw new Error("Network response was not ok");
-      return res.json();
-    })
-    .then((stands) => {
-      ul.innerHTML = "";
-      if (!Array.isArray(stands) || stands.length === 0) {
-        ul.innerHTML = "<li>No stands are currently occupied.</li>";
-        return;
-      }
-      for (const s of stands) {
-        const li = document.createElement("li");
-        if (s.callsign)
-          li.textContent = `${s.name} @ ${s.icao} — ${s.callsign}`;
-        else li.textContent = `${s.name} @ ${s.icao}`;
-        ul.appendChild(li);
-      }
-    })
-    .catch((err) => {
-      console.error("Failed to load occupied stands", err);
-      ul.innerHTML = "<li>Error loading occupied stands.</li>";
-    });
+// filter occupied stands by airport icao
+// add subcontainer child to status-container for each airport
+// add departure-board child to each airport subcontainer for each occupied stand
+
+function generateSpanforText(text) {
+  const departureBoard = document.createElement("div");
+  departureBoard.className = "departure-board";
+  const chars = Array.from(text);
+  chars.forEach((char, index) => {
+    const charSpan = document.createElement("span");
+    if (char === " ") {
+      charSpan.className = "letter letter-blank";
+    } else {
+      charSpan.className = "letter letter-" + char.toUpperCase();
+    }
+    departureBoard.appendChild(charSpan);
+  });
+  return departureBoard;
 }
 
-// Fetch Blocked stands from server and render into the viewer
-function renderBlockedStands() {
-  const ul = document.getElementById("blockedStands");
-  if (!ul) return;
-  ul.innerHTML = "<li>Loading...</li>";
+function initializeStatusPage() {
+  // fetch("/api/airports", { headers: { "X-Internal-Request": "1" } })
+  //   .then((res) => {
+  //     if (!res.ok) throw new Error("Network response was not ok");
+  //     return res.json();
+  //   })
+  //   .then((presets) => {
+  //     if (!Array.isArray(presets) || presets.length === 0) {
+  //       return;
+  //     }
+  //     console.log("Config presets:", presets);
+  //     const container = document.getElementById("status-container");
+  //     presets.forEach((preset) => {
+  //       const subContainer = document.createElement("div");
+  //       subContainer.className = "subContainer";
+  //       subContainer.id = `airport-${preset.icao}`;
+  //       subContainer.appendChild(generateSpanforText(preset.name));
+  //       container.appendChild(subContainer);
+  //     });
+  //   })
+  //   .catch((error) => {
+  //     console.error("Error fetching config presets:", error);
+  //     container.innerHTML = "<p>Error loading presets.</p>";
+  //   });
+}
 
-  fetch("/api/occupancy/blocked", {headers:{"X-Internal-Request": "1"}})
-    .then((res) => {
-      if (!res.ok) throw new Error("Network response was not ok");
-      return res.json();
-    })
-    .then((stands) => {
-      ul.innerHTML = "";
-      if (!Array.isArray(stands) || stands.length === 0) {
-        ul.innerHTML = "<li>No stands are currently blocked.</li>";
-        return;
-      }
-      for (const s of stands) {
-        const li = document.createElement("li");
-        if (s.callsign)
-          li.textContent = `${s.name} @ ${s.icao} — ${s.callsign}`;
-        else li.textContent = `${s.name} @ ${s.icao}`;
-        ul.appendChild(li);
-      }
-    })
-    .catch((err) => {
-      console.error("Failed to load blocked stands", err);
-      ul.innerHTML = "<li>Error loading blocked stands.</li>";
-    });
+async function renderAirportsStatus() {
+  // Fetch all airports
+  const airportList = await fetch("/api/airports", {
+    headers: { "X-Internal-Request": "1" },
+  })
+    .then((res) => res.json())
+    .catch(() => []);
+
+  // Fetch stands
+  const allOccupiedStands = await fetch("/api/occupancy/occupied", {
+    headers: { "X-Internal-Request": "1" },
+  }).then((res) => res.json());
+  const getAllBlockedStands = await fetch("/api/occupancy/blocked", {
+    headers: { "X-Internal-Request": "1" },
+  }).then((res) => res.json());
+
+  const statusContainer = document.getElementById("status-container");
+  statusContainer.innerHTML = "";
+
+  // Build airport map
+  const airports = {};
+  airportList.forEach((airport) => {
+    airports[airport.name] = { name: airport.name, occupied: [], blocked: [] };
+  });
+  console.log("airports map: ", airports);
+  // Assign stands
+  allOccupiedStands.forEach((stand) => {
+    const airportIcao = stand.icao;
+    if (airportIcao && airports[airportIcao]) {
+      airports[airportIcao].occupied.push(stand);
+    }
+  });
+  getAllBlockedStands.forEach((stand) => {
+    const airportIcao = stand.icao;
+    if (airportIcao && airports[airportIcao]) {
+      airports[airportIcao].blocked.push(stand);
+    }
+  });
+
+  // Render all airports
+  for (const [airportIcao, stands] of Object.entries(airports)) {
+    const subContainer = document.createElement("div");
+    subContainer.className = "subContainer";
+    subContainer.id = `airport-${airportIcao}`;
+    subContainer.appendChild(generateSpanforText(stands.name || airportIcao));
+    subContainer.appendChild(generateSpanforText("Occupied Stands"));
+    if (stands.occupied.length === 0) {
+      subContainer.appendChild(generateSpanforText("None"));
+    } else {
+      stands.occupied.forEach((stand) => {
+        subContainer.appendChild(generateSpanforText(stand.name));
+      });
+    }
+    subContainer.appendChild(generateSpanforText("Blocked Stands"));
+    if (stands.blocked.length === 0) {
+      subContainer.appendChild(generateSpanforText("None"));
+    } else {
+      stands.blocked.forEach((stand) => {
+        subContainer.appendChild(generateSpanforText(stand.name));
+      });
+    }
+    statusContainer.appendChild(subContainer);
+  }
 }
 
 // Statistics chart
@@ -98,7 +149,9 @@ async function fetchReportsPerHour() {
 }
 
 async function fetchRequestsPerHour() {
-  const res = await fetch("/api/stats/requests-per-hour", {headers:{"X-Internal-Request": "1"}}); // match server route
+  const res = await fetch("/api/stats/requests-per-hour", {
+    headers: { "X-Internal-Request": "1" },
+  }); // match server route
   if (!res.ok) {
     console.warn(
       "fetchRequestsPerHour -> network not ok",
@@ -145,8 +198,12 @@ function renderReportsChart(reportsData, requestsData = []) {
   const legendTextColor = isDarkMode ? "#444" : "#b0b0b0";
 
   const timeWindow = generateTimeWindow(24);
-  const reportsMap = new Map(reportsData.map((d) => [new Date(d.hourIso).getHours(), d.count]));
-  const requestsMap = new Map(requestsData.map((d) => [new Date(d.hourIso).getHours(), d.count]));
+  const reportsMap = new Map(
+    reportsData.map((d) => [new Date(d.hourIso).getHours(), d.count])
+  );
+  const requestsMap = new Map(
+    requestsData.map((d) => [new Date(d.hourIso).getHours(), d.count])
+  );
 
   const labels = timeWindow.map((t) => t.label);
   const reportsCounts = timeWindow.map((t) => reportsMap.get(t.hour) || 0);
@@ -187,7 +244,7 @@ function renderReportsChart(reportsData, requestsData = []) {
             borderWidth: 1,
             borderRadius: 3,
             maxBarThickness: 40,
-          }
+          },
         ],
       },
       options: {
@@ -196,10 +253,10 @@ function renderReportsChart(reportsData, requestsData = []) {
             grid: {
               display: true,
               lineWidth: 1,
-              color: gridColor
+              color: gridColor,
             },
             ticks: {
-              color: axisTextColor
+              color: axisTextColor,
             },
             offset: true,
             categoryPercentage: 0.8,
@@ -209,25 +266,25 @@ function renderReportsChart(reportsData, requestsData = []) {
             grid: {
               display: true,
               lineWidth: 1,
-              color: gridColor
+              color: gridColor,
             },
             ticks: {
               color: axisTextColor,
-              precision: 0
+              precision: 0,
             },
             beginAtZero: true,
             grid: {
               display: true,
               lineWidth: 1,
-              color: gridColor
+              color: gridColor,
             },
           },
         },
         plugins: {
           legend: {
             labels: {
-              color: legendTextColor
-            }
+              color: legendTextColor,
+            },
           },
           tooltip: { enabled: true },
         },
@@ -288,8 +345,8 @@ function renderAirportChart() {
           legend: {
             position: "top",
             labels: {
-              color: "#888888"
-            }
+              color: "#888888",
+            },
           },
           tooltip: {
             callbacks: {
@@ -304,7 +361,12 @@ function renderAirportChart() {
       },
     });
   } else {
-    airportChart.data.labels = ["Airport 1", "Airport 2", "Airport 3", "Airport 4"];
+    airportChart.data.labels = [
+      "Airport 1",
+      "Airport 2",
+      "Airport 3",
+      "Airport 4",
+    ];
     airportChart.data.datasets[0].data = [300, 150, 100, 50];
     airportChart.update("none");
   }
@@ -314,14 +376,14 @@ async function refreshStatsChart() {
   try {
     const reportsData = await fetchReportsPerHour();
     const requestsData = await fetchRequestsPerHour();
-    
+
     // Pass both datasets to the chart
     renderReportsChart(reportsData, requestsData);
     renderAirportChart();
-    
+
     totalRequests = requestsData.reduce((sum, d) => sum + d.count, 0);
     totalReports = reportsData.reduce((sum, d) => sum + d.count, 0);
-    
+
     document.querySelector("#RequestTotal").textContent =
       totalRequests.toLocaleString();
     document.querySelector("#ReportTotal").textContent =
@@ -337,8 +399,8 @@ document.addEventListener("DOMContentLoaded", () => {
   setTimeout(() => {
     refreshStatsChart();
   }, 200);
-  // refresh every minute
-  setInterval(refreshStatsChart, 5_000);
+  // refresh every 10 seconds
+  setInterval(refreshStatsChart, 10_000);
 });
 
 // Log management
@@ -425,12 +487,11 @@ function scrollToBottom() {
 
 // Initial render and periodic refresh
 document.addEventListener("DOMContentLoaded", () => {
-  renderOccupiedStands();
-  renderBlockedStands();
+  initializeStatusPage();
+  renderAirportsStatus();
   renderConfigButtons();
   renderLogs();
-  setInterval(renderOccupiedStands, 10000);
-  setInterval(renderBlockedStands, 10000);
+  setInterval(renderAirportsStatus, 10_000);
   setInterval(renderLogs, 2000); // Fetch logs more frequently
 });
 
@@ -517,7 +578,7 @@ let occupiedStands = [];
 let blockedStands = [];
 
 function fetchOccupiedStands() {
-  fetch("/api/occupancy/occupied", {headers:{"X-Internal-Request": "1"}})
+  fetch("/api/occupancy/occupied", { headers: { "X-Internal-Request": "1" } })
     .then((res) => {
       if (!res.ok) throw new Error("Network response was not ok");
       return res.json();
@@ -534,7 +595,7 @@ function fetchOccupiedStands() {
 }
 
 function fetchBlockedStands() {
-  fetch("/api/occupancy/blocked", {headers:{"X-Internal-Request": "1"}})
+  fetch("/api/occupancy/blocked", { headers: { "X-Internal-Request": "1" } })
     .then((res) => {
       if (!res.ok) throw new Error("Network response was not ok");
       return res.json();
@@ -828,7 +889,6 @@ map.whenReady(function () {
   initialBounds = map.getBounds();
 });
 
-
 // Configs page
 // generate buttons for available config presets
 function renderConfigButtons() {
@@ -865,7 +925,10 @@ function syntaxHighlight(json) {
   if (typeof json != "string") {
     json = JSON.stringify(json, null, 2);
   }
-  json = json.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+  json = json
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;");
   return json.replace(
     /("(\\u[a-zA-Z0-9]{4}|\\[^u]|[^\\"])*"(\s*:)?|\b(true|false|null)\b|-?\d+(?:\.\d*)?(?:[eE][+\-]?\d+)?)/g,
     function (match) {
@@ -888,7 +951,10 @@ function syntaxHighlight(json) {
 
 function loadConfig(presetName) {
   if (!presetName) return;
-  fetch(`/api/airports/config/${encodeURIComponent(presetName)}`, { method: "GET", headers: { "X-Internal-Request": "1" } })
+  fetch(`/api/airports/config/${encodeURIComponent(presetName)}`, {
+    method: "GET",
+    headers: { "X-Internal-Request": "1" },
+  })
     .then((res) => {
       if (!res.ok) throw new Error("Network response was not ok");
       return res.json();
