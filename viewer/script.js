@@ -70,7 +70,6 @@ async function renderAirportsStatus() {
   airportList.forEach((airport) => {
     airports[airport.name] = { name: airport.name, occupied: [], blocked: [] };
   });
-  console.log("airports map: ", airports);
   // Assign stands
   allOccupiedStands.forEach((stand) => {
     const airportIcao = stand.icao;
@@ -363,7 +362,6 @@ async function refreshStatsChart() {
 
     // Pass both datasets to the chart
     renderReportsChart(reportsData, requestsData);
-    renderAirportChart();
 
     totalRequests = requestsData.reduce((sum, d) => sum + d.count, 0);
     totalReports = reportsData.reduce((sum, d) => sum + d.count, 0);
