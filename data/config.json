@@ -24,7 +24,8 @@
     "ACX",
     "BRQ",
     "FPO",
-	"ADB"
+	"ADB",
+    "ABR"
   ],
   "Helicopters": [
     "H145",
