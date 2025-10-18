@@ -9,6 +9,8 @@ const occupancyRoutes = require('./routes/occupancy');
 const logger = require('./utils/logger');
 const airportRoutes = require('./routes/airports');
 const statRoutes = require('./routes/stats');
+const redisService = require('./services/redisService');
+const airportService = require('./services/airportService');
 
 const app = express();
 app.use(express.json());
@@ -35,6 +37,28 @@ app.use('/api/report', reportRoutes);
 app.use('/api/assign', assignRoutes);
 app.use('/api/occupancy', occupancyRoutes);
 
-app.listen(config.port, () => {
-  logger.info(`Server running at http://localhost:${config.port}`);
+// Connect to Redis
+redisService.connect().then(() => {
+  app.listen(config.port, () => {
+    logger.info(`Server running at http://localhost:${config.port}`);
+  });
+}).catch(err => {
+  logger.error(`Failed to start server: ${err.message}`);
+  process.exit(1);
+});
+
+// Periodically check for airport config updates
+setInterval(async () => {
+  const airports = airportService.getAirportList();
+  for (const icao of airports) {
+    await airportService.checkAirportVersion(icao);
+  }
+  await redisService.checkConfigVersion(path.join(__dirname, '..', 'data', 'config.json'));
+}, 10_000); // Check every minute
+
+// Shutdown handling
+process.on('SIGINT', async () => {
+  logger.info('Shutting down...');
+  await redisService.disconnect();
+  process.exit(0);
 });

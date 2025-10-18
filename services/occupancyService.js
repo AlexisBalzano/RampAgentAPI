@@ -1,9 +1,5 @@
 const { info, warn, error } = require("../utils/logger");
-const {
-  getAirportList,
-  getConfig,
-  getAirportConfigPath,
-} = require("./airportService");
+const airportService = require("./airportService");
 const path = require("path");
 const fs = require("fs");
 const { get } = require("http");
@@ -111,7 +107,7 @@ const haversineMeters = (lat1, lon1, lat2, lon2) => {
   return kR * c;
 };
 
-const isAircraftOnStand = (callsign, ac, airportList) => {
+const isAircraftOnStand = async (callsign, ac, airportList) => {
   if (!ac || !ac.origin || !ac.position) {
     return "";
   }
@@ -119,7 +115,7 @@ const isAircraftOnStand = (callsign, ac, airportList) => {
   // Find current airport
   for (const airport of airportList) {
     try {
-      const airportJson = require(getAirportConfigPath(airport));
+      const airportJson = await airportService.getAirportConfig(airport);
       if (airportJson && airportJson.Coordinates && airportJson.ICAO) {
         const parts = String(airportJson.Coordinates).split(":");
         if (parts.length < 2) continue;
@@ -166,8 +162,7 @@ const isAircraftOnStand = (callsign, ac, airportList) => {
   }
 
   // Load airport data; Stands is an object keyed by stand name
-  const airportData = require(airportPath);
-  const airportJson = require(getAirportConfigPath(ac.origin));
+  const airportData = await airportService.getAirportConfig(ac.origin);
   if (!airportData || !airportData.Stands) {
     return "";
   }
@@ -220,7 +215,7 @@ function isConcernedArrival(callsign, ac, config) {
   if (ac.position.dist > config.max_distance) {
     return false;
   }
-  const airportList = getAirportList();
+  const airportList = airportService.getAirportList();
   if (!airportList.includes(ac.destination)) {
     return false;
   }
@@ -317,9 +312,6 @@ function assignStand(airportConfig, config, callsign, ac) {
     .getAllOccupied()
     .find((s) => s.callsign === callsign);
   if (assignedStand) {
-    warn(
-      `Aircraft ${callsign} already assigned to stand ${assignedStand.name} at ${ac.destination}`
-    );
     assignedStand.timestamp = Date.now();
     return;
   }
@@ -411,11 +403,11 @@ function assignStand(airportConfig, config, callsign, ac) {
   warn(`No available stands found for ${callsign} at ${ac.destination}`);
 }
 
-clientReportParse = (aircrafts) => {
+clientReportParse = async (aircrafts) => {
   // Parse JSON of all the reported aircraft positions/states
   let airportList = [];
   try {
-    const al = getAirportList();
+    const al = airportService.getAirportList();
     if (Array.isArray(al)) {
       airportList = al;
     }
@@ -443,11 +435,11 @@ clientReportParse = (aircrafts) => {
       });
     }
 
-    const aircraftOnStand = isAircraftOnStand(callsign, ac, airportList);
+    const aircraftOnStand = await isAircraftOnStand(callsign, ac, airportList);
     if (aircraftOnStand) {
       ac.stand = aircraftOnStand;
       // Check if the stand is an apron by looking into json
-      const airportJson = require(getAirportConfigPath(ac.origin));
+      const airportJson = await airportService.getAirportConfig(ac.origin);
       const standDef = airportJson.Stands && airportJson.Stands[ac.stand];
       if (standDef || !standDef.Apron || standDef.Apron === false) {
         const stand = new Stand(ac.stand, ac.origin || "UNKNOWN", callsign);
@@ -461,7 +453,7 @@ clientReportParse = (aircrafts) => {
   }
 
   // get config.json for parameters
-  const config = getConfig();
+  const config = await airportService.getConfig();
   if (!config) {
     error("No config found, skipping assignment");
     return;
@@ -475,7 +467,7 @@ clientReportParse = (aircrafts) => {
     }
 
     // Aircraft meets requirements for stand assignment
-    const airportConfig = require(getAirportConfigPath(ac.destination));
+    const airportConfig = await airportService.getAirportConfig(ac.destination);
     if (!airportConfig || !airportConfig.Stands) {
       warn(
         `No stands found for airport ${ac.destination}, skipping assignment`
