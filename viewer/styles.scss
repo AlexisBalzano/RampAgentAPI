@@ -464,13 +464,17 @@ body.dark-mode #configContainer {
 $borderColor: #1d1e1e;
 $backgroundColor: #ffffff;
 $textColor: #000000;
+$borderColor: #61616144;
 $backgroundColor-Dark-Mode: #5f5f5f;
 $textColor-Dark-Mode: #ffffff;
+$borderColor-Dark-Mode: #505050;
 $chars: "A","B","C","D","E","F","G","H","I","J","K","L","M","N","O","P","Q","R","S","T","U","V","W","X","Y","Z","0","1","2","3","4","5","6","7","8","9";
 
 .airport-display {
   align-items: start;
   height: min-content;
+  width: min-content;
+  padding: 10px;
 }
 
 .departure-board {
@@ -494,7 +498,7 @@ body.dark-mode .letter {
 
 .letter::before {
   background-color: $backgroundColor;
-  border-bottom: 1px solid rgba(255,255,255,0.3);
+  border-bottom: 1px solid $borderColor;
   font-size: 20px;
   height: 20px;
   line-height: 20px;
@@ -506,6 +510,7 @@ body.dark-mode .letter {
 body.dark-mode  .letter::before {
   background-color: $backgroundColor-Dark-Mode;
   color: $textColor-Dark-Mode;
+  border-bottom: 1px solid $borderColor-Dark-Mode;
 }
 .letter::after {
   background-color: $backgroundColor;

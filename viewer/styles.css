@@ -500,6 +500,8 @@ body.dark-mode #configContainer {
 .airport-display {
   align-items: start;
   height: min-content;
+  width: min-content;
+  padding: 10px;
 }
 
 .departure-board {
@@ -508,7 +510,7 @@ body.dark-mode #configContainer {
 
 .letter {
   background-color: #ffffff;
-  border-right: 1px solid #1d1e1e;
+  border-right: 1px solid rgba(97, 97, 97, 0.2666666667);
   color: #ffffff;
   display: flex;
   flex-direction: column;
@@ -525,7 +527,7 @@ body.dark-mode .letter {
 
 .letter::before {
   background-color: #ffffff;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.3);
+  border-bottom: 1px solid rgba(97, 97, 97, 0.2666666667);
   font-size: 20px;
   height: 20px;
   line-height: 20px;
@@ -538,6 +540,7 @@ body.dark-mode .letter {
 body.dark-mode .letter::before {
   background-color: #5f5f5f;
   color: #ffffff;
+  border-bottom: 1px solid #505050;
 }
 
 .letter::after {
@@ -1762,22 +1765,22 @@ body.dark-mode .letter::after {
     transform: rotateX(0deg);
   }
   20% {
-    content: "T";
+    content: "6";
     transform: rotateX(360deg);
   }
   40% {
     color: #afafaf;
-    content: "3";
+    content: "V";
     transform: rotateX(0deg);
   }
   60% {
     color: #afafaf;
-    content: "7";
+    content: "T";
     transform: rotateX(360deg);
   }
   80% {
     color: #afafaf;
-    content: "3";
+    content: "I";
     transform: rotateX(0deg);
   }
   100% {
