@@ -4,7 +4,7 @@ module.exports = {
   staleTimeout: 10_000,         // (ms) before a client report is considered outdated
   
   storage: {
-    type: 'memory', // 'redis' | 'file' | 'sqlite'
+    type: 'redis',
     redisUrl: 'redis://localhost:6379',
     autosaveInterval: 30_000, // ms
   },
