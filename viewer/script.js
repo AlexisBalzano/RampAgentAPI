@@ -95,6 +95,9 @@ async function renderAirportsStatus() {
       subContainer.appendChild(generateSpanforText("None"));
     } else {
       stands.occupied.forEach((stand) => {
+        if (stand.name.length < 3) {
+          stand.name = Array(2 - stand.name.length).fill(" ").concat(stand.name);
+        }
         subContainer.appendChild(generateSpanforText(stand.name + "  " + stand.callsign));
       });
     }
@@ -103,6 +106,9 @@ async function renderAirportsStatus() {
       subContainer.appendChild(generateSpanforText("None"));
     } else {
       stands.blocked.forEach((stand) => {
+        if (stand.name.length < 3) {
+          stand.name = Array(2 - stand.name.length).fill(" ").concat(stand.name);
+        }
         subContainer.appendChild(generateSpanforText(stand.name + "  " + stand.callsign));
       });
     }
