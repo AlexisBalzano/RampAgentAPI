@@ -4,6 +4,32 @@ const path = require("path");
 const fs = require("fs");
 const { get } = require("http");
 
+// Cache for parsed coordinates to avoid repeated string splitting
+const coordinateCache = new Map(); // key: "lat:lon:alt" -> { lat, lon, radius }
+
+// Helper to parse and cache coordinates
+function parseCoordinates(coordString, defaultRadius = 30) {
+  if (!coordString) return null;
+  
+  let cached = coordinateCache.get(coordString);
+  if (cached) return cached;
+  
+  const parts = String(coordString).split(":");
+  if (parts.length < 2) return null;
+  
+  const lat = parseFloat(parts[0]);
+  const lon = parseFloat(parts[1]);
+  
+  if (isNaN(lat) || isNaN(lon)) return null;
+  
+  const radius = parts[2] ? parseFloat(parts[2]) : defaultRadius;
+  
+  cached = { lat, lon, radius };
+  coordinateCache.set(coordString, cached);
+  
+  return cached;
+}
+
 class Stand {
   constructor(name, icao, callsign) {
     this.name = name;
@@ -107,85 +133,84 @@ const haversineMeters = (lat1, lon1, lat2, lon2) => {
   return kR * c;
 };
 
-const isAircraftOnStand = async (callsign, ac, airportList) => {
+const isAircraftOnStand = async (callsign, ac, airportSet, airportConfigCache) => {
   if (!ac || !ac.origin || !ac.position) {
     return "";
   }
 
   // Find current airport
-  for (const airport of airportList) {
+  for (const airport of airportSet) {
     try {
-      const airportJson = await airportService.getAirportConfig(airport);
+      // Use cached airport config
+      let airportJson = airportConfigCache.get(airport);
+      if (!airportJson) {
+        airportJson = await airportService.getAirportConfig(airport);
+        if (airportJson) {
+          airportConfigCache.set(airport, airportJson);
+        }
+      }
+      
       if (airportJson && airportJson.Coordinates && airportJson.ICAO) {
-        const parts = String(airportJson.Coordinates).split(":");
-        if (parts.length < 2) continue;
-        const lat = parseFloat(parts[0]);
-        const lon = parseFloat(parts[1]);
-        // Validate coordinates
-        if (isNaN(lat) || isNaN(lon)) continue;
-        const radius = parts[2] ? parseFloat(parts[2]) : 5000; // default 5km
+        const coords = parseCoordinates(airportJson.Coordinates, 5000);
+        if (!coords) continue;
+        
         const aircraftDist = haversineMeters(
           ac.position.lat,
           ac.position.lon,
-          lat,
-          lon
+          coords.lat,
+          coords.lon
         );
-        if (aircraftDist <= radius) {
+        if (aircraftDist <= coords.radius) {
           ac.origin = airportJson.ICAO;
           break;
         }
       }
-    } catch (error) {
+    } catch (err) {
       // Skip this airport if config cannot be loaded
-      error(`Could not load config for airport ${airport}: ${error.message}`);
-      ac.origin = "N/A";
+      warn(`Could not load config for airport ${airport}: ${err.message}`);
       continue;
     }
-
-  }
-  // If still N/A after checking all airports
-  if (ac.origin === "N/A") {
-    error(
-      `Could not determine airport for aircraft at position ${ac.position.lat}, ${ac.position.lon} for callsign: ${callsign}`
-    );
   }
   
-  if (!airportList.includes(ac.origin)) {
+  // If still N/A after checking all airports
+  if (ac.origin === "N/A") {
+    warn(
+      `Could not determine airport for aircraft at position ${ac.position.lat}, ${ac.position.lon} for callsign: ${callsign}`
+    );
+    return "";
+  }
+  
+  if (!airportSet.has(ac.origin)) {
     return "";
   }
 
-  // Resolve airports directory relative to this module to avoid process.cwd() issues
-  const airportsDir = path.join(__dirname, "..", "data", "airports");
-  const airportPath = path.join(airportsDir, `${ac.origin}.json`);
-  if (!fs.existsSync(airportPath)) {
-    return "";
+  // Load airport data from cache or service
+  let airportData = airportConfigCache.get(ac.origin);
+  if (!airportData) {
+    airportData = await airportService.getAirportConfig(ac.origin);
+    if (airportData) {
+      airportConfigCache.set(ac.origin, airportData);
+    }
   }
-
-  // Load airport data; Stands is an object keyed by stand name
-  const airportData = await airportService.getAirportConfig(ac.origin);
+  
   if (!airportData || !airportData.Stands) {
     return "";
   }
 
   for (const [standName, standDef] of Object.entries(airportData.Stands)) {
-    // Parse Coordinates "lat:lon:alt" (alt optionally used as radius)
     if (!standDef.Coordinates) continue;
-    const parts = String(standDef.Coordinates).split(":");
-    if (parts.length < 2) continue;
-    const lat = parseFloat(parts[0]);
-    const lon = parseFloat(parts[1]);
-    const coordRadius = parts[2] ? parseFloat(parts[2]) : undefined;
-
-    const radius = coordRadius || 30;
+    
+    const coords = parseCoordinates(standDef.Coordinates, 30);
+    if (!coords) continue;
 
     const aircraftDist = haversineMeters(
       ac.position.lat,
       ac.position.lon,
-      lat,
-      lon
+      coords.lat,
+      coords.lon
     );
 
-    if (aircraftDist <= radius) {
+    if (aircraftDist <= coords.radius) {
       return standName;
     }
   }
@@ -205,7 +230,7 @@ const blockStands = (standDef, icao, callsign, standName) => {
   }
 };
 
-function isConcernedArrival(callsign, ac, config) {
+function isConcernedArrival(callsign, ac, config, airportSet) {
   if (!ac || !ac.destination || !ac.position) {
     return false;
   }
@@ -215,8 +240,7 @@ function isConcernedArrival(callsign, ac, config) {
   if (ac.position.dist > config.max_distance) {
     return false;
   }
-  const airportList = airportService.getAirportList();
-  if (!airportList.includes(ac.destination)) {
+  if (!airportSet.has(ac.destination)) {
     return false;
   }
   return true;
@@ -405,11 +429,14 @@ function assignStand(airportConfig, config, callsign, ac) {
 
 clientReportParse = async (aircrafts) => {
   // Parse JSON of all the reported aircraft positions/states
-  let airportList = [];
+  // Use Set for O(1) lookup performance instead of Array.includes()
+  let airportSet = new Set();
+  const airportConfigCache = new Map(); // Cache airport configs to avoid repeated loads
+  
   try {
     const al = airportService.getAirportList();
     if (Array.isArray(al)) {
-      airportList = al;
+      airportSet = new Set(al);
     }
   } catch (e) {
     error(`Error loading airport list: ${e.message}`);
@@ -435,12 +462,20 @@ clientReportParse = async (aircrafts) => {
       });
     }
 
-    const aircraftOnStand = await isAircraftOnStand(callsign, ac, airportList);
+    const aircraftOnStand = await isAircraftOnStand(callsign, ac, airportSet, airportConfigCache);
     if (aircraftOnStand) {
       ac.stand = aircraftOnStand;
       // Check if the stand is an apron by looking into json
-      const airportJson = await airportService.getAirportConfig(ac.origin);
-      const standDef = airportJson.Stands && airportJson.Stands[ac.stand];
+      // Use cached config
+      let airportJson = airportConfigCache.get(ac.origin);
+      if (!airportJson) {
+        airportJson = await airportService.getAirportConfig(ac.origin);
+        if (airportJson) {
+          airportConfigCache.set(ac.origin, airportJson);
+        }
+      }
+      
+      const standDef = airportJson && airportJson.Stands && airportJson.Stands[ac.stand];
       if (standDef && (!standDef.Apron || standDef.Apron === false)) {
         const stand = new Stand(ac.stand, ac.origin || "UNKNOWN", callsign);
         // Remove preceeding entry if any
@@ -462,12 +497,20 @@ clientReportParse = async (aircrafts) => {
   // Handle airborne aircraft - (ie: assign stand if criterias met)
   for (const [callsign, ac] of Object.entries(aircrafts.airborne || {})) {
     // Check Assignement conditions
-    if (!isConcernedArrival(callsign, ac, config)) {
+    if (!isConcernedArrival(callsign, ac, config, airportSet)) {
       continue;
     }
 
     // Aircraft meets requirements for stand assignment
-    const airportConfig = await airportService.getAirportConfig(ac.destination);
+    // Use cached config
+    let airportConfig = airportConfigCache.get(ac.destination);
+    if (!airportConfig) {
+      airportConfig = await airportService.getAirportConfig(ac.destination);
+      if (airportConfig) {
+        airportConfigCache.set(ac.destination, airportConfig);
+      }
+    }
+    
     if (!airportConfig || !airportConfig.Stands) {
       warn(
         `No stands found for airport ${ac.destination}, skipping assignment`
