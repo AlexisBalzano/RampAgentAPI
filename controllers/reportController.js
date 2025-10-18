@@ -9,6 +9,9 @@ exports.handleReport = async (req, res) => {
     return res.status(400).json({ error: 'Invalid client info' });
   }
 
+  // TODO: Client validation
+
+
   if (!aircrafts || typeof aircrafts !== 'object') {
     return res.status(400).json({ error: 'Invalid aircrafts info' });
   }

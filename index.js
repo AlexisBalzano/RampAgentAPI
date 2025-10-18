@@ -1,5 +1,6 @@
 const express = require('express');
 const path = require('path');
+require('dotenv').config();
 
 const env = process.env.NODE_ENV || 'default';
 const config = require(`./config/${env}.js`);
@@ -11,6 +12,8 @@ const airportRoutes = require('./routes/airports');
 const statRoutes = require('./routes/stats');
 const redisService = require('./services/redisService');
 const airportService = require('./services/airportService');
+const authRoutes = require('./routes/auth');
+const authController = require('./controllers/authController'); // To use verifyToken middleware
 
 const app = express();
 app.use(express.json());
@@ -36,6 +39,7 @@ app.use('/debug', express.static(path.join(__dirname, 'viewer')));
 app.use('/api/report', reportRoutes);
 app.use('/api/assign', assignRoutes);
 app.use('/api/occupancy', occupancyRoutes);
+app.use('/auth', authRoutes);
 
 // Connect to Redis
 redisService.connect().then(() => {
