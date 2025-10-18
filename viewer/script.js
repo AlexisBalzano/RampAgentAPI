@@ -58,9 +58,10 @@ async function renderAirportsStatus() {
     headers: { "X-Internal-Request": "1" },
   }).then((res) => res.json());
 
+  
   const statusContainer = document.getElementById("status-container");
   statusContainer.innerHTML = "";
-
+  
   // Build airport map
   const airports = {};
   airportList.forEach((airport) => {
@@ -80,6 +81,8 @@ async function renderAirportsStatus() {
       airports[airportIcao].blocked.push(stand);
     }
   });
+  
+  renderAirportChart(airports);
 
   // Render all airports
   for (const [airportIcao, stands] of Object.entries(airports)) {
@@ -284,13 +287,11 @@ function renderReportsChart(reportsData, requestsData = []) {
   }
 }
 
-function renderAirportChart() {
-  // Render a pie chart of occupied stands per airport
-  const isDarkMode = document.body.classList.contains("dark-mode");
-  const chartColors = isDarkMode
-    ? ["#6a5acd", "#ff6347", "#3cb371", "#ffa500"]
-    : ["#4a90e2", "#e94e77", "#50b848", "#f5a623"];
+function renderAirportChart(airports) {
+  // Convert airports object to array
+  const airportArr = Object.values(airports);
 
+  const chartColors = ["#4a90e2", "#e94e77", "#50b848", "#f5a623"];
   const canvas = document.getElementById("airportChart");
   if (!canvas) {
     console.warn("renderAirportChart -> canvas#airportChart not found");
@@ -307,10 +308,10 @@ function renderAirportChart() {
     airportChart = new Chart(ctx, {
       type: "pie",
       data: {
-        labels: ["Airport 1", "Airport 2", "Airport 3", "Airport 4"], //TODO: Fetch real data
+        labels: airportArr.map((a) => a.name),
         datasets: [
           {
-            data: [300, 150, 100, 50],
+            data: airportArr.map((a) => a.occupied.length),
             backgroundColor: chartColors,
             borderColor: "#222",
             borderWidth: 0,
@@ -340,13 +341,8 @@ function renderAirportChart() {
       },
     });
   } else {
-    airportChart.data.labels = [
-      "Airport 1",
-      "Airport 2",
-      "Airport 3",
-      "Airport 4",
-    ];
-    airportChart.data.datasets[0].data = [300, 150, 100, 50];
+    airportChart.data.labels = airportArr.map((a) => a.name);
+    airportChart.data.datasets[0].data = airportArr.map((a) => a.occupied.length);
     airportChart.update("none");
   }
 }
