@@ -157,7 +157,6 @@ class RedisService {
   async checkConfigVersion() {
     if (!this.isConnected) return false;
     try {
-      logger.info('Checking global config version...');
       const configPath = path.join(__dirname, '..', 'data', 'config.json');
       const fileData = this.loadFromFile(configPath);
       if (!fileData) return false;
