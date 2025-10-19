@@ -130,7 +130,6 @@ function padAirportIcao(name) {
 }
 
 async function renderAirportsStatus() {
-  console.log("renderAirportsStatus: Starting");
   try {
     // Fetch all airports
     const airportList = await fetch("/api/airports", {
@@ -138,7 +137,6 @@ async function renderAirportsStatus() {
     })
       .then((res) => res.json())
       .catch(() => []);
-    console.log("renderAirportsStatus: Fetched airports", airportList.length);
 
     // Fetch stands
     const allOccupiedStands = await fetch("/api/occupancy/occupied", {
@@ -151,11 +149,7 @@ async function renderAirportsStatus() {
       headers: { "X-Internal-Request": "1" },
     }).then((res) => res.json());
     
-    console.log("renderAirportsStatus: Fetched stands", {
-      occupied: allOccupiedStands.length,
-      assigned: getAllAssignedStands.length,
-      blocked: getAllBlockedStands.length
-    });
+
 
     // Check volume and toggle performance mode
     const totalStands = allOccupiedStands.length + getAllBlockedStands.length + getAllAssignedStands.length;
@@ -484,25 +478,15 @@ function renderAirportChart(airports) {
 }
 
 async function refreshStatsChart() {
-  console.log("refreshStatsChart: Starting");
   try {
     const reportsData = await fetchReportsPerHour();
     const requestsData = await fetchRequestsPerHour();
-    console.log("refreshStatsChart: Data fetched", {
-      reports: reportsData.length,
-      requests: requestsData.length
-    });
 
     // Pass both datasets to the chart
     renderReportsChart(reportsData, requestsData);
 
     totalRequests = requestsData.reduce((sum, d) => sum + d.count, 0);
     totalReports = reportsData.reduce((sum, d) => sum + d.count, 0);
-    
-    console.log("refreshStatsChart: Totals calculated", {
-      totalRequests,
-      totalReports
-    });
 
     const requestTotal = document.querySelector("#RequestTotal");
     const reportTotal = document.querySelector("#ReportTotal");
@@ -510,7 +494,6 @@ async function refreshStatsChart() {
     if (requestTotal && reportTotal) {
       requestTotal.textContent = totalRequests.toLocaleString();
       reportTotal.textContent = totalReports.toLocaleString();
-      console.log("refreshStatsChart: DOM updated successfully");
     } else {
       console.error("refreshStatsChart: Total elements not found", {
         requestTotal: !!requestTotal,
@@ -524,10 +507,8 @@ async function refreshStatsChart() {
 
 // initial load when DOM ready
 document.addEventListener("DOMContentLoaded", () => {
-  console.log("Stats chart DOMContentLoaded triggered");
   // try initial render (chart canvas must exist)
   setTimeout(() => {
-    console.log("Stats chart timeout callback executing");
     refreshStatsChart();
   }, 200);
   // refresh every 10 seconds
@@ -641,9 +622,7 @@ let isLoading = false;
 let hasMore = true;
 
 async function fetchFilteredLogs(reset = false) {
-  console.log("fetchFilteredLogs: Called with reset =", reset);
   if (isLoading) {
-    console.log("fetchFilteredLogs: Already loading, skipping");
     return;
   }
 
@@ -653,7 +632,6 @@ async function fetchFilteredLogs(reset = false) {
     const logContent = document.getElementById('logContent');
     if (logContent) {
       logContent.innerHTML = '';
-      console.log("fetchFilteredLogs: Cleared log content");
     } else {
       console.error("fetchFilteredLogs: logContent element not found");
     }
@@ -682,8 +660,6 @@ async function fetchFilteredLogs(reset = false) {
   const icao = icaoSelect.value;
   const callsign = callsignSelect.value;
   
-  console.log("fetchFilteredLogs: Filters", { level, category, icao, callsign, page: currentPage });
-
   const params = new URLSearchParams({
     level,
     category,
@@ -696,17 +672,12 @@ async function fetchFilteredLogs(reset = false) {
   try {
     const url = "/api/logs/filter?" + params.toString();
     const response = await fetch(url);
-    console.log("fetchFilteredLogs: Response status", response.status);
     
     if (!response.ok) {
       throw new Error("HTTP " + response.status + ": " + response.statusText);
     }
     
     const data = await response.json();
-    console.log("fetchFilteredLogs: Data received", {
-      logsCount: data.logs ? data.logs.length : 0,
-      hasMore: data.hasMore
-    });
 
     if (data.logs && Array.isArray(data.logs)) {
       // Reverse logs so newest is at bottom
@@ -898,8 +869,6 @@ function scrollToBottom() {
 
 // Initial render and periodic refresh
 document.addEventListener("DOMContentLoaded", () => {
-  console.log("DOM Content Loaded - Starting initialization");
-  
   renderAirportsStatus();
   renderConfigButtons();
   
@@ -907,11 +876,9 @@ document.addEventListener("DOMContentLoaded", () => {
   populateLogFilters();
   fetchFilteredLogs();
   
-  console.log("Setting up log scroll listeners");
   // Set up infinite scroll on logContainer
   const logContainer = document.getElementById('logContainer');
   if (logContainer) {
-    console.log("Log container found, attaching scroll listener");
     logContainer.addEventListener('scroll', (e) => {
       const element = e.target;
       
@@ -941,26 +908,17 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   }
   
-  console.log("Setting up filter change listeners");
   // Set up filter change listeners
   const levelSelect = document.getElementById('level-select');
   const airportSelect = document.getElementById('airport-select');
   const callsignSelect = document.getElementById('callsign-select');
   const categorySelect = document.getElementById('category-select');
   
-  console.log("Filter elements found:", {
-    levelSelect: !!levelSelect,
-    airportSelect: !!airportSelect,
-    callsignSelect: !!callsignSelect,
-    categorySelect: !!categorySelect
-  });
-  
   if (levelSelect) levelSelect.addEventListener('change', () => fetchFilteredLogs(true));
   if (airportSelect) airportSelect.addEventListener('change', () => fetchFilteredLogs(true));
   if (callsignSelect) callsignSelect.addEventListener('change', () => fetchFilteredLogs(true));
   if (categorySelect) categorySelect.addEventListener('change', () => fetchFilteredLogs(true));
   
-  console.log("Starting periodic updates");
   setInterval(renderAirportsStatus, 10000);
   setInterval(populateLogFilters, 5000);
   
@@ -1251,14 +1209,11 @@ function loadConfig(presetName) {
 
 // Initialize map after DOM is ready
 function initializeMap() {
-  console.log("initializeMap: Starting");
-  
   // Check if Leaflet is loaded
   if (typeof L === 'undefined') {
     console.error("initializeMap: Leaflet (L) is not loaded. Make sure leaflet.js is included before this script.");
     return;
   }
-  console.log("initializeMap: Leaflet library found");
 
   // Check if map element exists
   const mapElement = document.getElementById("map");
@@ -1266,15 +1221,12 @@ function initializeMap() {
     console.error("initializeMap: Map element not found, skipping map initialization");
     return;
   }
-  console.log("initializeMap: Map element found");
 
   try {
-    console.log("initializeMap: Creating Leaflet map");
     // Initialize Leaflet map
     map = L.map("map", {
       maxZoom: 19,
     }).setView([49.009279, 2.565732], 14);
-    console.log("initializeMap: Map created successfully");
 
   // Add satellite tile layer
   L.tileLayer(
