@@ -331,6 +331,7 @@ const blockStands = (standDef, icao, callsign) => {
         icao || "UNKNOWN",
         callsign
       );
+      info(`Blocking Stand ${blockedStandName} for ${callsign}`, { category: 'Assignation', callsign: callsign, icao: airportConfig.ICAO });
       registry.addBlocked(blockedStand);
     }
   }
@@ -467,37 +468,44 @@ function assignStand(airportConfig, config, callsign, ac) {
   for (const [standName, standDef] of Object.entries(airportConfig.Stands)) {
     // Implements checks
     if (standDef.Use && standDef.Use !== use) {
+      info(`Stand ${standName} use ${standDef.Use} does not match aircraft use ${use} for ${callsign}`, { category: 'Assignation', callsign: callsign, icao: airportConfig.ICAO });
       continue;
     }
     if (standDef.Code && standDef.Code.includes(code) === false) {
+      info(`Stand ${standName} code ${standDef.Code} does not match aircraft code ${code} for ${callsign}`, { category: 'Assignation', callsign: callsign, icao: airportConfig.ICAO });
       continue;
     }
     if (standDef.Schengen && standDef.Schengen !== schengen) {
+      info(`Stand ${standName} schengen ${standDef.Schengen} does not match aircraft schengen ${schengen} for ${callsign}`, { category: 'Assignation', callsign: callsign, icao: airportConfig.ICAO });
       continue;
     }
     if (standDef.Wingspan && standDef.Wingspan < wingspan) {
+      info(`Stand ${standName} wingspan limit ${standDef.Wingspan} is less than aircraft wingspan ${wingspan} for ${callsign}`, { category: 'Assignation', callsign: callsign, icao: airportConfig.ICAO });
       continue;
     }
     if (standDef.Countries && Array.isArray(standDef.Countries)) {
       const originPrefix = ac.origin.substring(0, 2).toUpperCase();
       if (!standDef.Countries.includes(originPrefix)) {
+        info(`Stand ${standName} countries ${standDef.Countries} does not match aircraft origin ${originPrefix} for ${callsign}`, { category: 'Assignation', callsign: callsign, icao: airportConfig.ICAO });
         continue;
       }
     }
     if (standDef.Callsigns && Array.isArray(standDef.Callsigns)) {
-      if (
-        !standDef.Callsigns.includes(callsign.substring(0, 3).toUpperCase())
-      ) {
+      if (!standDef.Callsigns.includes(callsign.substring(0, 3).toUpperCase())) {
+        info(`Stand ${standName} callsigns ${standDef.Callsigns} does not match aircraft callsign ${callsign} for ${callsign}`, { category: 'Assignation', callsign: callsign, icao: airportConfig.ICAO });
         continue;
       }
     }
     if (registry.isOccupied(ac.destination, standName)) {
+      info(`Stand ${standName} is occupied for ${callsign}`, { category: 'Assignation', callsign: callsign, icao: airportConfig.ICAO });
       continue;
     }
     if (registry.isAssigned(ac.destination, standName)) {
+      info(`Stand ${standName} is assigned for ${callsign}`, { category: 'Assignation', callsign: callsign, icao: airportConfig.ICAO });
       continue;
     }
     if (registry.isBlocked(ac.destination, standName)) {
+      info(`Stand ${standName} is blocked for ${callsign}`, { category: 'Assignation', callsign: callsign, icao: airportConfig.ICAO });
       continue;
     }
     availableStandList.push(standDef);
@@ -514,6 +522,8 @@ function assignStand(airportConfig, config, callsign, ac) {
       }
     }
   }
+
+  info(`Any priority: ${anyPriority}, lowest priority: ${lowestPriority} for ${callsign}`, { category: 'Assignation', callsign: callsign, icao: airportConfig.ICAO });
 
   if (anyPriority) {
     availableStandList = availableStandList.filter(
@@ -543,6 +553,7 @@ function assignStand(airportConfig, config, callsign, ac) {
     );
     const stand = new Stand(standName, airportConfig.ICAO, callsign);
     if (!selectedStandDef.Apron || selectedStandDef.Apron === false) {
+      info(`Assigning Stand ${standName} to ${callsign}`, { category: 'Assignation', callsign: callsign, icao: airportConfig.ICAO });
       registry.addAssigned(stand);
       blockStands(selectedStandDef, ac.destination, callsign);
     }
