@@ -511,20 +511,43 @@ let cachedFilters = {
 async function populateLogFilters() {
   try {
     // Fetch all filter options
-    const [categories, icaos, callsigns] = await Promise.all([
-      fetch("/api/logs/categories").then(r => r.json()),
-      fetch("/api/logs/icaos").then(r => r.json()),
-      fetch("/api/logs/callsigns").then(r => r.json())
+    const [categoriesRes, icaosRes, callsignsRes] = await Promise.all([
+      fetch("/api/logs/categories"),
+      fetch("/api/logs/icaos"),
+      fetch("/api/logs/callsigns")
     ]);
 
+    // Check responses
+    if (!categoriesRes.ok || !icaosRes.ok || !callsignsRes.ok) {
+      console.error('Failed to fetch log filters:', {
+        categories: categoriesRes.status,
+        icaos: icaosRes.status,
+        callsigns: callsignsRes.status
+      });
+      return;
+    }
+
+    const [categories, icaos, callsigns] = await Promise.all([
+      categoriesRes.json(),
+      icaosRes.json(),
+      callsignsRes.json()
+    ]);
+
+    console.log('Fetched filters:', { categories, icaos, callsigns });
+
+    // Ensure responses are arrays
+    const categoriesArray = Array.isArray(categories) ? categories : [];
+    const icaosArray = Array.isArray(icaos) ? icaos : [];
+    const callsignsArray = Array.isArray(callsigns) ? callsigns : [];
+
     // Update categories if changed
-    updateDropdownIfChanged('category-select', categories, cachedFilters.categories, 'All Categories');
+    updateDropdownIfChanged('category-select', categoriesArray, cachedFilters.categories, 'All Categories');
     
     // Update ICAOs if changed
-    updateDropdownIfChanged('airport-select', icaos, cachedFilters.icaos, 'All Airports');
+    updateDropdownIfChanged('airport-select', icaosArray, cachedFilters.icaos, 'All Airports');
     
     // Update callsigns if changed
-    updateDropdownIfChanged('callsign-select', callsigns, cachedFilters.callsigns, 'All Callsigns');
+    updateDropdownIfChanged('callsign-select', callsignsArray, cachedFilters.callsigns, 'All Callsigns');
 
   } catch (err) {
     console.error("Failed to load log filters", err);
@@ -534,14 +557,26 @@ async function populateLogFilters() {
 // Helper function to update dropdown only if values changed
 function updateDropdownIfChanged(selectId, newValues, cachedSet, defaultLabel) {
   const select = document.getElementById(selectId);
-  if (!select) return;
+  if (!select) {
+    console.warn(`updateDropdownIfChanged: select element #${selectId} not found`);
+    return;
+  }
+
+  // Ensure newValues is an array
+  if (!Array.isArray(newValues)) {
+    console.warn(`updateDropdownIfChanged: newValues for ${selectId} is not an array`, newValues);
+    newValues = [];
+  }
 
   // Check if there are new values
   const newSet = new Set(newValues);
   const hasChanges = newSet.size !== cachedSet.size || 
                      [...newSet].some(v => !cachedSet.has(v));
 
-  if (!hasChanges) return; // No changes, skip update
+  // Always update if cache is empty (first load)
+  if (!hasChanges && cachedSet.size > 0) return; // No changes, skip update
+
+  console.log(`Updating ${selectId} with ${newValues.length} values`);
 
   // Store current selection
   const currentValue = select.value;
@@ -568,16 +603,104 @@ function updateDropdownIfChanged(selectId, newValues, cachedSet, defaultLabel) {
 
 // Fetch logs from server and render into the log area
 // Fetch filtered logs
-async function fetchFilteredLogs() {
+let currentPage = 1;
+let isLoading = false;
+let hasMore = true;
+
+async function fetchFilteredLogs(reset = false) {
+  if (isLoading || (!hasMore && !reset)) return;
+
+  if (reset) {
+    currentPage = 1;
+    hasMore = true;
+    const logContent = document.getElementById('logContent');
+    if (logContent) logContent.innerHTML = '';
+  }
+
+  isLoading = true;
+
   const level = document.getElementById('level-select').value;
   const category = document.getElementById('category-select').value;
   const icao = document.getElementById('airport-select').value;
   const callsign = document.getElementById('callsign-select').value;
 
-  const params = new URLSearchParams({ level, category, icao, callsign });
-  const logs = await fetch(`/api/logs/filter?${params}`).then(r => r.json());
+  const params = new URLSearchParams({
+    level,
+    category,
+    icao,
+    callsign,
+    page: currentPage,
+    pageSize: 100
+  });
 
-  updateLogDisplay(logs);
+  try {
+    const response = await fetch(`/api/logs/filter?${params}`);
+    
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+    }
+    
+    const data = await response.json();
+    
+    console.log('Fetched logs:', {
+      page: currentPage,
+      logsCount: data.logs?.length || 0,
+      pagination: data.pagination
+    });
+
+    if (data.logs && Array.isArray(data.logs)) {
+      appendLogs(data.logs);
+    } else {
+      console.warn('No logs in response or logs is not an array:', data);
+    }
+
+    if (data.pagination) {
+      hasMore = currentPage < data.pagination.totalPages;
+      currentPage++;
+    } else {
+      hasMore = false;
+    }
+  } catch (err) {
+    console.error('Failed to fetch logs:', err);
+  } finally {
+    isLoading = false;
+  }
+}
+
+function appendLogs(logs) {
+  const logContent = document.getElementById('logContent');
+  if (!logContent) return;
+
+  if (!Array.isArray(logs)) {
+    console.warn('appendLogs: logs is not an array', logs);
+    return;
+  }
+
+  logs.forEach(log => {
+    const logEntry = document.createElement('div');
+    logEntry.className = `log-entry log-${log.level.toLowerCase()}`;
+    logEntry.innerHTML = `
+      <span class="log-timestamp">${new Date(log.timestamp).toLocaleString()}</span>
+      <span class="log-level">[${log.level}]</span>
+      <span class="log-message">${log.message}</span>
+    `;
+    logContent.appendChild(logEntry);
+  });
+
+  if (autoScroll) {
+    scrollToBottom();
+  }
+}
+
+// Infinite scroll on logContainer
+const logContainer = document.getElementById('logContainer');
+if (logContainer) {
+  logContainer.addEventListener('scroll', (e) => {
+    const element = e.target;
+    if (element.scrollHeight - element.scrollTop <= element.clientHeight + 100) {
+      fetchFilteredLogs();
+    }
+  });
 }
 
 function updateLogDisplay(logs) {
@@ -644,18 +767,26 @@ function scrollToBottom() {
 document.addEventListener("DOMContentLoaded", () => {
   renderAirportsStatus();
   renderConfigButtons();
+  
+  // Initial log setup
   populateLogFilters();
   fetchFilteredLogs();
   
   setInterval(renderAirportsStatus, 10_000);
-  setInterval(fetchFilteredLogs, 2000);
   setInterval(populateLogFilters, 5000);
+  
+  // Fetch new logs periodically (append mode, not reset)
+  setInterval(() => {
+    if (!isLoading && hasMore) {
+      fetchFilteredLogs(false);
+    }
+  }, 2000);
 });
 
-document.getElementById('level-select').addEventListener('change', fetchFilteredLogs);
-document.getElementById('airport-select').addEventListener('change', fetchFilteredLogs);
-document.getElementById('callsign-select').addEventListener('change', fetchFilteredLogs);
-document.getElementById('category-select').addEventListener('change', fetchFilteredLogs);
+document.getElementById('level-select').addEventListener('change', () => fetchFilteredLogs(true));
+document.getElementById('airport-select').addEventListener('change', () => fetchFilteredLogs(true));
+document.getElementById('callsign-select').addEventListener('change', () => fetchFilteredLogs(true));
+document.getElementById('category-select').addEventListener('change', () => fetchFilteredLogs(true));
 
 (function () {
   const sections = Array.from(document.querySelectorAll("section[data-page]"));
