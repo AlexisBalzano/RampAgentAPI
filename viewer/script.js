@@ -59,8 +59,8 @@ function showPerformanceModeNotification(enabled) {
   const notification = document.createElement('div');
   notification.className = 'performance-notification';
   notification.textContent = enabled 
-    ? `⚡ Performance Mode: Animations disabled (${lastStandCount} stands)` 
-    : '✓ Performance Mode: Animations re-enabled';
+    ? "⚡ Performance Mode: Animations disabled (" + lastStandCount + " stands)" 
+    : "✓ Performance Mode: Animations re-enabled";
   document.body.appendChild(notification);
   
   setTimeout(() => {
@@ -130,30 +130,43 @@ function padAirportIcao(name) {
 }
 
 async function renderAirportsStatus() {
-  // Fetch all airports
-  const airportList = await fetch("/api/airports", {
-    headers: { "X-Internal-Request": "1" },
-  })
-    .then((res) => res.json())
-    .catch(() => []);
+  console.log("renderAirportsStatus: Starting");
+  try {
+    // Fetch all airports
+    const airportList = await fetch("/api/airports", {
+      headers: { "X-Internal-Request": "1" },
+    })
+      .then((res) => res.json())
+      .catch(() => []);
+    console.log("renderAirportsStatus: Fetched airports", airportList.length);
 
-  // Fetch stands
-  const allOccupiedStands = await fetch("/api/occupancy/occupied", {
-    headers: { "X-Internal-Request": "1" },
-  }).then((res) => res.json());
-  const getAllAssignedStands = await fetch("/api/occupancy/assigned", {
-    headers: { "X-Internal-Request": "1" },
-  }).then((res) => res.json());
-  const getAllBlockedStands = await fetch("/api/occupancy/blocked", {
-    headers: { "X-Internal-Request": "1" },
-  }).then((res) => res.json());
+    // Fetch stands
+    const allOccupiedStands = await fetch("/api/occupancy/occupied", {
+      headers: { "X-Internal-Request": "1" },
+    }).then((res) => res.json());
+    const getAllAssignedStands = await fetch("/api/occupancy/assigned", {
+      headers: { "X-Internal-Request": "1" },
+    }).then((res) => res.json());
+    const getAllBlockedStands = await fetch("/api/occupancy/blocked", {
+      headers: { "X-Internal-Request": "1" },
+    }).then((res) => res.json());
+    
+    console.log("renderAirportsStatus: Fetched stands", {
+      occupied: allOccupiedStands.length,
+      assigned: getAllAssignedStands.length,
+      blocked: getAllBlockedStands.length
+    });
 
-  // Check volume and toggle performance mode
-  const totalStands = allOccupiedStands.length + getAllBlockedStands.length + getAllAssignedStands.length;
-  checkVolumeAndTogglePerformanceMode(totalStands);
+    // Check volume and toggle performance mode
+    const totalStands = allOccupiedStands.length + getAllBlockedStands.length + getAllAssignedStands.length;
+    checkVolumeAndTogglePerformanceMode(totalStands);
 
-  const statusContainer = document.getElementById("status-container");
-  statusContainer.innerHTML = "";
+    const statusContainer = document.getElementById("status-container");
+    if (!statusContainer) {
+      console.error("renderAirportsStatus: status-container not found");
+      return;
+    }
+    statusContainer.innerHTML = "";
 
   // Build airport map
   const airports = {};
@@ -186,7 +199,7 @@ async function renderAirportsStatus() {
   for (const [airportIcao, stands] of Object.entries(airports)) {
     const subContainer = document.createElement("div");
     subContainer.className = "airport-display subContainer";
-    subContainer.id = `airport-${airportIcao}`;
+    subContainer.id = "airport-" + airportIcao;
     subContainer.appendChild(generateSpanforText(padAirportIcao(airportIcao)));
     subContainer.appendChild(generateSeparator());
     subContainer.appendChild(generateSpanforText("Occupied Stands"));
@@ -225,6 +238,9 @@ async function renderAirportsStatus() {
       });
     }
     statusContainer.appendChild(subContainer);
+  }
+  } catch (error) {
+    console.error("renderAirportsStatus: Error", error);
   }
 }
 
@@ -278,7 +294,7 @@ function generateTimeWindow(hours = 24) {
     const hour = new Date(currentHour.getTime() - i * 60 * 60 * 1000);
     timeLabels.push({
       hourIso: hour.toISOString(),
-      label: `${String(hour.getHours()).padStart(2, "0")}:00`,
+      label: String(hour.getHours()).padStart(2, "0") + ":00",
       hour: hour.getHours(),
     });
   }
@@ -451,7 +467,7 @@ function renderAirportChart(airports) {
               label: (tooltipItem) => {
                 const label = tooltipItem.label || "";
                 const value = tooltipItem.raw || 0;
-                return `${label}: ${value}`;
+                return label + ": " + value;
               },
             },
           },
@@ -468,33 +484,54 @@ function renderAirportChart(airports) {
 }
 
 async function refreshStatsChart() {
+  console.log("refreshStatsChart: Starting");
   try {
     const reportsData = await fetchReportsPerHour();
     const requestsData = await fetchRequestsPerHour();
+    console.log("refreshStatsChart: Data fetched", {
+      reports: reportsData.length,
+      requests: requestsData.length
+    });
 
     // Pass both datasets to the chart
     renderReportsChart(reportsData, requestsData);
 
     totalRequests = requestsData.reduce((sum, d) => sum + d.count, 0);
     totalReports = reportsData.reduce((sum, d) => sum + d.count, 0);
+    
+    console.log("refreshStatsChart: Totals calculated", {
+      totalRequests,
+      totalReports
+    });
 
-    document.querySelector("#RequestTotal").textContent =
-      totalRequests.toLocaleString();
-    document.querySelector("#ReportTotal").textContent =
-      totalReports.toLocaleString();
+    const requestTotal = document.querySelector("#RequestTotal");
+    const reportTotal = document.querySelector("#ReportTotal");
+    
+    if (requestTotal && reportTotal) {
+      requestTotal.textContent = totalRequests.toLocaleString();
+      reportTotal.textContent = totalReports.toLocaleString();
+      console.log("refreshStatsChart: DOM updated successfully");
+    } else {
+      console.error("refreshStatsChart: Total elements not found", {
+        requestTotal: !!requestTotal,
+        reportTotal: !!reportTotal
+      });
+    }
   } catch (err) {
-    console.error("Failed to refresh stats chart", err);
+    console.error("refreshStatsChart: Failed", err);
   }
 }
 
 // initial load when DOM ready
 document.addEventListener("DOMContentLoaded", () => {
+  console.log("Stats chart DOMContentLoaded triggered");
   // try initial render (chart canvas must exist)
   setTimeout(() => {
+    console.log("Stats chart timeout callback executing");
     refreshStatsChart();
   }, 200);
   // refresh every 10 seconds
-  setInterval(refreshStatsChart, 10_000);
+  setInterval(refreshStatsChart, 10000);
 });
 
 // Log management
@@ -555,13 +592,13 @@ async function populateLogFilters() {
 function updateDropdownIfChanged(selectId, newValues, cachedSet, defaultLabel) {
   const select = document.getElementById(selectId);
   if (!select) {
-    console.warn(`updateDropdownIfChanged: select element #${selectId} not found`);
+    console.warn("updateDropdownIfChanged: select element #" + selectId + " not found");
     return;
   }
 
   // Ensure newValues is an array
   if (!Array.isArray(newValues)) {
-    console.warn(`updateDropdownIfChanged: newValues for ${selectId} is not an array`, newValues);
+    console.warn("updateDropdownIfChanged: newValues for #" + selectId + " is not an array", newValues);
     newValues = [];
   }
 
@@ -578,7 +615,7 @@ function updateDropdownIfChanged(selectId, newValues, cachedSet, defaultLabel) {
   const currentValue = select.value;
 
   // Clear and rebuild dropdown
-  select.innerHTML = `<option value="">${defaultLabel}</option>`;
+  select.innerHTML = '<option value="">' + defaultLabel + '</option>';
 
   newValues.forEach((value) => {
     const option = document.createElement("option");
@@ -604,21 +641,48 @@ let isLoading = false;
 let hasMore = true;
 
 async function fetchFilteredLogs(reset = false) {
-  if (isLoading) return;
+  console.log("fetchFilteredLogs: Called with reset =", reset);
+  if (isLoading) {
+    console.log("fetchFilteredLogs: Already loading, skipping");
+    return;
+  }
 
   if (reset) {
     currentPage = 1;
     hasMore = true;
     const logContent = document.getElementById('logContent');
-    if (logContent) logContent.innerHTML = '';
+    if (logContent) {
+      logContent.innerHTML = '';
+      console.log("fetchFilteredLogs: Cleared log content");
+    } else {
+      console.error("fetchFilteredLogs: logContent element not found");
+    }
   }
 
   isLoading = true;
 
-  const level = document.getElementById('level-select').value;
-  const category = document.getElementById('category-select').value;
-  const icao = document.getElementById('airport-select').value;
-  const callsign = document.getElementById('callsign-select').value;
+  const levelSelect = document.getElementById('level-select');
+  const categorySelect = document.getElementById('category-select');
+  const icaoSelect = document.getElementById('airport-select');
+  const callsignSelect = document.getElementById('callsign-select');
+  
+  if (!levelSelect || !categorySelect || !icaoSelect || !callsignSelect) {
+    console.error("fetchFilteredLogs: Filter elements not found", {
+      levelSelect: !!levelSelect,
+      categorySelect: !!categorySelect,
+      icaoSelect: !!icaoSelect,
+      callsignSelect: !!callsignSelect
+    });
+    isLoading = false;
+    return;
+  }
+  
+  const level = levelSelect.value;
+  const category = categorySelect.value;
+  const icao = icaoSelect.value;
+  const callsign = callsignSelect.value;
+  
+  console.log("fetchFilteredLogs: Filters", { level, category, icao, callsign, page: currentPage });
 
   const params = new URLSearchParams({
     level,
@@ -630,13 +694,19 @@ async function fetchFilteredLogs(reset = false) {
   });
 
   try {
-    const response = await fetch(`/api/logs/filter?${params}`);
+    const url = "/api/logs/filter?" + params.toString();
+    const response = await fetch(url);
+    console.log("fetchFilteredLogs: Response status", response.status);
     
     if (!response.ok) {
-      throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+      throw new Error("HTTP " + response.status + ": " + response.statusText);
     }
     
     const data = await response.json();
+    console.log("fetchFilteredLogs: Data received", {
+      logsCount: data.logs ? data.logs.length : 0,
+      hasMore: data.hasMore
+    });
 
     if (data.logs && Array.isArray(data.logs)) {
       // Reverse logs so newest is at bottom
@@ -668,12 +738,18 @@ async function fetchFilteredLogs(reset = false) {
 
 function createLogElement(log) {
   const logEntry = document.createElement('div');
-  logEntry.className = `log-entry log-${log.level.toLowerCase()}`;
-  logEntry.innerHTML = `
-    <span class="log-timestamp">${new Date(log.timestamp).toLocaleString()}</span>
-    <span class="log-level">[${log.level}]</span>
-    <span class="log-message">${log.message}</span>
-  `;
+  const levelLower = String(log.level).toLowerCase();
+  logEntry.className = "log-entry log-" + levelLower;
+  
+  const timestamp = new Date(log.timestamp).toLocaleString();
+  const level = String(log.level);
+  const message = String(log.message);
+  
+  logEntry.innerHTML = 
+    '<span class="log-timestamp">' + timestamp + '</span>' +
+    '<span class="log-level">[' + level + ']</span>' +
+    '<span class="log-message">' + message + '</span>';
+  
   logEntry.dataset.timestamp = log.timestamp; // Track uniqueness
   return logEntry;
 }
@@ -754,36 +830,7 @@ function appendLogs(logs) {
 }
 
 // Infinite scroll on logContainer - load older logs when scrolling up
-const logContainer = document.getElementById('logContainer');
-if (logContainer) {
-  logContainer.addEventListener('scroll', (e) => {
-    const element = e.target;
-    
-    // Check if user is at the bottom
-    const isAtBottom = element.scrollHeight - element.scrollTop <= element.clientHeight + 50;
-    
-    if (isAtBottom) {
-      // Re-enable auto-scroll when at bottom
-      if (!autoScroll) {
-        autoScroll = true;
-        const button = document.getElementById("toggleAutoScroll");
-        if (button) button.textContent = `Auto-scroll: ON`;
-      }
-    } else {
-      // Disable auto-scroll when scrolling up
-      if (autoScroll) {
-        autoScroll = false;
-        const button = document.getElementById("toggleAutoScroll");
-        if (button) button.textContent = `Auto-scroll: OFF`;
-      }
-    }
-    
-    // Load older logs when scrolling near the top
-    if (element.scrollTop <= 100 && hasMore && !isLoading) {
-      fetchFilteredLogs();
-    }
-  });
-}
+// This will be set up after DOM is ready
 
 function updateLogDisplay(logs) {
   const logContent = document.getElementById("logContent");
@@ -794,14 +841,17 @@ function updateLogDisplay(logs) {
   logs.forEach((entry) => {
     const level = entry.level || "INFO";
     const logDiv = document.createElement("div");
-    logDiv.className = `log-entry log-${String(level).toLowerCase()}`;
-    logDiv.innerHTML = `
-    <span class="log-timestamp">${new Date(
-      entry.timestamp
-    ).toLocaleTimeString()}</span>
-    <span class="log-level">[${level}]</span>
-    <span class="log-message">${entry.message}</span>
-    `;
+    const levelLower = String(level).toLowerCase();
+    logDiv.className = "log-entry log-" + levelLower;
+    
+    const timestamp = new Date(entry.timestamp).toLocaleTimeString();
+    const message = String(entry.message);
+    
+    logDiv.innerHTML = 
+      '<span class="log-timestamp">' + timestamp + '</span>' +
+      '<span class="log-level">[' + level + ']</span>' +
+      '<span class="log-message">' + message + '</span>';
+    
     logContent.appendChild(logDiv);
   });
 
@@ -831,7 +881,8 @@ function addLogEntry(level, message) {
 function toggleAutoScroll() {
   autoScroll = !autoScroll;
   const button = document.getElementById("toggleAutoScroll");
-  button.textContent = `Auto-scroll: ${autoScroll ? "ON" : "OFF"}`;
+  const text = autoScroll ? "Auto-Scroll: ON" : "Auto-Scroll: OFF";
+  button.textContent = text;
 
   if (autoScroll) {
     scrollToBottom();
@@ -847,6 +898,8 @@ function scrollToBottom() {
 
 // Initial render and periodic refresh
 document.addEventListener("DOMContentLoaded", () => {
+  console.log("DOM Content Loaded - Starting initialization");
+  
   renderAirportsStatus();
   renderConfigButtons();
   
@@ -854,7 +907,61 @@ document.addEventListener("DOMContentLoaded", () => {
   populateLogFilters();
   fetchFilteredLogs();
   
-  setInterval(renderAirportsStatus, 10_000);
+  console.log("Setting up log scroll listeners");
+  // Set up infinite scroll on logContainer
+  const logContainer = document.getElementById('logContainer');
+  if (logContainer) {
+    console.log("Log container found, attaching scroll listener");
+    logContainer.addEventListener('scroll', (e) => {
+      const element = e.target;
+      
+      // Check if user is at the bottom
+      const isAtBottom = element.scrollHeight - element.scrollTop <= element.clientHeight + 50;
+      
+      if (isAtBottom) {
+        // Re-enable auto-scroll when at bottom
+        if (!autoScroll) {
+          autoScroll = true;
+          const button = document.getElementById("toggleAutoScroll");
+          if (button) button.textContent = 'Auto-scroll: ON';
+        }
+      } else {
+        // Disable auto-scroll when scrolling up
+        if (autoScroll) {
+          autoScroll = false;
+          const button = document.getElementById("toggleAutoScroll");
+          if (button) button.textContent = 'Auto-scroll: OFF';
+        }
+      }
+      
+      // Load older logs when scrolling near the top
+      if (element.scrollTop <= 100 && hasMore && !isLoading) {
+        fetchFilteredLogs();
+      }
+    });
+  }
+  
+  console.log("Setting up filter change listeners");
+  // Set up filter change listeners
+  const levelSelect = document.getElementById('level-select');
+  const airportSelect = document.getElementById('airport-select');
+  const callsignSelect = document.getElementById('callsign-select');
+  const categorySelect = document.getElementById('category-select');
+  
+  console.log("Filter elements found:", {
+    levelSelect: !!levelSelect,
+    airportSelect: !!airportSelect,
+    callsignSelect: !!callsignSelect,
+    categorySelect: !!categorySelect
+  });
+  
+  if (levelSelect) levelSelect.addEventListener('change', () => fetchFilteredLogs(true));
+  if (airportSelect) airportSelect.addEventListener('change', () => fetchFilteredLogs(true));
+  if (callsignSelect) callsignSelect.addEventListener('change', () => fetchFilteredLogs(true));
+  if (categorySelect) categorySelect.addEventListener('change', () => fetchFilteredLogs(true));
+  
+  console.log("Starting periodic updates");
+  setInterval(renderAirportsStatus, 10000);
   setInterval(populateLogFilters, 5000);
   
   // Fetch new logs periodically - only if auto-scroll is enabled
@@ -868,90 +975,70 @@ document.addEventListener("DOMContentLoaded", () => {
   }, 2000);
 });
 
-document.getElementById('level-select').addEventListener('change', () => fetchFilteredLogs(true));
-document.getElementById('airport-select').addEventListener('change', () => fetchFilteredLogs(true));
-document.getElementById('callsign-select').addEventListener('change', () => fetchFilteredLogs(true));
-document.getElementById('category-select').addEventListener('change', () => fetchFilteredLogs(true));
+// Event listeners for filter changes are now set up inside DOMContentLoaded
 
+// Navigation routing - wrapped to execute after DOM is ready
 (function () {
-  const sections = Array.from(document.querySelectorAll("section[data-page]"));
-  const navLinks = Array.from(
-    document.querySelectorAll('.sidenav a[href^="#"]')
-  );
+  function initNavigation() {
+    const sections = Array.from(document.querySelectorAll("section[data-page]"));
+    const navLinks = Array.from(
+      document.querySelectorAll('.sidenav a[href^="#"]')
+    );
 
-  function showPage(page) {
-    sections.forEach((s) => {
-      s.style.display = s.dataset.page === page ? "" : "none";
-    });
-    navLinks.forEach((a) => {
-      a.classList.toggle("active", a.getAttribute("href") === "#" + page);
-    });
-    // ensure map renders correctly when its section becomes visible
-    if (page === "standMap" && typeof map !== "undefined") {
-      // small delay to allow layout to settle
-      setTimeout(() => {
-        try {
-          map.invalidateSize();
-        } catch (e) {
-          /* ignore if not ready */
-        }
-      }, 100);
+    function showPage(page) {
+      sections.forEach((s) => {
+        s.style.display = s.dataset.page === page ? "" : "none";
+      });
+      navLinks.forEach((a) => {
+        a.classList.toggle("active", a.getAttribute("href") === "#" + page);
+      });
+      // ensure map renders correctly when its section becomes visible
+      if (page === "standMap" && typeof map !== "undefined" && map) {
+        // small delay to allow layout to settle
+        setTimeout(() => {
+          try {
+            map.invalidateSize();
+          } catch (e) {
+            /* ignore if not ready */
+          }
+        }, 100);
+      }
+
+      // ensure statistics chart is initialised/updated when the section becomes visible
+      if (page === "statistics") {
+        // small delay so layout settles and canvas has non-zero size
+        setTimeout(() => {
+          if (typeof refreshStatsChart === "function") refreshStatsChart();
+        }, 150);
+      }
+
+      // optional: scroll to top of content area
+      window.scrollTo(0, 0);
     }
 
-    // ensure statistics chart is initialised/updated when the section becomes visible
-    if (page === "statistics") {
-      // small delay so layout settles and canvas has non-zero size
-      setTimeout(() => {
-        if (typeof refreshStatsChart === "function") refreshStatsChart();
-      }, 150);
+    function route() {
+      const hash = location.hash.replace("#", "") || "status";
+      showPage(hash);
     }
 
-    // optional: scroll to top of content area
-    window.scrollTo(0, 0);
+    // initialize
+    window.addEventListener("hashchange", route);
+    route(); // Call route immediately after setup
   }
 
-  function route() {
-    const hash = location.hash.replace("#", "") || "status";
-    showPage(hash);
+  // Wait for DOM to be ready before initializing navigation
+  if (document.readyState === 'loading') {
+    document.addEventListener("DOMContentLoaded", initNavigation);
+  } else {
+    initNavigation();
   }
-
-  // initialize
-  window.addEventListener("hashchange", route);
-  document.addEventListener("DOMContentLoaded", route);
 })();
 
-// Map
+// Map initialization - will be set up after DOM is ready
 var stands = []; // make stands accessible to updateMarkerSizes
-var map = L.map("map", {
-  maxZoom: 19, // Increase maximum zoom level
-}).setView([49.009279, 2.565732], 14);
-
-// Add satellite tile layer
-L.tileLayer(
-  "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
-  {
-    attribution:
-      "Tiles &copy; Esri &mdash; Source: Esri, i-cubed, USDA, USGS, AEX, GeoEye, Getmapping, Aerogrid, IGN, IGP, UPR-EGP, and the GIS User Community",
-    maxZoom: 19, // Set tile layer max zoom
-  }
-).addTo(map);
-
-// Add legend
-var legend = L.control({ position: "topright" });
-legend.onAdd = function (map) {
-  var div = L.DomUtil.create("div", "legend");
-  div.innerHTML =
-    "<h4>Stands Legend</h4>" +
-    '<i style="background:#FFFFFF; width:18px; height:18px; display:inline-block; margin-right:8px; opacity:0.7; border-radius:50%; border: 1px solid #CCCCCC;"></i> Airport<br>' +
-    '<i style="background:#96CEB4; width:18px; height:18px; display:inline-block; margin-right:8px; opacity:0.7; border-radius:50%; border: 1px solid #CCCCCC;"></i> Free<br>' +
-    '<i style="background:#cdc54eff; width:18px; height:18px; display:inline-block; margin-right:8px; opacity:0.7; border-radius:50%; border: 1px solid #CCCCCC;"></i> Blocked<br>' +
-    '<i style="background:#3a91acff; width:18px; height:18px; display:inline-block; margin-right:8px; opacity:0.7; border-radius:50%; border: 1px solid #CCCCCC;"></i> Assigned<br>' +
-    '<i style="background:#FF6B6B; width:18px; height:18px; display:inline-block; margin-right:8px; opacity:0.7; border-radius:50%; border: 1px solid #CCCCCC;"></i> Occupied<br><br>';
-  // prevent map interactions when interacting with legend
-  L.DomEvent.disableClickPropagation(div);
-  return div;
-};
-legend.addTo(map);
+var map; // Declare map variable but don't initialize yet
+var airports = []; // will be filled after fetch
+var initialBounds = null; // Store the initial bounds
 
 let occupiedStands = [];
 let assignedStands = [];
@@ -966,7 +1053,7 @@ function fetchOccupiedStands() {
     .then((stands) => {
       if (Array.isArray(stands)) {
         // Store as ICAO-StandName format instead of just name
-        occupiedStands = stands.map((s) => `${s.icao}-${s.name}`);
+        occupiedStands = stands.map((s) => s.icao + "-" + s.name);
       }
     })
     .catch((err) => {
@@ -983,7 +1070,7 @@ function fetchAssignedStands() {
     .then((stands) => {
       if (Array.isArray(stands)) {
         // Store as ICAO-StandName format instead of just name
-        assignedStands = stands.map((s) => `${s.icao}-${s.name}`);
+        assignedStands = stands.map((s) => s.icao + "-" + s.name);
       }
     })
     .catch((err) => {
@@ -1000,21 +1087,13 @@ function fetchBlockedStands() {
     .then((stands) => {
       if (Array.isArray(stands)) {
         // Store as ICAO-StandName format instead of just name
-        blockedStands = stands.map((s) => `${s.icao}-${s.name}`);
+        blockedStands = stands.map((s) => s.icao + "-" + s.name);
       }
     })
     .catch((err) => {
       console.error("Failed to load blocked stands", err);
     });
 }
-
-// Initial fetch and periodic refresh
-fetchOccupiedStands();
-fetchAssignedStands();
-fetchBlockedStands();
-setInterval(fetchOccupiedStands, 10_000);
-setInterval(fetchAssignedStands, 10_000);
-setInterval(fetchBlockedStands, 10_000);
 
 function getStandColor(standName, apron) {
   // Now both standName and the arrays are in ICAO-StandName format
@@ -1037,171 +1116,13 @@ function getStandColor(standName, apron) {
   return ["#78BFA0", "#96CEB4"]; // darker green border, light green fill (default)
 }
 
-// Add airport pins onto map (meter-circle + pixel-marker hybrid)
+// Map variables and constants
 var zoomThreshold = 5; // <= show meter circle, > show screen-sized marker
 var zoomHideThreshold = 13; // > hide marker entirely
 var meterRadius = 50000; // meters for the L.Circle when zoomed out
 var labelZoomThreshold = 17; // show stand labels at this zoom level and above
 
-// Draw stands on map
-fetch("/api/airports/stands")
-  .then((res) => {
-    if (!res.ok) throw new Error("Network response was not ok");
-    return res.json();
-  })
-  .then((data) => {
-    if (!Array.isArray(data))
-      throw new Error("Stands response is not an array");
-    // keep only entries with valid numeric [lat, lon] coords
-    stands = data.filter((s) => {
-      return (
-        Array.isArray(s.coords) &&
-        s.coords.length === 2 &&
-        Number.isFinite(s.coords[0]) &&
-        Number.isFinite(s.coords[1])
-      );
-    });
-
-    if (stands.length === 0) {
-      console.warn(
-        "No valid stand coordinates found in /api/airports/stands response",
-        data
-      );
-    } else {
-      stands.forEach((stand) => {
-        const color = getStandColor(stand.name, stand.apron);
-        stand.circle = L.circle(stand.coords, {
-          color: color[0],
-          fillColor: color[1],
-          fillOpacity: 0.8,
-          radius: stand.radius, // meters
-          weight: 3,
-        }).bindPopup(`<strong>${stand.name}</strong>`);
-
-        stand.label = L.marker(stand.coords, {
-          interactive: false,
-          icon: L.divIcon({
-            className: "stand-label", // style in CSS
-            html: `<span>${stand.name}</span>`,
-          }),
-        });
-
-        stand.circle.addTo(map);
-      });
-    }
-  })
-  .catch((err) => {
-    console.error("Failed to load stands on Map", err);
-    addLogEntry("ERROR", "Failed to load stands from server");
-  });
-
-// update stand marker colors every minute in case occupancy changed
-setInterval(() => {
-  if (!Array.isArray(stands) || stands.length === 0) return;
-  stands.forEach((stand) => {
-    if (!stand || !stand.circle) return;
-    const color = getStandColor(stand.name, stand.apron);
-    stand.circle.setStyle({
-      color: color[0],
-      fillColor: color[1],
-    });
-  });
-}, 10_000);
-
-// Draw airports on map (meter-circle + pixel-marker hybrid)
-var airports = []; // will be filled after fetch
-var initialBounds = null; // Store the initial bounds
-
-fetch("/api/airports")
-  .then((res) => {
-    if (!res.ok) throw new Error("Network response was not ok");
-    return res.json();
-  })
-  .then((data) => {
-    if (!Array.isArray(data))
-      throw new Error("Airports response is not an array");
-    // keep only entries with valid numeric [lat, lon] coords
-    airports = data.filter((a) => {
-      return (
-        Array.isArray(a.coords) &&
-        a.coords.length === 2 &&
-        Number.isFinite(a.coords[0]) &&
-        Number.isFinite(a.coords[1])
-      );
-    });
-
-    if (airports.length === 0) {
-      console.warn(
-        "No valid airport coordinates found in /api/airports response",
-        data
-      );
-    } else {
-      // create a feature group only from valid markers
-      const markers = airports.map((a) => L.marker(a.coords));
-      const group = new L.featureGroup(markers);
-      const bounds = group.getBounds();
-      if (bounds.isValid && bounds.isValid()) {
-        map.fitBounds(bounds.pad(0.5));
-        initialBounds = bounds.pad(0.5); // Store the initial bounds
-      }
-    }
-
-    airports.forEach(function (airport) {
-      // create both layers but don't assume both are on the map at once
-      airport.circle = L.circle(airport.coords, {
-        color: "#505050ff",
-        fillColor: "#ffffff",
-        fillOpacity: 0.7,
-        radius: meterRadius, // meters
-        weight: 3,
-      }).bindPopup(`<strong>${airport.name}</strong>`);
-
-      airport.marker = L.circleMarker(airport.coords, {
-        color: "#505050ff",
-        fillColor: "#ffffff",
-        fillOpacity: 0.7,
-        radius: 26, // pixels on screen when visible
-        weight: 3,
-      }).bindPopup(`<strong>${airport.name}</strong>`);
-
-      // zoom-to-airport on click: ensure map zoom reaches the pixel-marker zoom level
-      const targetZoom = zoomHideThreshold + 1;
-      const zoomAndOpen = function (layer) {
-        // animate to the airport and open the popup afterwards
-        map.setView(airport.coords, targetZoom, { animate: true });
-        // small delay so popup opens after the view change
-        setTimeout(() => {
-          try {
-            layer.openPopup();
-          } catch (e) {
-            /* ignore */
-          }
-        }, 300);
-      };
-
-      airport.circle.on("click", function () {
-        zoomAndOpen(airport.circle);
-      });
-      airport.marker.on("click", function () {
-        zoomAndOpen(airport.marker);
-      });
-
-      // initially decide which to add based on current zoom
-      if (map.getZoom() <= zoomThreshold) {
-        airport.circle.addTo(map);
-      } else {
-        airport.marker.addTo(map);
-      }
-    });
-
-    // ensure toggling logic runs now that airports exist
-    updateMarkerSizes();
-  })
-  .catch((err) => {
-    console.error("Failed to load airports on Map", err);
-    addLogEntry("ERROR", "Failed to load airports from server");
-  });
-
+// updateMarkerSizes function
 function updateMarkerSizes() {
   if (!Array.isArray(airports) || airports.length === 0) return;
   const z = map.getZoom();
@@ -1242,55 +1163,9 @@ function updateMarkerSizes() {
     });
   }
 }
-map.on("zoomend", updateMarkerSizes);
+// map.on("zoomend", updateMarkerSizes); // Moved to initializeMap()
 
-// Custom home button control
-var HomeControl = L.Control.extend({
-  onAdd: function (map) {
-    var container = L.DomUtil.create(
-      "div",
-      "leaflet-bar leaflet-control leaflet-control-custom"
-    );
-
-    container.style.backgroundColor = "white";
-    container.style.backgroundImage =
-      "url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyNCIgaGVpZ2h0PSIyNCIgdmlld0JveD0iMCAwIDI0IDI0IiBmaWxsPSJub25lIiBzdHJva2U9ImN1cnJlbnRDb2xvciIgc3Ryb2tlLXdpZHRoPSIyIiBzdHJva2UtbGluZWNhcD0icm91bmQiIHN0cm9rZS1saW5lam9pbj0icm91bmQiPjxwYXRoIGQ9Im0zIDkgOS03IDkgN3YxMWgtNnYtNGgtNnY0aC02eiIvPjwvc3ZnPg==')";
-    container.style.backgroundSize = "16px 16px";
-    container.style.backgroundPosition = "center";
-    container.style.backgroundRepeat = "no-repeat";
-    container.style.width = "30px";
-    container.style.height = "30px";
-    container.style.cursor = "pointer";
-    container.title = "Return to initial view";
-
-    container.onclick = function () {
-      if (initialBounds && initialBounds.isValid()) {
-        map.fitBounds(initialBounds, { animate: true, duration: 1 });
-      } else {
-        // Fallback to default view if no bounds stored
-        map.setView([49.009279, 2.565732], 7, { animate: true });
-      }
-    };
-
-    // Prevent map interactions when clicking the button
-    L.DomEvent.disableClickPropagation(container);
-
-    return container;
-  },
-
-  onRemove: function (map) {
-    // Nothing to do here
-  },
-});
-
-// Add the home control to the map
-var homeControl = new HomeControl({ position: "topleft" });
-homeControl.addTo(map);
-
-// Store the initial view bounds
-map.whenReady(function () {
-  initialBounds = map.getBounds();
-});
+// Home button control and map.whenReady moved to initializeMap()
 
 // Configs page
 // generate buttons for available config presets
@@ -1313,7 +1188,7 @@ function renderConfigButtons() {
         const button = document.createElement("button");
         button.className = "configButton";
         button.textContent = preset.name;
-        button.setAttribute("aria-label", `Load config ${preset.name}`);
+        button.setAttribute("aria-label", "Load config " + preset.name);
         button.onclick = () => loadConfig(preset.name);
         container.appendChild(button);
       });
@@ -1347,14 +1222,14 @@ function syntaxHighlight(json) {
       } else if (/null/.test(match)) {
         cls = "json-null";
       }
-      return `<span class="${cls}">${match}</span>`;
+      return '<span class="' + cls + '">' + match + '</span>';
     }
   );
 }
 
 function loadConfig(presetName) {
   if (!presetName) return;
-  fetch(`/api/airports/config/${encodeURIComponent(presetName)}`, {
+  fetch("/api/airports/config/" + encodeURIComponent(presetName), {
     method: "GET",
     headers: { "X-Internal-Request": "1" },
   })
@@ -1372,4 +1247,275 @@ function loadConfig(presetName) {
     .catch((error) => {
       console.error("Error loading config preset:", error);
     });
+}
+
+// Initialize map after DOM is ready
+function initializeMap() {
+  console.log("initializeMap: Starting");
+  
+  // Check if Leaflet is loaded
+  if (typeof L === 'undefined') {
+    console.error("initializeMap: Leaflet (L) is not loaded. Make sure leaflet.js is included before this script.");
+    return;
+  }
+  console.log("initializeMap: Leaflet library found");
+
+  // Check if map element exists
+  const mapElement = document.getElementById("map");
+  if (!mapElement) {
+    console.error("initializeMap: Map element not found, skipping map initialization");
+    return;
+  }
+  console.log("initializeMap: Map element found");
+
+  try {
+    console.log("initializeMap: Creating Leaflet map");
+    // Initialize Leaflet map
+    map = L.map("map", {
+      maxZoom: 19,
+    }).setView([49.009279, 2.565732], 14);
+    console.log("initializeMap: Map created successfully");
+
+  // Add satellite tile layer
+  L.tileLayer(
+    "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
+    {
+      attribution:
+        "Tiles &copy; Esri &mdash; Source: Esri, i-cubed, USDA, USGS, AEX, GeoEye, Getmapping, Aerogrid, IGN, IGP, UPR-EGP, and the GIS User Community",
+      maxZoom: 19,
+    }
+  ).addTo(map);
+
+  // Add legend
+  var legend = L.control({ position: "topright" });
+  legend.onAdd = function (map) {
+    var div = L.DomUtil.create("div", "legend");
+    div.innerHTML =
+      "<h4>Stands Legend</h4>" +
+      '<i style="background:#FFFFFF; width:18px; height:18px; display:inline-block; margin-right:8px; opacity:0.7; border-radius:50%; border: 1px solid #CCCCCC;"></i> Airport<br>' +
+      '<i style="background:#96CEB4; width:18px; height:18px; display:inline-block; margin-right:8px; opacity:0.7; border-radius:50%; border: 1px solid #CCCCCC;"></i> Free<br>' +
+      '<i style="background:#cdc54eff; width:18px; height:18px; display:inline-block; margin-right:8px; opacity:0.7; border-radius:50%; border: 1px solid #CCCCCC;"></i> Blocked<br>' +
+      '<i style="background:#3a91acff; width:18px; height:18px; display:inline-block; margin-right:8px; opacity:0.7; border-radius:50%; border: 1px solid #CCCCCC;"></i> Assigned<br>' +
+      '<i style="background:#FF6B6B; width:18px; height:18px; display:inline-block; margin-right:8px; opacity:0.7; border-radius:50%; border: 1px solid #CCCCCC;"></i> Occupied<br><br>';
+    L.DomEvent.disableClickPropagation(div);
+    return div;
+  };
+  legend.addTo(map);
+
+  // Initial fetch and periodic refresh for stand status
+  fetchOccupiedStands();
+  fetchAssignedStands();
+  fetchBlockedStands();
+  setInterval(fetchOccupiedStands, 10000);
+  setInterval(fetchAssignedStands, 10000);
+  setInterval(fetchBlockedStands, 10000);
+
+  // Add map event handlers
+  map.on("zoomend", updateMarkerSizes);
+
+  // Store initial bounds when ready
+  map.whenReady(function () {
+    initialBounds = map.getBounds();
+  });
+
+  // Add home control
+  var HomeControl = L.Control.extend({
+    onAdd: function (map) {
+      var container = L.DomUtil.create(
+        "div",
+        "leaflet-bar leaflet-control leaflet-control-custom"
+      );
+
+      container.style.backgroundColor = "white";
+      container.style.backgroundImage =
+        "url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyNCIgaGVpZ2h0PSIyNCIgdmlld0JveD0iMCAwIDI0IDI0IiBmaWxsPSJub25lIiBzdHJva2U9ImN1cnJlbnRDb2xvciIgc3Ryb2tlLXdpZHRoPSIyIiBzdHJva2UtbGluZWNhcD0icm91bmQiIHN0cm9rZS1saW5lam9pbj0icm91bmQiPjxwYXRoIGQ9Im0zIDkgOS03IDkgN3YxMWgtNnYtNGgtNnY0aC02eiIvPjwvc3ZnPg==')";
+      container.style.backgroundSize = "16px 16px";
+      container.style.backgroundPosition = "center";
+      container.style.backgroundRepeat = "no-repeat";
+      container.style.width = "30px";
+      container.style.height = "30px";
+      container.style.cursor = "pointer";
+      container.title = "Return to initial view";
+
+      container.onclick = function () {
+        if (initialBounds && initialBounds.isValid()) {
+          map.fitBounds(initialBounds, { animate: true, duration: 1 });
+        } else {
+          map.setView([49.009279, 2.565732], 7, { animate: true });
+        }
+      };
+
+      L.DomEvent.disableClickPropagation(container);
+      return container;
+    },
+    onRemove: function (map) {}
+  });
+
+  var homeControl = new HomeControl({ position: "topleft" });
+  homeControl.addTo(map);
+
+    // Load stands and airports data
+    loadMapData();
+  } catch (error) {
+    console.error("Failed to initialize map:", error);
+  }
+}
+
+function loadMapData() {
+  // Draw stands on map
+  fetch("/api/airports/stands")
+    .then((res) => {
+      if (!res.ok) throw new Error("Network response was not ok");
+      return res.json();
+    })
+    .then((data) => {
+      if (!Array.isArray(data))
+        throw new Error("Stands response is not an array");
+      
+      stands = data.filter((s) => {
+        return (
+          Array.isArray(s.coords) &&
+          s.coords.length === 2 &&
+          Number.isFinite(s.coords[0]) &&
+          Number.isFinite(s.coords[1])
+        );
+      });
+
+      if (stands.length === 0) {
+        console.warn(
+          "No valid stand coordinates found in /api/airports/stands response",
+          data
+        );
+      } else {
+        stands.forEach((stand) => {
+          const color = getStandColor(stand.name, stand.apron);
+          stand.circle = L.circle(stand.coords, {
+            color: color[0],
+            fillColor: color[1],
+            fillOpacity: 0.8,
+            radius: stand.radius,
+            weight: 3,
+          }).bindPopup("<strong>" + stand.name + "</strong>");
+
+          stand.label = L.marker(stand.coords, {
+            interactive: false,
+            icon: L.divIcon({
+              className: "stand-label",
+              html: "<span>" + stand.name + "</span>",
+            }),
+          });
+
+          stand.circle.addTo(map);
+        });
+      }
+    })
+    .catch((err) => {
+      console.error("Failed to load stands on Map", err);
+    });
+
+  // Update stand colors periodically
+  setInterval(() => {
+    if (!Array.isArray(stands) || stands.length === 0) return;
+    stands.forEach((stand) => {
+      if (!stand || !stand.circle) return;
+      const color = getStandColor(stand.name, stand.apron);
+      stand.circle.setStyle({
+        color: color[0],
+        fillColor: color[1],
+      });
+    });
+  }, 10000);
+
+  // Draw airports on map
+  fetch("/api/airports")
+    .then((res) => {
+      if (!res.ok) throw new Error("Network response was not ok");
+      return res.json();
+    })
+    .then((data) => {
+      if (!Array.isArray(data))
+        throw new Error("Airports response is not an array");
+      
+      airports = data.filter((a) => {
+        return (
+          Array.isArray(a.coords) &&
+          a.coords.length === 2 &&
+          Number.isFinite(a.coords[0]) &&
+          Number.isFinite(a.coords[1])
+        );
+      });
+
+      if (airports.length === 0) {
+        console.warn(
+          "No valid airport coordinates found in /api/airports response",
+          data
+        );
+      } else {
+        const markers = airports.map((a) => L.marker(a.coords));
+        const group = new L.featureGroup(markers);
+        const bounds = group.getBounds();
+        if (bounds.isValid && bounds.isValid()) {
+          map.fitBounds(bounds.pad(0.5));
+          initialBounds = bounds.pad(0.5);
+        }
+      }
+
+      const zoomThreshold = 5;
+      const zoomHideThreshold = 13;
+      const meterRadius = 50000;
+
+      airports.forEach(function (airport) {
+        airport.circle = L.circle(airport.coords, {
+          color: "#505050ff",
+          fillColor: "#ffffff",
+          fillOpacity: 0.7,
+          radius: meterRadius,
+          weight: 3,
+        }).bindPopup("<strong>" + airport.name + "</strong>");
+
+        airport.marker = L.circleMarker(airport.coords, {
+          color: "#505050ff",
+          fillColor: "#ffffff",
+          fillOpacity: 0.7,
+          radius: 26,
+          weight: 3,
+        }).bindPopup("<strong>" + airport.name + "</strong>");
+
+        const targetZoom = zoomHideThreshold + 1;
+        const zoomAndOpen = function (layer) {
+          map.setView(airport.coords, targetZoom, { animate: true });
+          setTimeout(() => {
+            try {
+              layer.openPopup();
+            } catch (e) {}
+          }, 300);
+        };
+
+        airport.circle.on("click", function () {
+          zoomAndOpen(airport.circle);
+        });
+        airport.marker.on("click", function () {
+          zoomAndOpen(airport.marker);
+        });
+
+        if (map.getZoom() <= zoomThreshold) {
+          airport.circle.addTo(map);
+        } else {
+          airport.marker.addTo(map);
+        }
+      });
+
+      updateMarkerSizes();
+    })
+    .catch((err) => {
+      console.error("Failed to load airports on Map", err);
+    });
+}
+
+// Call map initialization when DOM is ready
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', initializeMap);
+} else {
+  // DOM already loaded
+  initializeMap();
 }
