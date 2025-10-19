@@ -3,6 +3,7 @@ const airportService = require("./airportService");
 const path = require("path");
 const fs = require("fs");
 const { get } = require("http");
+const { config } = require("dotenv");
 
 // Cache for parsed coordinates to avoid repeated string splitting
 const coordinateCache = new Map(); // key: "lat:lon:alt" -> { lat, lon, radius }
@@ -10,23 +11,23 @@ const coordinateCache = new Map(); // key: "lat:lon:alt" -> { lat, lon, radius }
 // Helper to parse and cache coordinates
 function parseCoordinates(coordString, defaultRadius = 30) {
   if (!coordString) return null;
-  
+
   let cached = coordinateCache.get(coordString);
   if (cached) return cached;
-  
+
   const parts = String(coordString).split(":");
   if (parts.length < 2) return null;
-  
+
   const lat = parseFloat(parts[0]);
   const lon = parseFloat(parts[1]);
-  
+
   if (isNaN(lat) || isNaN(lon)) return null;
-  
+
   const radius = parts[2] ? parseFloat(parts[2]) : defaultRadius;
-  
+
   cached = { lat, lon, radius };
   coordinateCache.set(coordString, cached);
-  
+
   return cached;
 }
 
@@ -133,7 +134,13 @@ const haversineMeters = (lat1, lon1, lat2, lon2) => {
   return kR * c;
 };
 
-const isAircraftOnStand = async (callsign, ac, airportSet, airportConfigCache) => {
+const isAircraftOnStand = async (
+  config,
+  callsign,
+  ac,
+  airportSet,
+  airportConfigCache
+) => {
   if (!ac || !ac.origin || !ac.position) {
     return "";
   }
@@ -149,11 +156,11 @@ const isAircraftOnStand = async (callsign, ac, airportSet, airportConfigCache) =
           airportConfigCache.set(airport, airportJson);
         }
       }
-      
+
       if (airportJson && airportJson.Coordinates && airportJson.ICAO) {
         const coords = parseCoordinates(airportJson.Coordinates, 5000);
         if (!coords) continue;
-        
+
         const aircraftDist = haversineMeters(
           ac.position.lat,
           ac.position.lon,
@@ -171,12 +178,12 @@ const isAircraftOnStand = async (callsign, ac, airportSet, airportConfigCache) =
       continue;
     }
   }
-  
+
   // If still N/A after checking all airports, traffic is not of interest
   if (ac.origin === "N/A") {
     return "";
   }
-  
+
   if (!airportSet.has(ac.origin)) {
     return "";
   }
@@ -189,14 +196,14 @@ const isAircraftOnStand = async (callsign, ac, airportSet, airportConfigCache) =
       airportConfigCache.set(ac.origin, airportData);
     }
   }
-  
+
   if (!airportData || !airportData.Stands) {
     return "";
   }
 
   for (const [standName, standDef] of Object.entries(airportData.Stands)) {
     if (!standDef.Coordinates) continue;
-    
+
     const coords = parseCoordinates(standDef.Coordinates, 30);
     if (!coords) continue;
 
@@ -208,7 +215,81 @@ const isAircraftOnStand = async (callsign, ac, airportSet, airportConfigCache) =
     );
 
     if (aircraftDist <= coords.radius) {
-      return standName;
+      const aircraftType = ac.aircraftType || "UNKNOWN";
+      if (aircraftType === "UNKNOWN") {
+        warn(`Aircraft ${callsign} on ground at ${ac.origin} has unknown type`);
+        return standName;
+      }
+      if (!standDef.Block) {
+        return standName;
+      }
+      
+      // Convert Block array to Set for easier manipulation
+      const potentialStands = new Set(standDef.Block);
+      potentialStands.add(standName); // Include the original stand as potential
+      // Remove stands where aircraft is not located
+      for (const potentialStandName of potentialStands) {
+        const potentialStandDef = airportData.Stands[potentialStandName];
+        if (!potentialStandDef || !potentialStandDef.Coordinates) {
+          potentialStands.delete(potentialStandName);
+          continue;
+        }
+        
+        const coords = parseCoordinates(potentialStandDef.Coordinates, 30);
+        if (!coords) {
+          potentialStands.delete(potentialStandName);
+          continue;
+        }
+        
+        const dist = haversineMeters(
+          ac.position.lat,
+          ac.position.lon,
+          coords.lat,
+          coords.lon
+        );
+        
+        if (dist > coords.radius) {
+          potentialStands.delete(potentialStandName);
+        }
+      }
+      
+      // We have a list of all stands on which the aircraft is located
+      // Now select the most appropriate one based on criteria
+      let bestPriority = Number.MAX_SAFE_INTEGER;
+      
+      for (const potentialStandName of potentialStands) {
+        const wingspan = getAircraftWingspan(config, aircraftType);
+        const aircraftCode = getAircraftCode(wingspan);
+        const potentialStandDef = airportData.Stands[potentialStandName];
+        
+        // Remove stands that don't match aircraft code
+        if (potentialStandDef.Code && !potentialStandDef.Code.includes(aircraftCode)) {
+          potentialStands.delete(potentialStandName);
+          continue;
+        }
+        
+        // Find the lowest priority
+        const priority = potentialStandDef.Priority || Number.MAX_SAFE_INTEGER;
+        if (priority < bestPriority) {
+          bestPriority = priority;
+        }
+      }
+      
+      // Keep only stands with the lowest priority
+      for (const potentialStandName of potentialStands) {
+        const potentialStandDef = airportData.Stands[potentialStandName];
+        const priority = potentialStandDef.Priority || Number.MAX_SAFE_INTEGER;
+        if (priority > bestPriority) {
+          potentialStands.delete(potentialStandName);
+        }
+      }
+      // If no potential stands remain, return the original stand
+      if (potentialStands.size === 0) {
+        return standName;
+      }
+      
+      // Return first stand from potential stands
+      return potentialStands.values().next().value;
     }
   }
   return "";
@@ -294,7 +375,7 @@ function getAircraftWingspan(config, aircraftType) {
   return wingspan;
 }
 
-function getAircraftCode(config, aircraftType, wingspan) {
+function getAircraftCode(wingspan) {
   if (wingspan < 15.0) return "A";
   if (wingspan < 24.0) return "B";
   if (wingspan < 36.0) return "C";
@@ -350,7 +431,7 @@ function assignStand(airportConfig, config, callsign, ac) {
 
   const schengen = isSchengen(ac.origin, ac.destination);
   const wingspan = getAircraftWingspan(config, ac.aircraftType);
-  const code = getAircraftCode(config, ac.aircraftType, wingspan);
+  const code = getAircraftCode(wingspan);
   const use = getAircraftUse(config, callsign, ac.aircraftType);
 
   let availableStandList = [];
@@ -444,7 +525,7 @@ clientReportParse = async (aircrafts) => {
   // Use Set for O(1) lookup performance instead of Array.includes()
   let airportSet = new Set();
   const airportConfigCache = new Map(); // Cache airport configs to avoid repeated loads
-  
+
   try {
     const al = airportService.getAirportList();
     if (Array.isArray(al)) {
@@ -453,6 +534,13 @@ clientReportParse = async (aircrafts) => {
   } catch (e) {
     error(`Error loading airport list: ${e.message}`);
     // ignore - we'll fallback to checking the file directly
+  }
+
+  // get config.json for parameters
+  const config = await airportService.getConfig();
+  if (!config) {
+    error("No config found, skipping assignment");
+    return;
   }
 
   // Handle onGround aircraft
@@ -474,7 +562,13 @@ clientReportParse = async (aircrafts) => {
       });
     }
 
-    const aircraftOnStand = await isAircraftOnStand(callsign, ac, airportSet, airportConfigCache);
+    const aircraftOnStand = await isAircraftOnStand(
+      config,
+      callsign,
+      ac,
+      airportSet,
+      airportConfigCache
+    );
     if (aircraftOnStand) {
       ac.stand = aircraftOnStand;
       // Check if the stand is an apron by looking into json
@@ -486,8 +580,9 @@ clientReportParse = async (aircrafts) => {
           airportConfigCache.set(ac.origin, airportJson);
         }
       }
-      
-      const standDef = airportJson && airportJson.Stands && airportJson.Stands[ac.stand];
+
+      const standDef =
+        airportJson && airportJson.Stands && airportJson.Stands[ac.stand];
       if (standDef && (!standDef.Apron || standDef.Apron === false)) {
         const stand = new Stand(ac.stand, ac.origin || "UNKNOWN", callsign);
         // Remove preceeding entry if any
@@ -499,12 +594,6 @@ clientReportParse = async (aircrafts) => {
     }
   }
 
-  // get config.json for parameters
-  const config = await airportService.getConfig();
-  if (!config) {
-    error("No config found, skipping assignment");
-    return;
-  }
 
   // Handle airborne aircraft - (ie: assign stand if criterias met)
   for (const [callsign, ac] of Object.entries(aircrafts.airborne || {})) {
@@ -522,7 +611,7 @@ clientReportParse = async (aircrafts) => {
         airportConfigCache.set(ac.destination, airportConfig);
       }
     }
-    
+
     if (!airportConfig || !airportConfig.Stands) {
       warn(
         `No stands found for airport ${ac.destination}, skipping assignment`
@@ -550,14 +639,14 @@ const getGlobalOccupied = () => {
 function assignStandToPilot(standName, icao, callsign) {
   // Remove any existing assignment
   const existingStand = registry
-  .getAllOccupied()
-  .filter((s) => s.callsign === callsign);
+    .getAllOccupied()
+    .filter((s) => s.callsign === callsign);
   existingStand.forEach((existingStand) => {
     registry.removeOccupied(existingStand);
   });
   const blockedStands = registry
-  .getAllBlocked()
-  .filter((s) => s.callsign === callsign);
+    .getAllBlocked()
+    .filter((s) => s.callsign === callsign);
   blockedStands.forEach((s) => {
     registry.removeBlocked(s);
   });
@@ -582,7 +671,6 @@ function assignStandToPilot(standName, icao, callsign) {
   info(`Manually assigned stand ${standName} at ${icao} to ${callsign}`);
   return true;
 }
-
 
 function standCleanup() {
   // Remove occupied stands if timestamp is older than 2 minutes without update
