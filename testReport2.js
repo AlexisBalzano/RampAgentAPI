@@ -41,22 +41,28 @@ function generateRandomCoordinate() {
 }
 
 function generateRandomCallsign() {
-  const letters = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+  // const letters = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
   const digits = "0123456789";
   let callsign = "";
-  const firstLetterCount = 3;
+  // const firstLetterCount = 3;
   const digitCount = Math.floor(Math.random() * 3) + 1; // 1 to 3 digits
-  const lastLetterCount = Math.floor(Math.random() * 2) + 1; // 1 or 2 letters
-  for (let i = 0; i < firstLetterCount; i++) {
-    callsign += letters.charAt(Math.floor(Math.random() * letters.length));
-  }
-  for (let i = 0; i < digitCount; i++) {
-    callsign += digits.charAt(Math.floor(Math.random() * digits.length));
-  }
-  for (let i = 0; i < lastLetterCount; i++) {
-    callsign += letters.charAt(Math.floor(Math.random() * letters.length));
-  }
-  return callsign;
+  // const lastLetterCount = Math.floor(Math.random() * 2) + 1; // 1 or 2 letters
+  // for (let i = 0; i < firstLetterCount; i++) {
+  //   callsign += letters.charAt(Math.floor(Math.random() * letters.length));
+  // }
+  // for (let i = 0; i < lastLetterCount; i++) {
+    //   callsign += letters.charAt(Math.floor(Math.random() * letters.length));
+    // }
+    // return callsign;
+    const callsigns = ["QFA", "BAW", "DLH", "UAL", "SWR", "KLM", "VIR", "JAL", "AFR", "CPA", "SIA", "THA", "FFT", "RYR", "EZY", "NAX", "TAP", "AZA", "IBE", "LOT", "SAS"];
+    let randomNum = Math.floor(1000 + Math.random() * 9000);
+    callsign = callsigns[randomNum % callsigns.length];
+
+    for (let i = 0; i < digitCount; i++) {
+      callsign += digits.charAt(Math.floor(Math.random() * digits.length));
+    }
+
+    return callsign;
 }
 
 function generateAircraftType() {
@@ -145,7 +151,7 @@ let count = 0;
 let totalSent = 0;
 setInterval(async () => {
   count++;
-  const onGroundCount = Math.floor(Math.random() * 50) + 1; // Random count between 1 and 50
+  const onGroundCount = 0; // Random count between 1 and 50
   const airborneCount = Math.floor(Math.random() * 50) + 1; // Random count between 1 and 50
   totalSent += onGroundCount + airborneCount;
   console.log(`Sending report ${count} with ${onGroundCount} on-ground and ${airborneCount} airborne aircrafts. Total aircrafts sent so far: ${totalSent}`);
