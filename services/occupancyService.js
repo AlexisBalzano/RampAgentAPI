@@ -581,8 +581,7 @@ clientReportParse = async (aircrafts) => {
         }
       }
 
-      const standDef =
-        airportJson && airportJson.Stands && airportJson.Stands[ac.stand];
+      const standDef = airportJson && airportJson.Stands && airportJson.Stands[ac.stand];
       if (standDef && (!standDef.Apron || standDef.Apron === false)) {
         const stand = new Stand(ac.stand, ac.origin || "UNKNOWN", callsign);
         // Remove preceeding entry if any
@@ -668,6 +667,16 @@ function assignStandToPilot(standName, icao, callsign) {
   }
   const stand = new Stand(standName, icao, callsign);
   registry.addOccupied(stand);
+  // Block stands
+  const standDef = airportService
+    .getAirportConfigSync(icao)
+    .then((airportConfig) => {
+      if (airportConfig && airportConfig.Stands) {
+        return airportConfig.Stands[standName];
+      }
+      return null;
+    });
+  blockStands(standDef, icao, callsign, standName);
   info(`Manually assigned stand ${standName} at ${icao} to ${callsign}`);
   return true;
 }
