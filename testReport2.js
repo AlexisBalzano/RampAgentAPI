@@ -7,7 +7,7 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 // Load airport data
-const airportFiles = ["LFBO.json", "LFMN.json", "LFPG.json", "LFPO.json"];
+const airportFiles = ["LFPG.json"];
 const airportData = {};
 const allStands = [];
 const airportICAOs = [];
@@ -46,15 +46,7 @@ function generateRandomCallsign() {
   let callsign = "";
   // const firstLetterCount = 3;
   const digitCount = Math.floor(Math.random() * 3) + 1; // 1 to 3 digits
-  // const lastLetterCount = Math.floor(Math.random() * 2) + 1; // 1 or 2 letters
-  // for (let i = 0; i < firstLetterCount; i++) {
-  //   callsign += letters.charAt(Math.floor(Math.random() * letters.length));
-  // }
-  // for (let i = 0; i < lastLetterCount; i++) {
-    //   callsign += letters.charAt(Math.floor(Math.random() * letters.length));
-    // }
-    // return callsign;
-    const callsigns = ["QFA", "BAW", "DLH", "UAL", "SWR", "KLM", "VIR", "JAL", "AFR", "CPA", "SIA", "THA", "FFT", "RYR", "EZY", "NAX", "TAP", "AZA", "IBE", "LOT", "SAS"];
+    const callsigns = ["FDX", "TAY", "FPO", "ABR", "CLX", "UPS"];
     let randomNum = Math.floor(1000 + Math.random() * 9000);
     callsign = callsigns[randomNum % callsigns.length];
 
@@ -66,7 +58,7 @@ function generateRandomCallsign() {
 }
 
 function generateAircraftType() {
-  const types = ["A320", "B737", "B77W", "A339", "PC12", "C172", "B748", "E190", "DH8D", "CRJ2", "A321", "B763", "A350", "B789", "E175"];
+  const types = ["B738", "B734", "B77W", "A339", "B748", "B763", "B753", "MD80", "A321"];
   return types[Math.floor(Math.random() * types.length)];
 }
 
@@ -151,8 +143,8 @@ let count = 0;
 let totalSent = 0;
 setInterval(async () => {
   count++;
-  const onGroundCount = 0; // Random count between 1 and 50
-  const airborneCount = Math.floor(Math.random() * 50) + 1; // Random count between 1 and 50
+  const onGroundCount = 0; // FIXME: 0 for on-ground testing
+  const airborneCount = Math.floor(Math.random() * 10) + 1; // Random count between 1 and 10
   totalSent += onGroundCount + airborneCount;
   console.log(`Sending report ${count} with ${onGroundCount} on-ground and ${airborneCount} airborne aircrafts. Total aircrafts sent so far: ${totalSent}`);
   await fetch("http://localhost:3000/api/report", {
@@ -160,4 +152,4 @@ setInterval(async () => {
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(generateReport(onGroundCount, airborneCount)),
   });
-}, 100);
+}, 100); // Every 1 seconds
