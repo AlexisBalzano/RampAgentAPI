@@ -285,7 +285,7 @@ function isSchengenPrefix(prefix) {
 }
 
 function getAircraftWingspan(config, aircraftType) {
-  if (!aircraftType || typeof aircraftType !== "string") return "F";
+  if (!aircraftType || typeof aircraftType !== "string") return 81;
   const wingspan = config.AircraftWingspans[aircraftType.toUpperCase()];
   if (!wingspan) {
     warn(`Unknown wingspan for aircraft type ${aircraftType}`);
