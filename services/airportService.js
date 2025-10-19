@@ -1,4 +1,3 @@
-const { get } = require('http');
 const redisService = require('./redisService');
 const path = require('path');
 

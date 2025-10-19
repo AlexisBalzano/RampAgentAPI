@@ -501,34 +501,92 @@ document.addEventListener("DOMContentLoaded", () => {
 
 // Log management
 let autoScroll = true;
-let logEntries = [];
+let cachedFilters = {
+  categories: new Set(),
+  icaos: new Set(),
+  callsigns: new Set()
+};
 
-// Fetch logs from server and render into the log area
-function renderLogs() {
-  fetch("/api/logs")
-    .then((res) => {
-      if (!res.ok) throw new Error("Network response was not ok");
-      return res.json();
-    })
-    .then((logs) => {
-      if (Array.isArray(logs)) {
-        logEntries = logs;
-        updateLogDisplay();
-      }
-    })
-    .catch((err) => {
-      console.error("Failed to load logs", err);
-      addLogEntry("ERROR", "Failed to load logs from server");
-    });
+// Populate dropdowns
+async function populateLogFilters() {
+  try {
+    // Fetch all filter options
+    const [categories, icaos, callsigns] = await Promise.all([
+      fetch("/api/logs/categories").then(r => r.json()),
+      fetch("/api/logs/icaos").then(r => r.json()),
+      fetch("/api/logs/callsigns").then(r => r.json())
+    ]);
+
+    // Update categories if changed
+    updateDropdownIfChanged('category-select', categories, cachedFilters.categories, 'All Categories');
+    
+    // Update ICAOs if changed
+    updateDropdownIfChanged('airport-select', icaos, cachedFilters.icaos, 'All Airports');
+    
+    // Update callsigns if changed
+    updateDropdownIfChanged('callsign-select', callsigns, cachedFilters.callsigns, 'All Callsigns');
+
+  } catch (err) {
+    console.error("Failed to load log filters", err);
+  }
 }
 
-function updateLogDisplay() {
+// Helper function to update dropdown only if values changed
+function updateDropdownIfChanged(selectId, newValues, cachedSet, defaultLabel) {
+  const select = document.getElementById(selectId);
+  if (!select) return;
+
+  // Check if there are new values
+  const newSet = new Set(newValues);
+  const hasChanges = newSet.size !== cachedSet.size || 
+                     [...newSet].some(v => !cachedSet.has(v));
+
+  if (!hasChanges) return; // No changes, skip update
+
+  // Store current selection
+  const currentValue = select.value;
+
+  // Clear and rebuild dropdown
+  select.innerHTML = `<option value="">${defaultLabel}</option>`;
+
+  newValues.forEach((value) => {
+    const option = document.createElement("option");
+    option.value = value;
+    option.textContent = value;
+    select.appendChild(option);
+  });
+
+  // Restore previous selection if it still exists
+  if (currentValue && newSet.has(currentValue)) {
+    select.value = currentValue;
+  }
+
+  // Update cache
+  cachedSet.clear();
+  newSet.forEach(v => cachedSet.add(v));
+}
+
+// Fetch logs from server and render into the log area
+// Fetch filtered logs
+async function fetchFilteredLogs() {
+  const level = document.getElementById('level-select').value;
+  const category = document.getElementById('category-select').value;
+  const icao = document.getElementById('airport-select').value;
+  const callsign = document.getElementById('callsign-select').value;
+
+  const params = new URLSearchParams({ level, category, icao, callsign });
+  const logs = await fetch(`/api/logs/filter?${params}`).then(r => r.json());
+
+  updateLogDisplay(logs);
+}
+
+function updateLogDisplay(logs) {
   const logContent = document.getElementById("logContent");
   if (!logContent) return;
 
   logContent.innerHTML = "";
 
-  logEntries.forEach((entry) => {
+  logs.forEach((entry) => {
     const level = entry.level || "INFO";
     const logDiv = document.createElement("div");
     logDiv.className = `log-entry log-${String(level).toLowerCase()}`;
@@ -547,21 +605,22 @@ function updateLogDisplay() {
   }
 }
 
+// FIXME: disabled for now, check if really needed
 function addLogEntry(level, message) {
-  const entry = {
-    timestamp: new Date().toISOString(),
-    level: level,
-    message: message,
-  };
+  // const entry = {
+  //   timestamp: new Date().toISOString(),
+  //   level: level,
+  //   message: message,
+  // };
 
-  logEntries.push(entry);
+  // logEntries.push(entry);
 
-  // Keep only last 1000 entries to prevent memory issues
-  if (logEntries.length > 1000) {
-    logEntries = logEntries.slice(-1000);
-  }
+  // // Keep only last 1000 entries to prevent memory issues
+  // if (logEntries.length > 1000) {
+  //   logEntries = logEntries.slice(-1000);
+  // }
 
-  updateLogDisplay();
+  // updateLogDisplay();
 }
 
 function toggleAutoScroll() {
@@ -585,10 +644,18 @@ function scrollToBottom() {
 document.addEventListener("DOMContentLoaded", () => {
   renderAirportsStatus();
   renderConfigButtons();
-  renderLogs();
+  populateLogFilters();
+  fetchFilteredLogs();
+  
   setInterval(renderAirportsStatus, 10_000);
-  setInterval(renderLogs, 2000); // Fetch logs more frequently
+  setInterval(fetchFilteredLogs, 2000);
+  setInterval(populateLogFilters, 5000);
 });
+
+document.getElementById('level-select').addEventListener('change', fetchFilteredLogs);
+document.getElementById('airport-select').addEventListener('change', fetchFilteredLogs);
+document.getElementById('callsign-select').addEventListener('change', fetchFilteredLogs);
+document.getElementById('category-select').addEventListener('change', fetchFilteredLogs);
 
 (function () {
   const sections = Array.from(document.querySelectorAll("section[data-page]"));

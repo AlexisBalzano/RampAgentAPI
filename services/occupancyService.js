@@ -114,21 +114,26 @@ class StandRegistry {
       if (predicateFn(stand)) {
         this.occupied.delete(key);
         warn(
-          `Clearing expired occupied stand ${stand.name} at ${stand.icao} for ${stand.callsign}`
+          `Clearing expired occupied stand ${stand.name} at ${stand.icao} for ${stand.callsign}`,
+          { category: 'Stand Management', callsign: stand.callsign, icao: stand.icao }
         );
       }
     }
     for (const [key, stand] of this.assigned) {
       if (predicateFn(stand)) {
         this.assigned.delete(key);
-        warn(`Clearing expired assigned stand ${stand.name} at ${stand.icao} for ${stand.callsign}`);
+        warn(
+          `Clearing expired assigned stand ${stand.name} at ${stand.icao} for ${stand.callsign}`,
+          { category: 'Stand Management', callsign: stand.callsign, icao: stand.icao }
+        );
       }
     }
     for (const [key, stand] of this.blocked) {
       if (predicateFn(stand)) {
         this.blocked.delete(key);
         warn(
-          `Clearing expired blocked stand ${stand.name} at ${stand.icao} for ${stand.callsign}`
+          `Clearing expired blocked stand ${stand.name} at ${stand.icao} for ${stand.callsign}`,
+          { category: 'Stand Management', callsign: stand.callsign, icao: stand.icao }
         );
       }
     }
@@ -197,7 +202,7 @@ const isAircraftOnStand = async (
       }
     } catch (err) {
       // Skip this airport if config cannot be loaded
-      warn(`Could not load config for airport ${airport}: ${err.message}`);
+      warn(`Could not load config for airport ${airport}: ${err.message}`, { category: 'System', icao: airport });
       continue;
     }
   }
@@ -240,7 +245,7 @@ const isAircraftOnStand = async (
     if (aircraftDist <= coords.radius) {
       const aircraftType = ac.aircraftType || "UNKNOWN";
       if (aircraftType === "UNKNOWN") {
-        warn(`Aircraft ${callsign} on ground at ${ac.origin} has unknown type`);
+        warn(`Aircraft ${callsign} on ground at ${ac.origin} has unknown type`, { category: 'Missing Data', callsign: callsign, icao: ac.origin });
         return standName;
       }
       if (!standDef.Block) {
@@ -392,7 +397,7 @@ function getAircraftWingspan(config, aircraftType) {
   if (!aircraftType || typeof aircraftType !== "string") return 81;
   const wingspan = config.AircraftWingspans[aircraftType.toUpperCase()];
   if (!wingspan) {
-    warn(`Unknown wingspan for aircraft type ${aircraftType}`);
+    warn(`Unknown wingspan for aircraft type ${aircraftType}`, { category: 'Missing Data'});
     return 81; // default if unknown
   }
   return wingspan;
@@ -543,7 +548,7 @@ function assignStand(airportConfig, config, callsign, ac) {
     }
     return;
   }
-  warn(`No available stands found for ${callsign} at ${ac.destination}`);
+  warn(`No available stands found for ${callsign} at ${ac.destination}`, { category: 'Assignation', callsign: callsign, icao: airportConfig.ICAO });
 }
 
 clientReportParse = async (aircrafts) => {
@@ -558,14 +563,14 @@ clientReportParse = async (aircrafts) => {
       airportSet = new Set(al);
     }
   } catch (e) {
-    error(`Error loading airport list: ${e.message}`);
+    error(`Error loading airport list: ${e.message}`, { category: 'Missing Data' });
     // ignore - we'll fallback to checking the file directly
   }
 
   // get config.json for parameters
   const config = await airportService.getConfig();
   if (!config) {
-    error("No config found, skipping assignment");
+    error("No config found, skipping assignment", { category: 'Missing Data' });
     return;
   }
 
@@ -653,7 +658,8 @@ clientReportParse = async (aircrafts) => {
 
     if (!airportConfig || !airportConfig.Stands) {
       warn(
-        `No stands found for airport ${ac.destination}, skipping assignment`
+        `No stands found for airport ${ac.destination}, skipping assignment`,
+        { category: 'Assignation', callsign: callsign, icao: ac.destination }
       );
       continue;
     }
@@ -690,24 +696,27 @@ async function assignStandToPilot(standName, icao, callsign) {
     registry.removeBlocked(s);
   });
   if (standName === "None") {
-    info(`Removed stand assignment for ${callsign}`);
+    info(`Removed stand assignment for ${callsign}`, { category: 'Manual Assign', callsign: callsign, icao: icao });
     return true;
   }
   if (registry.isOccupied(icao, standName)) {
     warn(
-      `Cannot assign stand ${standName} at ${icao} to ${callsign} - already occupied`
+      `Cannot assign stand ${standName} at ${icao} to ${callsign} - already occupied`,
+      { category: 'Manual Assign', callsign: callsign, icao: icao }
     );
     return false;
   }
   if (registry.isAssigned(icao, standName)) {
     warn(
-      `Cannot assign stand ${standName} at ${icao} to ${callsign} - already assigned`
+      `Cannot assign stand ${standName} at ${icao} to ${callsign} - already assigned`,
+      { category: 'Manual Assign', callsign: callsign, icao: icao }
     );
     return false;
   }
   if (registry.isBlocked(icao, standName)) {
     warn(
-      `Cannot assign stand ${standName} at ${icao} to ${callsign} - already blocked`
+      `Cannot assign stand ${standName} at ${icao} to ${callsign} - already blocked`,
+      { category: 'Manual Assign', callsign: callsign, icao: icao }
     );
     return false;
   }
@@ -723,7 +732,7 @@ async function assignStandToPilot(standName, icao, callsign) {
       return null;
     });
   blockStands(standDef, icao, callsign);
-  info(`Manually assigned stand ${standName} at ${icao} to ${callsign}`);
+  info(`Manually assigned stand ${standName} at ${icao} to ${callsign}`, { category: 'Manual Assign', callsign: callsign, icao: icao });
   return true;
 }
 

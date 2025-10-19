@@ -21,25 +21,25 @@ class RedisService {
       });
 
       this.client.on('error', (err) => {
-        logger.warn(`Redis Client Error: ${err.message} - Running without cache`);
+        logger.warn(`Redis Client Error: ${err.message} - Running without cache`, { category: 'System' });
         this.isConnected = false;
       });
 
       this.client.on('connect', () => {
-        logger.info('Redis Client Connected');
+        logger.info('Redis Client Connected', { category: 'System' });
         this.isConnected = true;
       });
 
       this.client.on('end', () => {
-        logger.info('Redis Client Disconnected');
+        logger.info('Redis Client Disconnected', { category: 'System' });
         this.isConnected = false;
       });
 
       await this.client.connect();
       this.isConnected = true;
-      logger.info('Successfully connected to Redis');
+      logger.info('Successfully connected to Redis', { category: 'System' });
     } catch (err) {
-      logger.warn(`Failed to connect to Redis: ${err.message} - Application will run without caching`);
+      logger.warn(`Failed to connect to Redis: ${err.message} - Application will run without caching`, { category: 'System' });
       this.isConnected = false;
       this.client = null;
     }
@@ -48,7 +48,7 @@ class RedisService {
   async getAirportConfig(icao) {
     // Validate ICAO code - should be 4 letters, not a file path
     if (!icao || typeof icao !== 'string' || icao.length !== 4 || icao.includes('\\') || icao.includes('/')) {
-      logger.error(`Invalid ICAO code passed to getAirportConfig: ${icao}`);
+      logger.error(`Invalid ICAO code passed to getAirportConfig: ${icao}`, { category: 'System' });
       return null;
     }
     
@@ -74,7 +74,7 @@ class RedisService {
       }
       return fileData;
     } catch (err) {
-      logger.warn(`Redis get error for ${icao}: ${err.message} - falling back to file`);
+      logger.warn(`Redis get error for ${icao}: ${err.message} - falling back to file`, { category: 'System' });
       return this.loadFromFile(filePath);
     }
   }
@@ -99,11 +99,10 @@ class RedisService {
       const fileData = this.loadFromFile(configPath);
       if (fileData) {
         await this.client.set(key, JSON.stringify(fileData));
-        logger.info('Cached global config in Redis');
       }
       return fileData;
     } catch (err) {
-      logger.warn(`Redis get error for config: ${err.message} - falling back to file`);
+      logger.warn(`Redis get error for config: ${err.message} - falling back to file`, { category: 'System' });
       return this.loadFromFile(configPath);
     }
   }
@@ -116,9 +115,8 @@ class RedisService {
       await this.client.set(key, JSON.stringify(data), {
         EX: 3600, // Expire after 1 hour (optional)
       });
-      logger.info(`Cached ${icao} config in Redis`);
     } catch (err) {
-      logger.warn(`Redis set error for ${icao}: ${err.message}`);
+      logger.warn(`Redis set error for ${icao}: ${err.message}`, { category: 'System' });
     }
   }
 
@@ -142,14 +140,14 @@ class RedisService {
       
       // Compare versions
       if (fileData.version !== cachedData.version) {
-        logger.info(`Version mismatch for ${icao}: file=${fileData.version}, cache=${cachedData.version}. Updating cache.`);
+        logger.info(`Version mismatch for ${icao}: file=${fileData.version}, cache=${cachedData.version}. Updating cache.`, { category: 'System' });
         await this.setAirportConfig(icao, fileData);
         return true;
       }
 
       return false; // No update needed
     } catch (err) {
-      logger.warn(`Version check error for ${icao}: ${err.message}`);
+      logger.warn(`Version check error for ${icao}: ${err.message}`, { category: 'System' });
       return false;
     }
   }
@@ -168,13 +166,13 @@ class RedisService {
       }
       const cachedData = JSON.parse(cached);
       if (fileData.version !== cachedData.version) {
-        logger.info(`Global config version mismatch: file=${fileData.version}, cache=${cachedData.version}. Updating cache.`);
+        logger.info(`Global config version mismatch: file=${fileData.version}, cache=${cachedData.version}. Updating cache.`, { category: 'System' });
         await this.client.set(key, JSON.stringify(fileData));
         return true;
       }
       return false;
     } catch (err) {
-      logger.warn(`Global config version check error: ${err.message}`);
+      logger.warn(`Global config version check error: ${err.message}`, { category: 'System' });
       return false;
     }
   }
@@ -182,13 +180,13 @@ class RedisService {
   loadFromFile(filePath) {
     try {
       if (!fs.existsSync(filePath)) {
-        logger.warn(`File not found: ${filePath}`);
+        logger.warn(`File not found: ${filePath}`, { category: 'System' });
         return null;
       }
       const data = JSON.parse(fs.readFileSync(filePath, 'utf8'));
       return data;
     } catch (err) {
-      logger.error(`Failed to load from file ${filePath}: ${err.message}`);
+      logger.error(`Failed to load from file ${filePath}: ${err.message}`, { category: 'System' });
       return null;
     }
   }
@@ -196,7 +194,7 @@ class RedisService {
   async disconnect() {
     if (this.client && this.isConnected) {
       await this.client.disconnect();
-      logger.info('Redis Client Disconnected');
+      logger.info('Redis Client Disconnected', { category: 'System' });
     }
   }
 }

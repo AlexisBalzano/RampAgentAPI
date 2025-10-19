@@ -1,14 +1,15 @@
 const express = require('express');
 const path = require('path');
 require('dotenv').config();
+const logger = require('./utils/logger');
 
 const env = process.env.NODE_ENV || 'default';
 const config = require(`./config/${env}.js`);
 const reportRoutes = require('./routes/report');
 const assignRoutes = require('./routes/assign');
 const occupancyRoutes = require('./routes/occupancy');
-const logger = require('./utils/logger');
 const airportRoutes = require('./routes/airports');
+const logRoutes = require('./routes/log');
 const statRoutes = require('./routes/stats');
 const redisService = require('./services/redisService');
 const airportService = require('./services/airportService');
@@ -24,9 +25,7 @@ app.get('/debug', (req, res) => {
 });
 
 // API endpoint to get logs
-app.get('/api/logs', (req, res) => {
-  res.json(logger.getLogs());
-});
+app.use('/api/logs', logRoutes);
 
 // API endpoint to get Airports
 app.use('/api/airports', airportRoutes);
@@ -44,10 +43,10 @@ app.use('/auth', authRoutes);
 // Connect to Redis
 redisService.connect().then(() => {
   app.listen(config.port, () => {
-    logger.info(`Server running at http://localhost:${config.port}`);
+    logger.info(`Server running at http://localhost:${config.port}`, { category: 'System' });
   });
 }).catch(err => {
-  logger.error(`Failed to start server: ${err.message}`);
+  logger.error(`Failed to start server: ${err.message}`, { category: 'System' });
   process.exit(1);
 });
 
@@ -62,7 +61,7 @@ setInterval(async () => {
 
 // Shutdown handling
 process.on('SIGINT', async () => {
-  logger.info('Shutting down...');
+  logger.info('Shutting down...', { category: 'System' });
   await redisService.disconnect();
   process.exit(0);
 });

@@ -16,7 +16,7 @@ exports.handleReport = async (req, res) => {
     return res.status(400).json({ error: 'Invalid aircrafts info' });
   }
 
-  info(`Received report from ${client}, processing...`);
+  info(`Received report from ${client}, processing...`, { category: 'Report', callsign: client });
 
   try {
     await occupancyService.clientReportParse(aircrafts);
@@ -25,7 +25,7 @@ exports.handleReport = async (req, res) => {
     const blockedStands = occupancyService.getAllBlocked();
     res.status(200).json({ status: 'ok', occupiedStands, assignedStands, blockedStands });
   } catch (err) {
-    error(`Error processing report: ${err.message}`);
+    error(`Error processing report: ${err.message}`, { category: 'Report', callsign: client });
     res.status(500).json({ error: 'Internal server error' });
   }
 };

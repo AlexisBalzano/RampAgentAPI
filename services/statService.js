@@ -1,5 +1,3 @@
-const { info } = require("../utils/logger");
-
 const reportCounts = new Map(); // hourIndex -> count (hourIndex = Math.floor(ts / 3600000))
 const requestCounts = new Map(); // hourIndex -> count (hourIndex = Math.floor(ts / 3600000))
 

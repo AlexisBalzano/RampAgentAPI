@@ -244,6 +244,41 @@ body.dark-mode .log-controls button:hover {
   background-color: #4a4a4a;
 }
 
+.log-controls select {
+  padding: 8px 16px;
+  border: 1px solid #ccc;
+  border-radius: 8px;
+  background-color: #4a5d83;
+  cursor: pointer;
+  font-weight: bold;
+  color: white;
+  max-width: 150px;
+  text-overflow: ellipsis;
+  flex-wrap: nowrap;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+body.dark-mode .log-controls select {
+  background-color: #3a3a3a;
+  border: 1px solid #666;
+  color: #e0e0e0;
+}
+
+.log-controls select:hover {
+  background-color: #3d5073;
+}
+body.dark-mode .log-controls select:hover {
+  background-color: #4a4a4a;
+}
+
+.log-controls select option {
+  white-space: normal;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 150px;
+}
+
+
 .log-entry {
   margin-bottom: 4px;
   padding: 2px 0;

@@ -69,7 +69,25 @@
     <section id="log" data-page="log">
       <h2>Logs</h2>
       <div class="log-controls">
-        <button id="toggleAutoScroll" onclick="toggleAutoScroll()">Auto-scroll: ON</button>
+        <button id="toggleAutoScroll" onclick="toggleAutoScroll()" type="button">Auto-scroll: ON</button>
+        <select id="level-select" title="Filter by Level">
+          <option value="">All Levels</option>
+          <option value="INFO">INFO</option>
+          <option value="WARN">WARN</option>
+          <option value="ERROR">ERROR</option>
+        </select>
+        <select id="category-select" title="Filter by Category">
+          <option value="">All Categories</option>
+          <!-- TODO: Populate with actual category names dynamically -->
+        </select>
+        <select id="airport-select" title="Filter by Airport">
+          <option value="">All Airports</option>
+          <!-- TODO: Populate with actual airport codes dynamically -->
+        </select>
+        <select id="callsign-select" title="Filter by Callsign">
+          <option value="">All Callsigns</option>
+          <!-- TODO: Populate with actual callsigns dynamically -->
+        </select>
       </div>
       <div id="logContainer" class="log-container">
         <div id="logContent"></div>
