@@ -172,11 +172,8 @@ const isAircraftOnStand = async (callsign, ac, airportSet, airportConfigCache) =
     }
   }
   
-  // If still N/A after checking all airports
+  // If still N/A after checking all airports, traffic is not of interest
   if (ac.origin === "N/A") {
-    warn(
-      `Could not determine airport for aircraft at position ${ac.position.lat}, ${ac.position.lon} for callsign: ${callsign}`
-    );
     return "";
   }
   
@@ -287,19 +284,25 @@ function isSchengenPrefix(prefix) {
   ); // Romania
 }
 
-function getAircraftCode(config, aircraftType) {
+function getAircraftWingspan(config, aircraftType) {
   if (!aircraftType || typeof aircraftType !== "string") return "F";
   const wingspan = config.AircraftWingspans[aircraftType.toUpperCase()];
   if (!wingspan) {
     warn(`Unknown wingspan for aircraft type ${aircraftType}`);
-    return "F"; // default if unknown
+    return 81; // default if unknown
   }
+  return wingspan;
+}
+
+function getAircraftCode(config, aircraftType) {
+  const wingspan = getAircraftWingspan(config, aircraftType);
   if (wingspan < 15.0) return "A";
   if (wingspan < 24.0) return "B";
   if (wingspan < 36.0) return "C";
   if (wingspan < 52.0) return "D";
   if (wingspan < 65.0) return "E";
   if (wingspan < 80.0) return "F";
+  return "F"; // default to F if larger
 }
 
 function getAircraftUse(config, callsign, aircraftType) {
