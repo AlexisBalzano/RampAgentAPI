@@ -441,6 +441,15 @@ function getAircraftUse(config, callsign, aircraftType) {
   return "A"; // default to airliner
 }
 
+function shuffleArray(array) {
+  const shuffled = [...array]; // Create a copy to avoid mutating original
+  for (let i = shuffled.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]]; // Swap elements
+  }
+  return shuffled;
+}
+
 function assignStand(airportConfig, config, callsign, ac) {
   // Check if aircraft already has a stand assigned
   const assignedStand = registry
@@ -522,12 +531,12 @@ function assignStand(airportConfig, config, callsign, ac) {
       (standDef) => standDef.Priority && standDef.Priority === lowestPriority
     );
   }
-
   if (availableStandList.length > 0) {
+    availableStandListShuffled = shuffleArray(availableStandList);
+    let selectedStandDef = availableStandListShuffled[0];
     let bestMaxCode = "F";
     let anyCode = false;
-    let selectedStandDef = availableStandList[0];
-    for (const standDef of availableStandList) {
+    for (const standDef of availableStandListShuffled) {
       if (standDef.Code) {
         anyCode = true;
         const maxCode = standDef.Code.split("").reduce((a, b) =>
