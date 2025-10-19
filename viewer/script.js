@@ -604,7 +604,7 @@ let isLoading = false;
 let hasMore = true;
 
 async function fetchFilteredLogs(reset = false) {
-  if (isLoading || (!hasMore && !reset)) return;
+  if (isLoading) return;
 
   if (reset) {
     currentPage = 1;
@@ -637,17 +637,25 @@ async function fetchFilteredLogs(reset = false) {
     }
     
     const data = await response.json();
-  
 
     if (data.logs && Array.isArray(data.logs)) {
-      appendLogs(data.logs);
+      // Reverse logs so newest is at bottom
+      const reversedLogs = [...data.logs].reverse();
+      
+      if (reset || currentPage === 1) {
+        // Replace all logs on reset or first page
+        replaceLogs(reversedLogs);
+      } else {
+        // Prepend older logs when scrolling up
+        prependLogs(reversedLogs);
+      }
     } else {
       console.warn('No logs in response or logs is not an array:', data);
     }
 
     if (data.pagination) {
       hasMore = currentPage < data.pagination.totalPages;
-      currentPage++;
+      if (!reset) currentPage++;
     } else {
       hasMore = false;
     }
@@ -656,6 +664,64 @@ async function fetchFilteredLogs(reset = false) {
   } finally {
     isLoading = false;
   }
+}
+
+function createLogElement(log) {
+  const logEntry = document.createElement('div');
+  logEntry.className = `log-entry log-${log.level.toLowerCase()}`;
+  logEntry.innerHTML = `
+    <span class="log-timestamp">${new Date(log.timestamp).toLocaleString()}</span>
+    <span class="log-level">[${log.level}]</span>
+    <span class="log-message">${log.message}</span>
+  `;
+  logEntry.dataset.timestamp = log.timestamp; // Track uniqueness
+  return logEntry;
+}
+
+function replaceLogs(logs) {
+  const logContent = document.getElementById('logContent');
+  if (!logContent) return;
+
+  if (!Array.isArray(logs)) {
+    console.warn('replaceLogs: logs is not an array', logs);
+    return;
+  }
+
+  logContent.innerHTML = '';
+  
+  logs.forEach(log => {
+    logContent.appendChild(createLogElement(log));
+  });
+
+  if (autoScroll) {
+    scrollToBottom();
+  }
+}
+
+function prependLogs(logs) {
+  const logContent = document.getElementById('logContent');
+  const logContainer = document.getElementById('logContainer');
+  if (!logContent || !logContainer) return;
+
+  if (!Array.isArray(logs)) {
+    console.warn('prependLogs: logs is not an array', logs);
+    return;
+  }
+
+  // Save scroll position before prepending
+  const previousScrollHeight = logContainer.scrollHeight;
+  const previousScrollTop = logContainer.scrollTop;
+
+  const fragment = document.createDocumentFragment();
+  logs.forEach(log => {
+    fragment.appendChild(createLogElement(log));
+  });
+
+  logContent.insertBefore(fragment, logContent.firstChild);
+
+  // Restore scroll position to maintain user's view
+  const newScrollHeight = logContainer.scrollHeight;
+  logContainer.scrollTop = previousScrollTop + (newScrollHeight - previousScrollHeight);
 }
 
 function appendLogs(logs) {
@@ -667,23 +733,27 @@ function appendLogs(logs) {
     return;
   }
 
+  // Get existing timestamps to avoid duplicates
+  const existingTimestamps = new Set(
+    Array.from(logContent.children).map(el => el.dataset.timestamp)
+  );
+
   logs.forEach(log => {
-    const logEntry = document.createElement('div');
-    logEntry.className = `log-entry log-${log.level.toLowerCase()}`;
-    logEntry.innerHTML = `
-      <span class="log-timestamp">${new Date(log.timestamp).toLocaleString()}</span>
-      <span class="log-level">[${log.level}]</span>
-      <span class="log-message">${log.message}</span>
-    `;
-    logContent.appendChild(logEntry);
+    // Only add if not already present
+    if (!existingTimestamps.has(log.timestamp)) {
+      logContent.appendChild(createLogElement(log));
+    }
   });
 
+  // Only scroll to bottom if auto-scroll is enabled
   if (autoScroll) {
-    scrollToBottom();
+    requestAnimationFrame(() => {
+      scrollToBottom();
+    });
   }
 }
 
-// Infinite scroll on logContainer
+// Infinite scroll on logContainer - load older logs when scrolling up
 const logContainer = document.getElementById('logContainer');
 if (logContainer) {
   logContainer.addEventListener('scroll', (e) => {
@@ -766,9 +836,12 @@ document.addEventListener("DOMContentLoaded", () => {
   setInterval(renderAirportsStatus, 10_000);
   setInterval(populateLogFilters, 5000);
   
-  // Fetch new logs periodically (append mode, not reset)
+  // Fetch new logs periodically - always fetch latest page
   setInterval(() => {
-    if (!isLoading && hasMore) {
+    if (!isLoading) {
+      // Reset to page 1 to get latest logs
+      currentPage = 1;
+      hasMore = true;
       fetchFilteredLogs(false);
     }
   }, 2000);
