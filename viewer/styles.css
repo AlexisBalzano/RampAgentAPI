@@ -503,18 +503,14 @@ body.dark-mode #configContainer {
   height: min-content;
   width: min-content;
   padding: 10px;
+  max-height: 300px;
+  overflow-y: auto;
 }
 
 .airport-display-separator {
   height: 2px;
   width: 100%;
   background-color: #949494;
-}
-
-.body.dark-mode .airport-display-separator {
-  height: 2px;
-  width: 100%;
-  background-color: #c9c9c9;
 }
 
 .departure-board {
@@ -1778,22 +1774,22 @@ body.dark-mode .letter::after {
     transform: rotateX(0deg);
   }
   20% {
-    content: "6";
+    content: "1";
     transform: rotateX(360deg);
   }
   40% {
     color: #afafaf;
-    content: "A";
+    content: "L";
     transform: rotateX(0deg);
   }
   60% {
     color: #afafaf;
-    content: "B";
+    content: "Z";
     transform: rotateX(360deg);
   }
   80% {
     color: #afafaf;
-    content: "C";
+    content: "G";
     transform: rotateX(0deg);
   }
   100% {

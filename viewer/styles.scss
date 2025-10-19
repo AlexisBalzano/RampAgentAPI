@@ -476,6 +476,8 @@ $chars: "A","B","C","D","E","F","G","H","I","J","K","L","M","N","O","P","Q","R",
   height: min-content;
   width: min-content;
   padding: 10px;
+  max-height: 300px;
+  overflow-y: auto;
 }
 
 .airport-display-separator {
