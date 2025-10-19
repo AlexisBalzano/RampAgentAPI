@@ -118,6 +118,12 @@ function generateSpanforText(text) {
   return departureBoard;
 }
 
+function generateSeparator() {
+  const separator = document.createElement("div");
+  separator.className = "airport-display-separator";
+  return separator;
+}
+
 function padStandName(name) {
   return name.padStart(3, " ");
 }
@@ -137,12 +143,15 @@ async function renderAirportsStatus() {
   const allOccupiedStands = await fetch("/api/occupancy/occupied", {
     headers: { "X-Internal-Request": "1" },
   }).then((res) => res.json());
+  const getAllAssignedStands = await fetch("/api/occupancy/assigned", {
+    headers: { "X-Internal-Request": "1" },
+  }).then((res) => res.json());
   const getAllBlockedStands = await fetch("/api/occupancy/blocked", {
     headers: { "X-Internal-Request": "1" },
   }).then((res) => res.json());
 
   // Check volume and toggle performance mode
-  const totalStands = allOccupiedStands.length + getAllBlockedStands.length;
+  const totalStands = allOccupiedStands.length + getAllBlockedStands.length + getAllAssignedStands.length;
   checkVolumeAndTogglePerformanceMode(totalStands);
 
   const statusContainer = document.getElementById("status-container");
@@ -151,13 +160,19 @@ async function renderAirportsStatus() {
   // Build airport map
   const airports = {};
   airportList.forEach((airport) => {
-    airports[airport.name] = { name: airport.name, occupied: [], blocked: [] };
+    airports[airport.name] = { name: airport.name, occupied: [], assigned: [], blocked: [] };
   });
   // Assign stands
   allOccupiedStands.forEach((stand) => {
     const airportIcao = stand.icao;
     if (airportIcao && airports[airportIcao]) {
       airports[airportIcao].occupied.push(stand);
+    }
+  });
+  getAllAssignedStands.forEach((stand) => {
+    const airportIcao = stand.icao;
+    if (airportIcao && airports[airportIcao]) {
+      airports[airportIcao].assigned.push(stand);
     }
   });
   getAllBlockedStands.forEach((stand) => {
@@ -175,7 +190,9 @@ async function renderAirportsStatus() {
     subContainer.className = "airport-display subContainer";
     subContainer.id = `airport-${airportIcao}`;
     subContainer.appendChild(generateSpanforText(padAirportIcao(airportIcao)));
+    subContainer.appendChild(generateSeparator());
     subContainer.appendChild(generateSpanforText("Occupied Stands"));
+    subContainer.appendChild(generateSeparator());
     if (stands.occupied.length === 0) {
       subContainer.appendChild(generateSpanforText("None"));
     } else {
@@ -185,7 +202,21 @@ async function renderAirportsStatus() {
         );
       });
     }
+    subContainer.appendChild(generateSeparator());
+    subContainer.appendChild(generateSpanforText("Assigned Stands"));
+    subContainer.appendChild(generateSeparator());
+    if (stands.assigned.length === 0) {
+      subContainer.appendChild(generateSpanforText("None"));
+    } else {
+      stands.assigned.forEach((stand) => {
+        subContainer.appendChild(
+          generateSpanforText(padStandName(stand.name) + "  " + stand.callsign)
+        );
+      });
+    }
+    subContainer.appendChild(generateSeparator());
     subContainer.appendChild(generateSpanforText("Blocked Stands"));
+    subContainer.appendChild(generateSeparator());
     if (stands.blocked.length === 0) {
       subContainer.appendChild(generateSpanforText("None"));
     } else {

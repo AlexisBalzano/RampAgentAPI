@@ -478,6 +478,12 @@ $chars: "A","B","C","D","E","F","G","H","I","J","K","L","M","N","O","P","Q","R",
   padding: 10px;
 }
 
+.airport-display-separator {
+  height: 2px;
+  width: 100%;
+  background-color: #949494;
+}
+
 .departure-board {
   display: inline-flex;
 }
