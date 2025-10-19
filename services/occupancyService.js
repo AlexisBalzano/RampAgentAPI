@@ -338,8 +338,14 @@ function assignStand(airportConfig, config, callsign, ac) {
   const assignedStand = registry
     .getAllOccupied()
     .find((s) => s.callsign === callsign);
+  const blockedStands = registry
+    .getAllBlocked()
+    .filter((s) => s.callsign === callsign);
   if (assignedStand) {
     assignedStand.timestamp = Date.now();
+    for (const s of blockedStands) {
+      s.timestamp = Date.now();
+    }
     return;
   }
 
