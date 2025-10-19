@@ -1,5 +1,5 @@
 {
-    "version": "v1.0.4",
+    "version": "v1.0.5",
     "ICAO": "LFPG",
     "Coordinates": "49.010965:2.560501:6000",
     "Stands": {
@@ -206,7 +206,7 @@
             "Priority": 1
         },
         "A32": {
-            "Coordinates": "49.001826:2.557972:20",
+            "Coordinates": "49.001886:2.557873:20",
             "Remark": {
                 "C": "Push S"
             },
@@ -225,7 +225,7 @@
             "Priority": 1
         },
         "A34": {
-            "Coordinates": "49.001800:2.558379:20",
+            "Coordinates": "49.001715:2.558337:20",
             "Remark": {
                 "D": "Push W",
                 "C": "Push S/W"
@@ -2252,9 +2252,7 @@
             "Block": [
                 "G11"
             ],
-            "Schengen": true,
-            "Callsigns": [],
-            "Priority": 1
+            "Priority": 5
         },
         "G11": {
             "Coordinates": "49.003361:2.556397:10",
@@ -2266,17 +2264,13 @@
             "Block": [
                 "G10"
             ],
-            "Schengen": true,
-            "Callsigns": [],
-            "Priority": 2
+            "Priority": 5
         },
         "G12": {
             "Coordinates": "49.003403:2.556625:10",
             "Code": "A",
             "Use": "A",
-            "Schengen": true,
-            "Callsigns": [],
-            "Priority": 1
+            "Priority": 5
         },
         "G13": {
             "Coordinates": "49.003384:2.556802:10",
@@ -2288,9 +2282,7 @@
             "Block": [
                 "G14"
             ],
-            "Schengen": true,
-            "Callsigns": [],
-            "Priority": 2
+            "Priority": 5
         },
         "G14": {
             "Coordinates": "49.003410:2.557060:10",
@@ -2299,9 +2291,7 @@
             "Block": [
                 "G13"
             ],
-            "Schengen": true,
-            "Callsigns": [],
-            "Priority": 1
+            "Priority": 5
         },
         "G20": {
             "Coordinates": "49.004096:2.555898:12",
@@ -2313,9 +2303,7 @@
             "Block": [
                 "G21"
             ],
-            "Schengen": true,
-            "Callsigns": [],
-            "Priority": 1
+            "Priority": 5
         },
         "G21": {
             "Coordinates": "49.004101:2.556180:10",
@@ -2328,9 +2316,7 @@
                 "G20",
                 "G22"
             ],
-            "Schengen": true,
-            "Callsigns": [],
-            "Priority": 2
+            "Priority": 5
         },
         "G22": {
             "Coordinates": "49.004144:2.556478:12",
@@ -2343,9 +2329,7 @@
                 "G21",
                 "G24"
             ],
-            "Schengen": true,
-            "Callsigns": [],
-            "Priority": 2
+            "Priority": 5
         },
         "G23": {
             "Coordinates": "49.004130:2.556990:10",
@@ -2358,9 +2342,7 @@
                 "G21",
                 "G24"
             ],
-            "Schengen": true,
-            "Callsigns": [],
-            "Priority": 2
+            "Priority": 5
         },
         "G24": {
             "Coordinates": "49.004123:2.556767:11",
@@ -2368,20 +2350,16 @@
                 "B": "Taxi Out"
             },
             "Code": "B",
-            "Use": "A",
             "Block": [
                 "G22",
                 "G23"
             ],
-            "Schengen": true,
-            "Callsigns": [],
-            "Priority": 1
+            "Priority": 5
         },
         "G31": {
             "Coordinates": "49.004819:2.556167:20",
             "Code": "C",
             "Use": "A",
-            "Schengen": true,
             "Callsigns": [
                 "EZY",
                 "EJU",
@@ -2393,7 +2371,6 @@
             "Coordinates": "49.004835:2.556977:20",
             "Code": "C",
             "Use": "A",
-            "Schengen": true,
             "Callsigns": [
                 "EZY",
                 "EJU",
@@ -2401,224 +2378,545 @@
             ],
             "Priority": 2
         },
-        "I14": {
-            "Coordinates": "49.011508:2.505825:25",
-            "Use": "C",
-            "Callsigns": [
-                "FDX",
-                "TAY"
-            ],
-            "Priority": 3
-        },
-        "I15": {
-            "Coordinates": "49.010972:2.505811:25",
-            "Use": "C",
-            "Callsigns": [
-                "FDX",
-                "TAY"
-            ],
-            "Priority": 3
-        },
-        "I16": {
-            "Coordinates": "49.010861:2.505892:25",
-            "Use": "C",
-            "Callsigns": [
-                "FDX",
-                "TAY"
-            ],
-            "Priority": 3
-        },
-        "I17": {
-            "Coordinates": "49.010439:2.505878:25",
-            "Use": "C",
-            "Callsigns": [
-                "FDX",
-                "TAY"
-            ],
-            "Priority": 3
-        },
-        "I18": {
-            "Coordinates": "49.010214:2.505972:25",
-            "Use": "C",
-            "Callsigns": [
-                "FDX",
-                "TAY"
-            ],
-            "Priority": 3
-        },
-        "I19": {
-            "Coordinates": "49.009906:2.505944:25",
-            "Use": "C",
-            "Callsigns": [
-                "FDX",
-                "TAY"
-            ],
-            "Priority": 3
-        },
-        "I20": {
-            "Coordinates": "49.013152:2.502938:18",
+        "I04": {
+            "Coordinates": "49.013460:2.504953:20",
+            "Code": "CD",
+            "Wingspan": 52,
             "Use": "C",
             "Callsigns": [
                 "FDX",
                 "TAY",
-                "FPO"
-            ],
-            "Priority": 8,
-            "Code": "ABC"
-        },
-        "I21": {
-            "Coordinates": "49.012511:2.502306:25",
-            "Use": "C",
-            "Callsigns": [
-                "FDX",
-                "TAY"
+                "ABR",
+                "SWT",
+                "FPO",
+                "ABV"
             ],
             "Priority": 3
         },
-        "I22": {
-            "Coordinates": "49.012331:2.502125:25",
+        "I05": {
+            "Coordinates": "49.013498:2.505569:20",
+            "Code": "CD",
+            "Wingspan": 52,
             "Use": "C",
             "Callsigns": [
                 "FDX",
-                "TAY"
+                "TAY",
+                "ABR",
+                "SWT",
+                "FPO",
+                "ABV"
+            ],
+            "Priority": 3
+        },
+        "I06": {
+            "Coordinates": "49.013516:2.506202:20",
+            "Code": "CD",
+            "Wingspan": 52,
+            "Use": "C",
+            "Callsigns": [
+                "FDX",
+                "TAY",
+                "ABR",
+                "SWT",
+                "FPO",
+                "ABV"
+            ],
+            "Priority": 3
+        },
+        "I09": {
+            "Coordinates": "49.012334:2.505092:20",
+            "Code": "CD",
+            "Wingspan": 52,
+            "Use": "C",
+            "Callsigns": [
+                "FDX",
+                "TAY",
+                "ABR",
+                "SWT",
+                "FPO",
+                "ABV"
+            ],
+            "Priority": 3
+        },
+        "I10": {
+            "Coordinates": "49.012327:2.505722:20",
+            "Code": "CD",
+            "Wingspan": 52,
+            "Use": "C",
+            "Callsigns": [
+                "FDX",
+                "TAY",
+                "ABR",
+                "SWT",
+                "FPO",
+                "ABV"
+            ],
+            "Priority": 3
+        },
+        "I11": {
+            "Coordinates": "49.012379:2.506337:20",
+            "Code": "CD",
+            "Wingspan": 52,
+            "Use": "C",
+            "Callsigns": [
+                "FDX",
+                "TAY",
+                "ABR",
+                "SWT",
+                "FPO",
+                "ABV"
+            ],
+            "Priority": 3
+        },
+        "I14": {
+            "Coordinates": "49.011496:2.505347:25",
+            "Code": "DE",
+            "Use": "C",
+            "Callsigns": [
+                "FDX",
+                "TAY",
+                "ABR",
+                "SWT",
+                "FPO",
+                "ABV"
+            ],
+            "Priority": 3
+        },
+        "I15": {
+            "Coordinates": "49.011060:2.505411:20",
+            "Code": "D",
+            "Use": "C",
+            "Block": [
+                "I16"
+            ],
+            "Callsigns": [
+                "FDX",
+                "TAY",
+                "ABR",
+                "SWT",
+                "FPO",
+                "ABV"
+            ],
+            "Priority": 3
+        },
+        "I16": {
+            "Coordinates": "49.010752:2.505492:16",
+            "Code": "DE",
+            "Use": "C",
+            "Block": [
+                "I15",
+                "I17"
+            ],
+            "Callsigns": [
+                "FDX",
+                "TAY",
+                "ABR",
+                "SWT",
+                "FPO",
+                "ABV"
+            ],
+            "Priority": 2
+        },
+        "I17": {
+            "Coordinates": "49.010432:2.505599:18",
+            "Code": "CD",
+            "Use": "C",
+            "Block": [
+                "I16",
+                "I18"
+            ],
+            "Callsigns": [
+                "FDX",
+                "TAY",
+                "ABR",
+                "SWT",
+                "FPO",
+                "ABV"
+            ],
+            "Priority": 3
+        },
+        "I18": {
+            "Coordinates": "49.010205:2.505658:20",
+            "Code": "DE",
+            "Use": "C",
+            "Block": [
+                "I17",
+                "I19"
+            ],
+            "Callsigns": [
+                "FDX",
+                "TAY",
+                "ABR",
+                "SWT",
+                "FPO",
+                "ABV"
+            ],
+            "Priority": 2
+        },
+        "I19": {
+            "Coordinates": "49.009899:2.505645:25",
+            "Code": "CD",
+            "Use": "C",
+            "Block": [
+                "I18"
+            ],
+            "Callsigns": [
+                "FDX",
+                "TAY",
+                "ABR",
+                "SWT",
+                "FPO",
+                "ABV"
+            ],
+            "Priority": 3
+        },
+        "I20": {
+            "Coordinates": "49.013150:2.502898:18",
+            "Code": "C",
+            "Use": "C",
+            "Callsigns": [
+                "FDX",
+                "TAY",
+                "ABR",
+                "SWT",
+                "FPO",
+                "ABV"
+            ],
+            "Priority": 3
+        },
+        "I21": {
+            "Coordinates": "49.012632:2.502656:22",
+            "Code": "DE",
+            "Use": "C",
+            "Block": [
+                "I22"
+            ],
+            "Callsigns": [
+                "FDX",
+                "TAY",
+                "ABR",
+                "SWT",
+                "FPO",
+                "ABV"
+            ],
+            "Priority": 2
+        },
+        "I22": {
+            "Coordinates": "49.012304:2.502705:20",
+            "Code": "DE",
+            "Use": "C",
+            "Block": [
+                "I21",
+                "I23"
+            ],
+            "Callsigns": [
+                "FDX",
+                "TAY",
+                "ABR",
+                "SWT",
+                "FPO",
+                "ABV"
             ],
             "Priority": 3
         },
         "I23": {
-            "Coordinates": "49.011978:2.502372:25",
+            "Coordinates": "49.012002:2.502712:20",
+            "Code": "C",
             "Use": "C",
+            "Block": [
+                "I22"
+            ],
             "Callsigns": [
                 "FDX",
-                "TAY"
+                "TAY",
+                "ABR",
+                "SWT",
+                "FPO",
+                "ABV"
             ],
-            "Priority": 3
+            "Priority": 2
         },
         "I24": {
-            "Coordinates": "49.011459:2.502662:18",
+            "Coordinates": "49.011468:2.502730:20",
+            "Code": "CDE",
             "Use": "C",
             "Callsigns": [
                 "FDX",
-                "TAY"
+                "TAY",
+                "ABR",
+                "SWT",
+                "FPO",
+                "ABV"
             ],
-            "Priority": 3
+            "Priority": 2
         },
         "I25": {
-            "Coordinates": "49.010911:2.502508:25",
+            "Coordinates": "49.010929:2.502825:25",
+            "Code": "CD",
             "Use": "C",
+            "Block": [
+                "I26"
+            ],
             "Callsigns": [
                 "FDX",
-                "TAY"
+                "TAY",
+                "ABR",
+                "SWT",
+                "FPO",
+                "ABV"
             ],
             "Priority": 3
         },
         "I26": {
-            "Coordinates": "49.010536:2.502347:25",
+            "Coordinates": "49.010638:2.502777:18",
+            "Code": "CDE",
             "Use": "C",
+            "Block": [
+                "I25",
+                "I27"
+            ],
             "Callsigns": [
                 "FDX",
-                "TAY"
+                "TAY",
+                "ABR",
+                "SWT",
+                "FPO",
+                "ABV"
             ],
             "Priority": 3
         },
         "I27": {
-            "Coordinates": "49.010367:2.502367:25",
+            "Coordinates": "49.010279:2.502777:20",
+            "Code": "CD",
             "Use": "C",
+            "Block": [
+                "I26"
+            ],
             "Callsigns": [
                 "FDX",
-                "TAY"
+                "TAY",
+                "ABR",
+                "SWT",
+                "FPO",
+                "ABV"
             ],
             "Priority": 3
         },
         "I30": {
-            "Coordinates": "49.015075:2.503206:25",
+            "Coordinates": "49.015159:2.507034:15",
+            "Code": "C",
             "Use": "C",
             "Callsigns": [
                 "FDX",
-                "TAY"
+                "TAY",
+                "ABR",
+                "SWT",
+                "FPO",
+                "ABV"
             ],
-            "Priority": 1
+            "Priority": 3
         },
         "I31": {
-            "Coordinates": "49.015036:2.502492:25",
+            "Coordinates": "49.015169:2.506678:15",
+            "Code": "CDE",
             "Use": "C",
             "Callsigns": [
                 "FDX",
-                "TAY"
+                "TAY",
+                "ABR",
+                "SWT",
+                "FPO",
+                "ABV"
             ],
-            "Priority": 1
+            "Priority": 5
         },
         "I32": {
-            "Coordinates": "49.014997:2.501775:25",
+            "Coordinates": "49.015187:2.506267:20",
+            "Code": "C",
             "Use": "C",
             "Callsigns": [
                 "FDX",
-                "TAY"
+                "TAY",
+                "ABR",
+                "SWT",
+                "FPO",
+                "ABV"
             ],
-            "Priority": 1
+            "Priority": 3
         },
         "I33": {
-            "Coordinates": "49.014947:2.500825:25",
+            "Coordinates": "49.015111:2.505954:18",
+            "Code": "C",
             "Use": "C",
             "Callsigns": [
                 "FDX",
-                "TAY"
+                "TAY",
+                "ABR",
+                "SWT",
+                "FPO",
+                "ABV"
             ],
-            "Priority": 1
+            "Priority": 3
         },
         "I34": {
-            "Coordinates": "49.014908:2.500111:25",
+            "Coordinates": "49.015103:2.505435:18",
+            "Code": "C",
             "Use": "C",
             "Callsigns": [
                 "FDX",
-                "TAY"
+                "TAY",
+                "ABR",
+                "SWT",
+                "FPO",
+                "ABV"
             ],
-            "Priority": 1
+            "Priority": 3
+        },
+        "I35": {
+            "Coordinates": "49.014856:2.503233:25",
+            "Code": "C",
+            "Use": "C",
+            "Callsigns": [
+                "FDX",
+                "TAY",
+                "ABR",
+                "SWT",
+                "FPO",
+                "ABV"
+            ],
+            "Priority": 3
+        },
+        "I36": {
+            "Coordinates": "49.014828:2.502525:25",
+            "Code": "C",
+            "Use": "C",
+            "Callsigns": [
+                "FDX",
+                "TAY",
+                "ABR",
+                "SWT",
+                "FPO",
+                "ABV"
+            ],
+            "Priority": 3
+        },
+        "I37": {
+            "Coordinates": "49.014763:2.501806:25",
+            "Code": "C",
+            "Use": "C",
+            "Callsigns": [
+                "FDX",
+                "TAY",
+                "ABR",
+                "SWT",
+                "FPO",
+                "ABV"
+            ],
+            "Priority": 3
+        },
+        "I38": {
+            "Coordinates": "49.014712:2.500851:25",
+            "Code": "C",
+            "Use": "C",
+            "Callsigns": [
+                "FDX",
+                "TAY",
+                "ABR",
+                "SWT",
+                "FPO",
+                "ABV"
+            ],
+            "Priority": 3
+        },
+        "I39": {
+            "Coordinates": "49.014675:2.500133:25",
+            "Code": "C",
+            "Use": "C",
+            "Callsigns": [
+                "FDX",
+                "TAY",
+                "ABR",
+                "SWT",
+                "FPO",
+                "ABV"
+            ],
+            "Priority": 3
         },
         "I40": {
-            "Coordinates": "49.013486:2.502699:18",
+            "Coordinates": "49.013579:2.502713:18",
+            "Code": "C",
             "Use": "C",
             "Callsigns": [
                 "FDX",
-                "TAY"
+                "TAY",
+                "ABR",
+                "SWT",
+                "FPO",
+                "ABV"
             ],
-            "Priority": 8,
-            "Code": "ABC",
+            "Priority": 3
+        },
+        "I41": {
+            "Coordinates": "49.013389:2.502353:13",
+            "Code": "DE",
+            "Use": "C",
             "Block": [
                 "I42"
-            ]
+            ],
+            "Callsigns": [
+                "FDX",
+                "TAY",
+                "ABR",
+                "SWT",
+                "FPO",
+                "ABV"
+            ],
+            "Priority": 5
         },
         "I42": {
-            "Coordinates": "49.013305:2.502211:35",
+            "Coordinates": "49.013437:2.501954:15",
+            "Code": "C",
             "Use": "C",
-            "Callsigns": [
-                "FDX",
-                "TAY"
-            ],
-            "Priority": 3,
-            "Code": "ABCDE",
             "Block": [
                 "I41"
-            ]
+            ],
+            "Callsigns": [
+                "FDX",
+                "TAY",
+                "ABR",
+                "SWT",
+                "FPO",
+                "ABV"
+            ],
+            "Priority": 5
         },
         "I43": {
-            "Coordinates": "49.013294:2.501179:35",
+            "Coordinates": "49.013376:2.501168:30",
+            "Code": "CDE",
             "Use": "C",
             "Callsigns": [
                 "FDX",
-                "TAY"
+                "TAY",
+                "ABR",
+                "SWT",
+                "FPO",
+                "ABV"
             ],
-            "Priority": 3,
-            "Code": "ABCDE"
+            "Priority": 5
         },
         "I44": {
             "Coordinates": "49.013248:2.500369:35",
+            "Code": "CDE",
             "Use": "C",
             "Callsigns": [
                 "FDX",
-                "TAY"
+                "TAY",
+                "ABR",
+                "SWT",
+                "FPO",
+                "ABV"
             ],
-            "Priority": 3,
-            "Code": "ABCDE"
+            "Priority": 5
         },
         "I45": {
             "Coordinates": "49.013226:2.499556:35",
