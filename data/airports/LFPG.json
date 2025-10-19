@@ -47,7 +47,7 @@
         },
         "A05": {
             "Coordinates": "49.000075:2.562435:25",
-            "Code": "DE",
+            "Code": "CDE",
             "Use": "A",
             "Schengen": false,
             "Callsigns": [
@@ -76,7 +76,7 @@
         },
         "A07": {
             "Coordinates": "49.000167:2.563342:25",
-            "Code": "DE",
+            "Code": "CDE",
             "Use": "A",
             "Schengen": false,
             "Callsigns": [
@@ -89,7 +89,7 @@
         },
         "A08": {
             "Coordinates": "49.001652:2.561325:25",
-            "Code": "DE",
+            "Code": "CDE",
             "Use": "A",
             "Schengen": false,
             "Callsigns": [
@@ -102,7 +102,7 @@
         },
         "A09": {
             "Coordinates": "49.000172:2.564267:25",
-            "Code": "DE",
+            "Code": "CDE",
             "Use": "A",
             "Schengen": false,
             "Callsigns": [
@@ -115,7 +115,7 @@
         },
         "A10": {
             "Coordinates": "49.001656:2.562258:25",
-            "Code": "DE",
+            "Code": "CDE",
             "Use": "A",
             "Schengen": false,
             "Callsigns": [
@@ -191,10 +191,10 @@
         "A30": {
             "Coordinates": "49.002356:2.558033:25",
             "Remark": {
-                "DE": "Push W",
+                "D": "Push W",
                 "C": "Push S/W"
             },
-            "Code": "CDE",
+            "Code": "CD",
             "Use": "A",
             "Schengen": false,
             "Callsigns": [
@@ -227,10 +227,10 @@
         "A34": {
             "Coordinates": "49.001800:2.558379:20",
             "Remark": {
-                "DE": "Push W",
+                "D": "Push W",
                 "C": "Push S/W"
             },
-            "Code": "CDE",
+            "Code": "CD",
             "Use": "A",
             "Block": [
                 "A32"
@@ -263,9 +263,9 @@
         "A39": {
             "Coordinates": "48.999929:2.558964:25",
             "Remark": {
-                "DE": "Push W"
+                "CDE": "Push W"
             },
-            "Code": "DE",
+            "Code": "CDE",
             "Use": "A",
             "Schengen": false,
             "Callsigns": [
@@ -276,9 +276,486 @@
             ],
             "Priority": 2
         },
+        "B01": {
+            "Coordinates": "49.006827:2.563360:20",
+            "Code": "C",
+            "Use": "A",
+            "Callsigns": [
+                "EJU",
+                "EZY",
+                "ITY",
+                "RAM",
+                "DAH",
+                "ASL",
+                "ELY",
+                "AEE",
+                "JBU",
+                "MAS",
+                "WJA",
+                "TGZ",
+                "REU",
+                "UZB"
+            ],
+            "Priority": 3
+        },
+        "B02": {
+            "Coordinates": "49.005414:2.564004:15",
+            "Code": "C",
+            "Use": "A",
+            "Block": ["B04"],
+            "Callsigns": [
+                "EJU",
+                "EZY",
+                "ITY",
+                "RAM",
+                "DAH",
+                "ASL",
+                "ELY",
+                "AEE",
+                "JBU",
+                "MAS",
+                "WJA",
+                "TGZ",
+                "REU",
+                "UZB"
+            ],
+            "Priority": 1
+        },
+        "B03": {
+            "Coordinates": "49.006822:2.562725:20",
+            "Code": "C",
+            "Use": "A",
+            "Callsigns": [
+                "EJU",
+                "EZY",
+                "ITY",
+                "RAM",
+                "DAH",
+                "ASL",
+                "ELY",
+                "AEE",
+                "JBU",
+                "MAS",
+                "WJA",
+                "TGZ",
+                "REU",
+                "UZB"
+            ],
+            "Priority": 3
+        },
+        "B04": {
+            "Coordinates": "49.005411:2.563540:15",
+            "Code": "D",
+            "Use": "A",
+            "Block": ["B02","B06"],
+            "Callsigns": [
+                "EJU",
+                "EZY",
+                "ITY",
+                "RAM",
+                "DAH",
+                "ASL",
+                "ELY",
+                "AEE",
+                "JBU",
+                "MAS",
+                "WJA",
+                "TGZ",
+                "REU",
+                "UZB"
+            ],
+            "Priority": 2
+        },
+        "B05": {
+            "Coordinates": "49.006767:2.562172:20",
+            "Code": "C",
+            "Use": "A",
+            "Callsigns": [
+                "EJU",
+                "EZY",
+                "ITY",
+                "RAM",
+                "DAH",
+                "ASL",
+                "ELY",
+                "AEE",
+                "JBU",
+                "MAS",
+                "WJA",
+                "TGZ",
+                "REU",
+                "UZB"
+            ],
+            "Priority": 3
+        },
+        "B06": {
+            "Coordinates": "49.005521:2.563489:20",
+            "Code": "C",
+            "Use": "A",
+            "Block": ["B04"],
+            "Callsigns": [
+                "EJU",
+                "EZY",
+                "ITY",
+                "RAM",
+                "DAH",
+                "ASL",
+                "ELY",
+                "AEE",
+                "JBU",
+                "MAS",
+                "WJA",
+                "TGZ",
+                "REU",
+                "UZB"
+            ],
+            "Priority": 1
+        },
+        "B07": {
+            "Coordinates": "49.006757:2.561644:20",
+            "Code": "C",
+            "Use": "A",
+            "Callsigns": [
+                "EJU",
+                "EZY",
+                "ITY",
+                "RAM",
+                "DAH",
+                "ASL",
+                "ELY",
+                "AEE",
+                "JBU",
+                "MAS",
+                "WJA",
+                "TGZ",
+                "REU",
+                "UZB"
+            ],
+            "Priority": 3
+        },
+        "B08": {
+            "Coordinates": "49.005535:2.562912:20",
+            "Code": "C",
+            "Use": "A",
+            "Block": ["B10"],
+            "Callsigns": [
+                "EJU",
+                "EZY",
+                "ITY",
+                "RAM",
+                "DAH",
+                "ASL",
+                "ELY",
+                "AEE",
+                "JBU",
+                "MAS",
+                "WJA",
+                "TGZ",
+                "REU",
+                "UZB"
+            ],
+            "Priority": 1
+        },
+        "B09": {
+            "Coordinates": "49.006737:2.561072:20",
+            "Code": "C",
+            "Use": "A",
+            "Callsigns": [
+                "EJU",
+                "EZY",
+                "ITY",
+                "RAM",
+                "DAH",
+                "ASL",
+                "ELY",
+                "AEE",
+                "JBU",
+                "MAS",
+                "WJA",
+                "TGZ",
+                "REU",
+                "UZB"
+            ],
+            "Priority": 3
+        },
+        "B10": {
+            "Coordinates": "49.005361:2.562620:15",
+            "Code": "D",
+            "Use": "A",
+            "Block": ["B08","B12"],
+            "Callsigns": [
+                "EJU",
+                "EZY",
+                "ITY",
+                "RAM",
+                "DAH",
+                "ASL",
+                "ELY",
+                "AEE",
+                "JBU",
+                "MAS",
+                "WJA",
+                "TGZ",
+                "REU",
+                "UZB"
+            ],
+            "Priority": 2
+        },
+        "B11": {
+            "Coordinates": "49.006711:2.560608:15",
+            "Code": "C",
+            "Use": "A",
+            "Block": ["B13"],
+            "Callsigns": [
+                "EJU",
+                "EZY",
+                "ITY",
+                "RAM",
+                "DAH",
+                "ASL",
+                "ELY",
+                "AEE",
+                "JBU",
+                "MAS",
+                "WJA",
+                "TGZ",
+                "REU",
+                "UZB"
+            ],
+            "Priority": 3
+        },
+        "B12": {
+            "Coordinates": "49.005481:2.562312:15",
+            "Code": "C",
+            "Use": "A",
+            "Block": ["B10"],
+            "Callsigns": [
+                "EJU",
+                "EZY",
+                "ITY",
+                "RAM",
+                "DAH",
+                "ASL",
+                "ELY",
+                "AEE",
+                "JBU",
+                "MAS",
+                "WJA",
+                "TGZ",
+                "REU",
+                "UZB"
+            ],
+            "Priority": 1
+        },
+        "B13": {
+            "Coordinates": "49.006706:2.560289:15",
+            "Code": "D",
+            "Use": "A",
+            "Block": ["B11","B15"],
+            "Callsigns": [
+                "EJU",
+                "EZY",
+                "ITY",
+                "RAM",
+                "DAH",
+                "ASL",
+                "ELY",
+                "AEE",
+                "JBU",
+                "MAS",
+                "WJA",
+                "TGZ",
+                "REU",
+                "UZB"
+            ],
+            "Priority": 3
+        },
+        "B14": {
+            "Coordinates": "49.005437:2.561633:",
+            "Code": "DE",
+            "Use": "A",
+            "Callsigns": [
+                "EJU",
+                "EZY",
+                "ITY",
+                "RAM",
+                "DAH",
+                "ASL",
+                "ELY",
+                "AEE",
+                "JBU",
+                "MAS",
+                "WJA",
+                "TGZ",
+                "REU",
+                "UZB"
+            ],
+            "Priority": 1
+        },
+        "B15": {
+            "Coordinates": "49.006677:2.559962:15",
+            "Code": "C",
+            "Use": "A",
+            "Block": ["B13"],
+            "Callsigns": [
+                "EJU",
+                "EZY",
+                "ITY",
+                "RAM",
+                "DAH",
+                "ASL",
+                "ELY",
+                "AEE",
+                "JBU",
+                "MAS",
+                "WJA",
+                "TGZ",
+                "REU",
+                "UZB"
+            ],
+            "Priority": 3
+        },
+        "B16": {
+            "Coordinates": "49.005375:2.560957:15",
+            "Code": "C",
+            "Use": "A",
+            "Block": ["B18"],
+            "Callsigns": [
+                "EJU",
+                "EZY",
+                "ITY",
+                "RAM",
+                "DAH",
+                "ASL",
+                "ELY",
+                "AEE",
+                "JBU",
+                "MAS",
+                "WJA",
+                "TGZ",
+                "REU",
+                "UZB"
+            ],
+            "Priority": 2
+        },
+        "B18": {
+            "Coordinates": "49.005222:2.560791:15",
+            "Code": "DE",
+            "Use": "A",
+            "Block": ["B16","B20"],
+            "Callsigns": [
+                "EJU",
+                "EZY",
+                "ITY",
+                "RAM",
+                "DAH",
+                "ASL",
+                "ELY",
+                "AEE",
+                "JBU",
+                "MAS",
+                "WJA",
+                "TGZ",
+                "REU",
+                "UZB"
+            ],
+            "Priority": 1
+        },
+        "B20": {
+            "Coordinates": "49.005247:2.560343:15",
+            "Code": "C",
+            "Use": "A",
+            "Block": ["B18"],
+            "Callsigns": [
+                "EJU",
+                "EZY",
+                "ITY",
+                "RAM",
+                "DAH",
+                "ASL",
+                "ELY",
+                "AEE",
+                "JBU",
+                "MAS",
+                "WJA",
+                "TGZ",
+                "REU",
+                "UZB"
+            ],
+            "Priority": 2
+        },
+        "B22": {
+            "Coordinates": "49.005104:2.559868:20",
+            "Code": "C",
+            "Use": "A",
+            "Block": ["B24"],
+            "Callsigns": [
+                "EJU",
+                "EZY",
+                "ITY",
+                "RAM",
+                "DAH",
+                "ASL",
+                "ELY",
+                "AEE",
+                "JBU",
+                "MAS",
+                "WJA",
+                "TGZ",
+                "REU",
+                "UZB"
+            ],
+            "Priority": 2
+        },
+        "B24": {
+            "Coordinates": "49.004865:2.559659:15",
+            "Code": "DE",
+            "Use": "A",
+            "Block": ["B26","B22"],
+            "Callsigns": [
+                "EJU",
+                "EZY",
+                "ITY",
+                "RAM",
+                "DAH",
+                "ASL",
+                "ELY",
+                "AEE",
+                "JBU",
+                "MAS",
+                "WJA",
+                "TGZ",
+                "REU",
+                "UZB"
+            ],
+            "Priority": 1
+        },
+        "B26": {
+            "Coordinates": "49.004830:2.559299:15",
+            "Code": "C",
+            "Use": "A",
+            "Block": ["B24"],
+            "Callsigns": [
+                "EJU",
+                "EZY",
+                "ITY",
+                "RAM",
+                "DAH",
+                "ASL",
+                "ELY",
+                "AEE",
+                "JBU",
+                "MAS",
+                "WJA",
+                "TGZ",
+                "REU",
+                "UZB"
+            ],
+            "Priority": 2
+        },
         "C02": {
             "Coordinates": "49.001988:2.565509:20",
-            "Code": "DE",
+            "Code": "CDE",
             "Use": "A",
             "Block": [
                 "CFW"
@@ -304,7 +781,7 @@
         },
         "C03": {
             "Coordinates": "49.000456:2.566853:25",
-            "Code": "DE",
+            "Code": "C",
             "Use": "A",
             "Schengen": false,
             "Callsigns": [
@@ -330,7 +807,8 @@
             "Code": "DE",
             "Use": "A",
             "Block": [
-                "C4A"
+                "C4A",
+                "CFW"
             ],
             "Schengen": false,
             "Callsigns": [
@@ -379,7 +857,7 @@
         },
         "C05": {
             "Coordinates": "49.000403:2.567754:20",
-            "Code": "DE",
+            "Code": "CDE",
             "Use": "A",
             "Block": [
                 "CF9"
@@ -405,7 +883,7 @@
         },
         "C06": {
             "Coordinates": "49.001828:2.567397:25",
-            "Code": "DE",
+            "Code": "CD",
             "Use": "A",
             "Schengen": false,
             "Callsigns": [
@@ -428,7 +906,7 @@
         },
         "C07": {
             "Coordinates": "49.000380:2.568663:15",
-            "Code": "DE",
+            "Code": "CDE",
             "Use": "A",
             "Block": [
                 "CF9"
@@ -454,7 +932,7 @@
         },
         "C08": {
             "Coordinates": "49.001948:2.568253:25",
-            "Code": "DE",
+            "Code": "CDE",
             "Use": "A",
             "Schengen": false,
             "Callsigns": [
@@ -476,7 +954,7 @@
             "Priority": 1
         },
         "C10": {
-            "Coordinates": "49.001877:2.568958:17",
+            "Coordinates": "49.001874:2.568961:17",
             "Code": "C",
             "Use": "A",
             "Schengen": false,
@@ -502,7 +980,7 @@
             ]
         },
         "C12": {
-            "Coordinates": "49.002106:2.569106:16",
+            "Coordinates": "49.002096:2.569323:20",
             "Code": "DE",
             "Use": "A",
             "Schengen": false,
@@ -529,8 +1007,8 @@
             ]
         },
         "C14": {
-            "Coordinates": "49.002442:2.569843:10",
-            "Code": "DE",
+            "Coordinates": "49.002439:2.570138:20",
+            "Code": "CDE",
             "Use": "A",
             "Block": [
                 "CFE"
@@ -585,7 +1063,7 @@
             "Priority": 2
         },
         "CFE": {
-            "Coordinates": "49.002268:2.569808:15",
+            "Coordinates": "49.002250:2.569787:17",
             "Remark": {
                 "F": "Push W, pull TA3"
             },
@@ -645,634 +1123,329 @@
             "Priority": 1
         },
         "D02": {
-            "Coordinates": "49.005339:2.569358:25",
+            "Coordinates": "49.005421:2.569570:20",
+            "Code": "C",
             "Use": "A",
-            "Schengen": false,
             "Callsigns": [
-                "ADR",
-                "AAF",
-                "ASL",
-                "AHY",
-                "BRU",
-                "LZB",
-                "CTN",
-                "EZY",
                 "EJU",
-                "TGZ",
-                "MGX",
-                "TUA",
-                "AUI",
-                "ADR",
-                "AAF",
                 "BTI",
-                "AMC",
-                "AUA",
-                "CSA",
-                "EZY",
-                "FIN"
-            ],
-            "WTC": "LMH",
-            "Priority": 3
-        },
-        "D03": {
-            "Coordinates": "49.007367:2.568419:25",
-            "Use": "A",
-            "Schengen": false,
-            "Callsigns": [
-                "ADR",
-                "AAF",
-                "ASL",
-                "AHY",
-                "BRU",
-                "LZB",
+                "SAS",
+                "KMM",
+                "AEE",
+                "LOT",
+                "FIN",
+                "TVS",
                 "CTN",
-                "EZY",
-                "EJU",
-                "TGZ",
-                "MGX",
-                "TUA",
-                "AUI",
-                "ADR",
-                "AAF",
-                "BTI",
-                "AMC",
-                "AUA",
-                "CSA",
-                "EZY",
-                "FIN"
+                "NOZ",
+                "NSZ",
+                "ITY",
+                "SEH"
             ],
-            "WTC": "LMH",
             "Priority": 1
         },
-        "D04": {
-            "Coordinates": "49.005431:2.569031:25",
+        "D03": {
+            "Coordinates": "49.007138:2.568438:20",
+            "Code": "C",
             "Use": "A",
-            "Schengen": false,
             "Callsigns": [
-                "ADR",
-                "AAF",
-                "ASL",
-                "AHY",
-                "BRU",
-                "LZB",
-                "CTN",
-                "EZY",
-                "EJU",
-                "TGZ",
-                "MGX",
-                "TUA",
-                "AUI",
-                "ADR",
-                "AAF",
-                "BTI",
-                "AMC",
-                "AUA",
-                "CSA",
-                "EZY",
-                "FIN"
+                "AFR"
             ],
-            "WTC": "LM",
             "Priority": 3
         },
         "D05": {
-            "Coordinates": "49.007306:2.567858:25",
+            "Coordinates": "49.007077:2.567901:20",
+            "Code": "C",
             "Use": "A",
-            "Schengen": false,
             "Callsigns": [
-                "ADR",
-                "AAF",
-                "ASL",
-                "AHY",
-                "BRU",
-                "LZB",
-                "CTN",
-                "EZY",
-                "EJU",
-                "TGZ",
-                "MGX",
-                "TUA",
-                "AUI",
-                "ADR",
-                "AAF",
-                "BTI",
-                "AMC",
-                "AUA",
-                "CSA",
-                "EZY",
-                "FIN"
+                "AFR"
             ],
-            "WTC": "LMH",
-            "Priority": 1
+            "Priority": 3
         },
         "D06": {
-            "Coordinates": "49.0054:2.568919:25",
+            "Coordinates": "49.005590:2.569052:20",
+            "Code": "C",
             "Use": "A",
-            "Schengen": false,
             "Callsigns": [
-                "ADR",
-                "AAF",
-                "ASL",
-                "AHY",
-                "BRU",
-                "LZB",
-                "CTN",
-                "EZY",
                 "EJU",
-                "TGZ",
-                "MGX",
-                "TUA",
-                "AUI",
-                "ADR",
-                "AAF",
                 "BTI",
-                "AMC",
-                "AUA",
-                "CSA",
-                "EZY",
-                "FIN"
+                "SAS",
+                "KMM",
+                "AEE",
+                "LOT",
+                "FIN",
+                "TVS",
+                "CTN",
+                "NOZ",
+                "NSZ",
+                "ITY",
+                "SEH"
             ],
-            "WTC": "LMH",
-            "Priority": 3
+            "Priority": 1
         },
         "D07": {
-            "Coordinates": "49.007281:2.567367:25",
+            "Coordinates": "49.007056:2.567520:15",
+            "Code": "D",
             "Use": "A",
-            "Schengen": false,
+            "Block": ["D09"],
             "Callsigns": [
-                "ADR",
-                "AAF",
-                "ASL",
-                "AHY",
-                "BRU",
-                "LZB",
-                "CTN",
-                "EZY",
-                "EJU",
-                "TGZ",
-                "MGX",
-                "TUA",
-                "AUI",
-                "ADR",
-                "AAF",
-                "BTI",
-                "AMC",
-                "AUA",
-                "CSA",
-                "EZY",
-                "FIN"
+                "AFR"
             ],
-            "WTC": "LM",
-            "Priority": 1
+            "Priority": 3
         },
         "D08": {
-            "Coordinates": "49.005589:2.568422:25",
+            "Coordinates": "49.005785:2.568623:15",
+            "Code": "C",
             "Use": "A",
-            "Schengen": false,
+            "Block": ["D10"],
             "Callsigns": [
-                "ADR",
-                "AAF",
-                "ASL",
-                "AHY",
-                "BRU",
-                "LZB",
-                "CTN",
-                "EZY",
                 "EJU",
-                "TGZ",
-                "MGX",
-                "TUA",
-                "AUI",
-                "ADR",
-                "AAF",
                 "BTI",
-                "AMC",
-                "AUA",
-                "CSA",
-                "EZY",
-                "FIN"
+                "SAS",
+                "KMM",
+                "AEE",
+                "LOT",
+                "FIN",
+                "TVS",
+                "CTN",
+                "NOZ",
+                "NSZ",
+                "ITY",
+                "SEH"
             ],
-            "WTC": "LMH",
-            "Priority": 3
+            "Priority": 1
         },
         "D09": {
-            "Coordinates": "49.007281:2.567292:25",
+            "Coordinates": "49.007035:2.567166:15",
+            "Code": "C",
             "Use": "A",
-            "Schengen": false,
+            "Block": ["D07"],
             "Callsigns": [
-                "ADR",
-                "AAF",
-                "ASL",
-                "AHY",
-                "BRU",
-                "LZB",
-                "CTN",
-                "EZY",
-                "TGZ",
-                "MGX",
-                "TUA",
-                "AUI",
-                "ADR",
-                "AAF",
-                "BTI",
-                "AMC",
-                "AUA",
-                "CSA",
-                "EZY",
-                "FIN",
-                "EJU"
+                "AFR"
             ],
-            "WTC": "LMH",
-            "Priority": 1
+            "Priority": 3
         },
         "D10": {
-            "Coordinates": "49.005483:2.568053:25",
+            "Coordinates": "49.005780:2.568266:15",
+            "Code": "D",
             "Use": "A",
-            "Schengen": false,
+            "Block": ["D08"],
             "Callsigns": [
-                "ADR",
-                "AAF",
-                "ASL",
-                "AHY",
-                "BRU",
-                "LZB",
-                "CTN",
-                "EZY",
-                "TGZ",
-                "MGX",
-                "TUA",
-                "AUI",
-                "ADR",
-                "AAF",
+                "EJU",
                 "BTI",
-                "AMC",
-                "AUA",
-                "CSA",
-                "EZY",
+                "SAS",
+                "KMM",
+                "AEE",
+                "LOT",
                 "FIN",
-                "EJU"
+                "TVS",
+                "CTN",
+                "NOZ",
+                "NSZ",
+                "ITY",
+                "SEH"
             ],
-            "WTC": "LM",
-            "Priority": 3
+            "Priority": 1
         },
         "D11": {
-            "Coordinates": "49.00725:2.566728:25",
+            "Coordinates": "49.007033:2.566858:15",
+            "Code": "C",
             "Use": "A",
-            "Schengen": false,
+            "Block": ["D13"],
             "Callsigns": [
-                "ADR",
-                "AAF",
-                "ASL",
-                "AHY",
-                "BRU",
-                "LZB",
-                "CTN",
-                "EZY",
-                "TGZ",
-                "MGX",
-                "TUA",
-                "AUI",
-                "ADR",
-                "AAF",
-                "BTI",
-                "AMC",
-                "AUA",
-                "CSA",
-                "EZY",
-                "FIN",
-                "EJU"
+                "AFR"
             ],
-            "WTC": "LMH",
-            "Priority": 1
+            "Priority": 2
         },
         "D12": {
-            "Coordinates": "49.005528:2.568072:25",
+            "Coordinates": "49.005667:2.567891:20",
+            "Code": "C",
             "Use": "A",
-            "Schengen": false,
+            "Block": ["D10"],
             "Callsigns": [
-                "ADR",
-                "AAF",
-                "ASL",
-                "AHY",
-                "BRU",
-                "LZB",
-                "CTN",
-                "EZY",
-                "TGZ",
-                "MGX",
-                "TUA",
-                "AUI",
-                "ADR",
-                "AAF",
+                "EJU",
                 "BTI",
-                "AMC",
-                "AUA",
-                "CSA",
-                "EZY",
+                "SAS",
+                "KMM",
+                "AEE",
+                "LOT",
                 "FIN",
-                "EJU"
+                "TVS",
+                "CTN",
+                "NOZ",
+                "NSZ",
+                "ITY",
+                "SEH"
             ],
-            "WTC": "LMH",
-            "Priority": 3
+            "Priority": 1
         },
         "D13": {
-            "Coordinates": "49.007239:2.566619:25",
+            "Coordinates": "49.007001:2.566512:15",
+            "Code": "D",
             "Use": "A",
-            "Schengen": false,
+            "Block": ["D11"],
             "Callsigns": [
-                "ADR",
-                "AAF",
-                "ASL",
-                "AHY",
-                "BRU",
-                "LZB",
-                "CTN",
-                "EZY",
-                "TGZ",
-                "MGX",
-                "TUA",
-                "AUI",
-                "ADR",
-                "AAF",
-                "BTI",
-                "AMC",
-                "AUA",
-                "CSA",
-                "EZY",
-                "FIN",
-                "EJU"
+                "AFR"
             ],
-            "WTC": "LM",
-            "Priority": 1
+            "Priority": 3
         },
         "D14": {
-            "Coordinates": "49.005561:2.567394:25",
+            "Coordinates": "49.005699:2.567354:20",
+            "Code": "C",
             "Use": "A",
-            "Schengen": false,
             "Callsigns": [
-                "ADR",
-                "AAF",
-                "ASL",
-                "AHY",
-                "BRU",
-                "LZB",
-                "CTN",
-                "EZY",
-                "TGZ",
-                "MGX",
-                "TUA",
-                "AUI",
-                "ADR",
-                "AAF",
+                "EJU",
                 "BTI",
-                "AMC",
-                "AUA",
-                "CSA",
-                "EZY",
+                "SAS",
+                "KMM",
+                "AEE",
+                "LOT",
                 "FIN",
-                "EJU"
+                "TVS",
+                "CTN",
+                "NOZ",
+                "NSZ",
+                "ITY",
+                "SEH"
             ],
-            "WTC": "LMH",
-            "Priority": 3
+            "Priority": 1
         },
         "D15": {
-            "Coordinates": "49.007219:2.566161:25",
+            "Coordinates": "49.006968:2.566182:17",
+            "Code": "C",
             "Use": "A",
-            "Schengen": true,
+            "Block": ["D17"],
             "Callsigns": [
-                "ADR",
-                "AAF",
-                "ASL",
-                "AHY",
-                "BRU",
-                "LZB",
-                "CTN",
-                "EZY",
-                "TGZ",
-                "MGX",
-                "TUA",
-                "AUI",
-                "ADR",
-                "AAF",
-                "BTI",
-                "AMC",
-                "AUA",
-                "CSA",
-                "EZY",
-                "FIN",
-                "EJU"
+                "AFR"
             ],
-            "WTC": "LMH",
-            "Priority": 1
+            "Priority": 3
         },
         "D16": {
-            "Coordinates": "49.005556:2.56665:25",
+            "Coordinates": "49.005699:2.566587:20",
+            "Code": "C",
             "Use": "A",
-            "Schengen": true,
             "Callsigns": [
-                "ADR",
-                "AAF",
-                "ASL",
-                "AHY",
-                "BRU",
-                "LZB",
-                "CTN",
-                "EZY",
-                "TGZ",
-                "MGX",
-                "TUA",
-                "AUI",
-                "ADR",
-                "AAF",
+                "EJU",
                 "BTI",
-                "AMC",
-                "AUA",
-                "CSA",
-                "EZY",
+                "SAS",
+                "KMM",
+                "AEE",
+                "LOT",
                 "FIN",
-                "EJU"
+                "TVS",
+                "CTN",
+                "NOZ",
+                "NSZ",
+                "ITY",
+                "SEH"
             ],
-            "WTC": "LMH",
-            "Priority": 3
+            "Priority": 1
         },
         "D17": {
-            "Coordinates": "49.0072:2.565869:25",
+            "Coordinates": "49.007012:2.565879:17",
+            "Code": "D",
             "Use": "A",
-            "Schengen": true,
+            "Block": ["D15","D19"],
             "Callsigns": [
-                "ADR",
-                "AAF",
-                "ASL",
-                "AHY",
-                "BRU",
-                "LZB",
-                "CTN",
-                "EZY",
-                "TGZ",
-                "MGX",
-                "TUA",
-                "AUI",
-                "ADR",
-                "AAF",
-                "BTI",
-                "AMC",
-                "AUA",
-                "CSA",
-                "EZY",
-                "FIN",
-                "EJU"
+                "AFR"
             ],
-            "WTC": "LM",
-            "Priority": 1
+            "Priority": 3
         },
         "D18": {
-            "Coordinates": "49.005481:2.565953:25",
+            "Coordinates": "49.005666:2.565874:20",
+            "Code": "C",
             "Use": "A",
-            "Schengen": true,
             "Callsigns": [
-                "ADR",
-                "AAF",
-                "ASL",
-                "AHY",
-                "BRU",
-                "LZB",
-                "CTN",
-                "EZY",
-                "TGZ",
-                "MGX",
-                "TUA",
-                "AUI",
-                "ADR",
-                "AAF",
+                "EJU",
                 "BTI",
-                "AMC",
-                "AUA",
-                "CSA",
-                "EZY",
+                "SAS",
+                "KMM",
+                "AEE",
+                "LOT",
                 "FIN",
-                "EJU"
-            ],
-            "WTC": "LMH",
-            "Priority": 3
-        },
-        "D19": {
-            "Coordinates": "49.007189:2.565597:25",
-            "Use": "A",
-            "Schengen": true,
-            "Callsigns": [
-                "ADR",
-                "AAF",
-                "ASL",
-                "AHY",
-                "BRU",
-                "LZB",
+                "TVS",
                 "CTN",
-                "EZY",
-                "TGZ",
-                "MGX",
-                "TUA",
-                "AUI",
-                "ADR",
-                "AAF",
-                "BTI",
-                "AMC",
-                "AUA",
-                "CSA",
-                "EZY",
-                "FIN",
-                "EJU"
+                "NOZ",
+                "NSZ",
+                "ITY",
+                "SEH"
             ],
-            "WTC": "LMH",
             "Priority": 1
         },
-        "D20": {
-            "Coordinates": "49.005417:2.565283:25",
+        "D19": {
+            "Coordinates": "49.007010:2.565603:17",
+            "Code": "C",
             "Use": "A",
-            "Schengen": true,
+            "Block": ["D17"],
             "Callsigns": [
-                "ADR",
-                "AAF",
-                "ASL",
-                "AHY",
-                "BRU",
-                "LZB",
-                "CTN",
-                "EZY",
-                "TGZ",
-                "MGX",
-                "TUA",
-                "AUI",
-                "ADR",
-                "AAF",
-                "BTI",
-                "AMC",
-                "AUA",
-                "CSA",
-                "EZY",
-                "FIN",
-                "EJU"
+                "AFR"
             ],
-            "WTC": "LMH",
             "Priority": 3
+        },
+        "D20": {
+            "Coordinates": "49.005588:2.565283:17",
+            "Code": "C",
+            "Use": "A",
+            "Block": ["D22"],
+            "Callsigns": [
+                "EJU",
+                "BTI",
+                "SAS",
+                "KMM",
+                "AEE",
+                "LOT",
+                "FIN",
+                "TVS",
+                "CTN",
+                "NOZ",
+                "NSZ",
+                "ITY",
+                "SEH"
+            ],
+            "Priority": 1
         },
         "D22": {
-            "Coordinates": "49.005211:2.565064:25",
+            "Coordinates": "49.005460:2.565015:15",
+            "Code": "D",
             "Use": "A",
-            "Schengen": true,
+            "Block": ["D20","D24"],
             "Callsigns": [
-                "ADR",
-                "AAF",
-                "ASL",
-                "AHY",
-                "BRU",
-                "LZB",
-                "CTN",
-                "EZY",
-                "TGZ",
-                "MGX",
-                "TUA",
-                "AUI",
-                "ADR",
-                "AAF",
+                "EJU",
                 "BTI",
-                "AMC",
-                "AUA",
-                "CSA",
-                "EZY",
+                "SAS",
+                "KMM",
+                "AEE",
+                "LOT",
                 "FIN",
-                "EJU"
+                "TVS",
+                "CTN",
+                "NOZ",
+                "NSZ",
+                "ITY",
+                "SEH"
             ],
-            "WTC": "LM",
-            "Priority": 3
+            "Priority": 2
         },
         "D24": {
-            "Coordinates": "49.005183:2.565036:25",
+            "Coordinates": "49.005344:2.564750:15",
+            "Code": "C",
             "Use": "A",
-            "Schengen": true,
+            "Block": ["D22"],
             "Callsigns": [
-                "ADR",
-                "AAF",
-                "ASL",
-                "AHY",
-                "BRU",
-                "LZB",
-                "CTN",
-                "EZY",
-                "TGZ",
-                "MGX",
-                "TUA",
-                "AUI",
-                "ADR",
-                "AAF",
+                "EJU",
                 "BTI",
-                "AMC",
-                "AUA",
-                "CSA",
-                "EZY",
+                "SAS",
+                "KMM",
+                "AEE",
+                "LOT",
                 "FIN",
-                "EJU"
+                "TVS",
+                "CTN",
+                "NOZ",
+                "NSZ",
+                "ITY",
+                "SEH"
             ],
-            "WTC": "LMH",
-            "Priority": 3
+            "Priority": 1
         },
         "E01": {
             "Coordinates": "49.003663:2.583777:20",
@@ -1478,12 +1651,15 @@
             "Priority": 1
         },
         "E25": {
-            "Coordinates": "49.001276:2.584099:20",
+            "Coordinates": "49.001364:2.584099:20",
             "Remark": {
                 "C": "Push S, blue/yellow line"
             },
             "Code": "C",
             "Use": "A",
+            "Block": [
+                "E27"
+            ],
             "Schengen": false,
             "Callsigns": [
                 "AFR",
@@ -1511,6 +1687,27 @@
             ],
             "Priority": 1
         },
+        "E27": {
+            "Coordinates": "49.001126:2.584134:15",
+            "Remark": {
+                "C": "Push S, blue/yellow line"
+            },
+            "Code": "D",
+            "Use": "A",
+            "Block": [
+                "E25",
+                "E29"
+            ],
+            "Schengen": false,
+            "Callsigns": [
+                "AFR",
+                "KQA",
+                "MEA",
+                "HVN",
+                "AMX"
+            ],
+            "Priority": 1
+        },
         "E29": {
             "Coordinates": "49.000894:2.584164:20",
             "Remark": {
@@ -1518,6 +1715,9 @@
             },
             "Code": "C",
             "Use": "A",
+            "Block": [
+                "E27"
+            ],
             "Schengen": false,
             "Callsigns": [
                 "AFR",
@@ -1565,9 +1765,9 @@
         "E34": {
             "Coordinates": "49.001481:2.582074:25",
             "Remark": {
-                "DE": "Push E"
+                "C": "Push E"
             },
-            "Code": "DE",
+            "Code": "C",
             "Use": "A",
             "Schengen": false,
             "Callsigns": [
@@ -2534,6 +2734,7 @@
         "J01": {
             "Coordinates": "49.004200:2.597598:20",
             "Use": "A",
+            "Code": "BC",
             "Schengen": true,
             "Callsigns": [
                 "AFR",
@@ -2545,6 +2746,7 @@
         "J02": {
             "Coordinates": "49.003908:2.597639:20",
             "Use": "A",
+            "Code": "B",
             "Schengen": true,
             "Callsigns": [
                 "AFR",
@@ -2556,6 +2758,7 @@
         "J03": {
             "Coordinates": "49.003602:2.597649:20",
             "Use": "A",
+            "Code": "BC",
             "Schengen": true,
             "Callsigns": [
                 "AFR",
@@ -2567,6 +2770,7 @@
         "J04": {
             "Coordinates": "49.003652:2.598616:20",
             "Use": "A",
+            "Code": "B",
             "Schengen": true,
             "Callsigns": [
                 "AFR",
@@ -2578,6 +2782,7 @@
         "J05": {
             "Coordinates": "49.004066:2.598569:20",
             "Use": "A",
+            "Code": "B",
             "Schengen": true,
             "Callsigns": [
                 "AFR",
@@ -2589,6 +2794,7 @@
         "J06": {
             "Coordinates": "49.004385:2.598516:20",
             "Use": "A",
+            "Code": "BC",
             "Schengen": true,
             "Callsigns": [
                 "AFR",
@@ -2600,6 +2806,7 @@
         "J10": {
             "Coordinates": "49.004807:2.599822:20",
             "Use": "A",
+            "Code": "B",
             "Schengen": true,
             "Callsigns": [
                 "AFR",
@@ -2611,6 +2818,7 @@
         "J11": {
             "Coordinates": "49.004459:2.599895:20",
             "Use": "A",
+            "Code": "BC",
             "Schengen": true,
             "Callsigns": [
                 "AFR",
@@ -2622,6 +2830,7 @@
         "J12": {
             "Coordinates": "49.004126:2.599913:20",
             "Use": "A",
+            "Code": "B",
             "Schengen": true,
             "Callsigns": [
                 "AFR",
@@ -2633,6 +2842,7 @@
         "J13": {
             "Coordinates": "49.003787:2.599895:20",
             "Use": "A",
+            "Code": "BC",
             "Schengen": true,
             "Callsigns": [
                 "AFR",
@@ -2644,6 +2854,7 @@
         "J14": {
             "Coordinates": "49.003772:2.600453:20",
             "Use": "A",
+            "Code": "B",
             "Schengen": true,
             "Callsigns": [
                 "AFR",
@@ -2655,6 +2866,7 @@
         "J16": {
             "Coordinates": "49.003836:2.600925:20",
             "Use": "A",
+            "Code": "B",
             "Schengen": true,
             "Callsigns": [
                 "AFR",
@@ -2666,6 +2878,7 @@
         "J18": {
             "Coordinates": "49.004119:2.601241:20",
             "Use": "A",
+            "Code": "BC",
             "Schengen": true,
             "Callsigns": [
                 "AFR",
@@ -2677,6 +2890,7 @@
         "J20": {
             "Coordinates": "49.004422:2.601185:20",
             "Use": "A",
+            "Code": "B",
             "Schengen": true,
             "Callsigns": [
                 "AFR",
@@ -2688,6 +2902,7 @@
         "J21": {
             "Coordinates": "49.004730:2.601171:20",
             "Use": "A",
+            "Code": "B",
             "Schengen": true,
             "Callsigns": [
                 "AFR",
@@ -2699,6 +2914,7 @@
         "J30": {
             "Coordinates": "49.004816:2.602652:20",
             "Use": "A",
+            "Code": "B",
             "Schengen": true,
             "Callsigns": [
                 "AFR",
@@ -2710,6 +2926,7 @@
         "J31": {
             "Coordinates": "49.004506:2.602631:20",
             "Use": "A",
+            "Code": "B",
             "Schengen": true,
             "Callsigns": [
                 "AFR",
@@ -2721,6 +2938,7 @@
         "J33": {
             "Coordinates": "49.004204:2.602657:20",
             "Use": "A",
+            "Code": "B",
             "Schengen": true,
             "Callsigns": [
                 "AFR",
@@ -2732,6 +2950,7 @@
         "J34": {
             "Coordinates": "49.003894:2.602759:20",
             "Use": "A",
+            "Code": "BC",
             "Schengen": true,
             "Callsigns": [
                 "AFR",
@@ -2743,6 +2962,7 @@
         "J37": {
             "Coordinates": "49.003952:2.603561:20",
             "Use": "A",
+            "Code": "B",
             "Schengen": true,
             "Callsigns": [
                 "AFR",
@@ -2754,6 +2974,7 @@
         "J38": {
             "Coordinates": "49.003971:2.604114:20",
             "Use": "A",
+            "Code": "B",
             "Schengen": true,
             "Callsigns": [
                 "AFR",
@@ -2765,6 +2986,7 @@
         "J39": {
             "Coordinates": "49.004335:2.604039:20",
             "Use": "A",
+            "Code": "BC",
             "Schengen": true,
             "Callsigns": [
                 "AFR",
@@ -2776,6 +2998,7 @@
         "J40": {
             "Coordinates": "49.004652:2.603998:20",
             "Use": "A",
+            "Code": "B",
             "Schengen": true,
             "Callsigns": [
                 "AFR",
@@ -2787,6 +3010,7 @@
         "J41": {
             "Coordinates": "49.004978:2.603902:20",
             "Use": "A",
+            "Code": "BC",
             "Schengen": true,
             "Callsigns": [
                 "AFR",
@@ -2797,7 +3021,7 @@
         },
         "J51": {
             "Coordinates": "49.010088:2.597677:25",
-            "Code": "DE",
+            "Code": "CDE",
             "Use": "A",
             "Schengen": false,
             "Callsigns": [
@@ -2807,7 +3031,7 @@
         },
         "J53": {
             "Coordinates": "49.009431:2.597773:25",
-            "Code": "DE",
+            "Code": "CDE",
             "Use": "A",
             "Schengen": false,
             "Callsigns": [
@@ -2817,7 +3041,7 @@
         },
         "J55": {
             "Coordinates": "49.008782:2.597883:25",
-            "Code": "DE",
+            "Code": "CDE",
             "Use": "A",
             "Schengen": false,
             "Callsigns": [
@@ -2827,7 +3051,7 @@
         },
         "J57": {
             "Coordinates": "49.008142:2.597977:25",
-            "Code": "DE",
+            "Code": "CDE",
             "Use": "A",
             "Schengen": false,
             "Callsigns": [
@@ -3243,192 +3467,454 @@
             "Coordinates": "49.000114:2.545950:25",
             "Use": "C",
             "Priority": 3,
-            "Code": "ABCDE"
+            "Code": "BCDE"
         },
         "M07": {
-            "Coordinates": "49.000067:2.544968:25",
+            "Coordinates": "49.000031:2.544976:25",
             "Use": "C",
-            "Priority": 3,
-            "Code": "ABCDE"
+            "Priority": 4,
+            "Code": "BCDE",
+            "Callsigns": [
+                "AFR"
+            ]
         },
         "M08": {
             "Coordinates": "48.999991:2.544008:35",
             "Use": "C",
-            "Priority": 3,
-            "Code": "ABCDEF"
+            "Priority": 4,
+            "Code": "BCDE",
+            "Callsigns": [
+                "AFR"
+            ]
         },
         "M09": {
-            "Coordinates": "48.999980:2.542986:25",
+            "Coordinates": "48.999940:2.542992:30",
             "Use": "C",
-            "Priority": 3,
-            "Code": "ABCDE"
+            "Priority": 4,
+            "Code": "BCDE",
+            "Callsigns": [
+                "AFR"
+            ]
         },
         "M10": {
-            "Coordinates": "48.999935:2.541997:25",
+            "Coordinates": "48.999935:2.541997:30",
             "Use": "C",
-            "Priority": 3,
-            "Code": "ABCDE"
+            "Priority": 4,
+            "Code": "BCDE",
+            "Callsigns": [
+                "AFR"
+            ]
         },
         "M11": {
             "Coordinates": "48.999852:2.541026:25",
             "Use": "C",
-            "Priority": 3,
-            "Code": "ABCDE"
+            "Priority": 4,
+            "Code": "BCDE",
+            "Callsigns": [
+                "AFR"
+            ]
         },
         "M12": {
             "Coordinates": "48.999866:2.540039:35",
             "Use": "C",
+            "Priority": 4,
+            "Code": "BCDE",
             "Callsigns": [
-                "CLX"
-            ],
-            "Priority": 3,
-            "Code": "ABCDEF"
+                "AFR"
+            ]
         },
         "M13": {
             "Coordinates": "48.999824:2.539097:25",
             "Use": "C",
             "Priority": 3,
-            "Code": "ABCDE"
+            "Code": "BCDE"
         },
         "M14": {
-            "Coordinates": "48.999838:2.538013:25",
+            "Coordinates": "48.999690:2.538040:30",
             "Use": "C",
             "Priority": 3,
-            "Code": "ABCDE"
+            "Code": "BCDE"
         },
         "M15": {
-            "Coordinates": "48.999794:2.537053:25",
+            "Coordinates": "48.999648:2.537085:30",
             "Use": "C",
             "Priority": 3,
-            "Code": "ABCDE"
+            "Code": "BCDE"
+        },
+        "M16": {
+            "Coordinates": "48.999704:2.536101:12",
+            "Use": "C",
+            "Block": ["M17","M21","M23"],
+            "Priority": 3,
+            "Code": "BCDE"
         },
         "M17": {
-            "Coordinates": "48.999704:2.534907:35",
-            "Code": "ABCDE",
+            "Coordinates": "48.999704:2.534907:30",
+            "Code": "BCDEF",
+            "Block": ["M16","M21","M23"],
             "Use": "C",
-            "Priority": 8
+            "Priority": 3
         },
         "M21": {
-            "Coordinates": "48.999820:2.536289:18",
-            "Code": "ABC",
+            "Coordinates": "48.999583:2.536311:15",
+            "Code": "BC",
             "Use": "C",
-            "Priority": 8
+            "Block": ["M16","M17","M23"],
+            "Priority": 5
         },
         "M23": {
             "Coordinates": "48.999799:2.535844:18",
-            "Code": "ABC",
+            "Code": "BC",
             "Use": "C",
-            "Priority": 8
+            "Block": ["M16","M17","M21"],
+            "Priority": 5
         },
         "N01": {
             "Coordinates": "48.996737:2.531453:25",
             "Use": "C",
-            "Priority": 3,
-            "Code": "ABCDE"
+            "Priority": 5,
+            "Code": "C"
         },
         "N02": {
             "Coordinates": "48.996188:2.531576:25",
             "Use": "C",
-            "Priority": 3,
-            "Code": "ABCDE"
+            "Priority": 5,
+            "Code": "C"
         },
-        "N03": {
-            "Coordinates": "48.995629:2.531643:25",
-            "Use": "C",
-            "Priority": 3,
-            "Code": "ABCDE"
-        },
-        "N04": {
-            "Coordinates": "48.995007:2.532003:25",
-            "Use": "C",
-            "Priority": 3,
-            "Block": [
-                "N43",
-                "N41"
-            ],
-            "Code": "ABCDE"
-        },
-        "N05": {
-            "Coordinates": "48.994344:2.532037:35",
-            "Use": "C",
-            "Priority": 3,
-            "Code": "ABCDE",
-            "Block": [
-                "N53",
-                "N51"
-            ]
-        },
-        "N06": {
-            "Coordinates": "48.993663:2.532206:35",
-            "Code": "ABCDEF",
-            "Use": "C",
-            "Block": [
-                "N53"
-            ],
-            "Priority": 5
-        },
-        "N08": {
-            "Coordinates": "48.992271:2.532432:35",
-            "Code": "ABCDEF",
-            "Use": "C",
-            "Block": [
-                "N63"
-            ],
-            "Priority": 5
-        },
-        "N09": {
-            "Coordinates": "48.991588:2.532480:35",
-            "Code": "ABCDEF",
-            "Use": "C",
-            "Block": [
-                "N63"
-            ],
-            "Priority": 5
-        },
-        "N10": {
-            "Coordinates": "48.990890:2.532569:35",
-            "Code": "ABCDEF",
-            "Use": "C",
-            "Priority": 5
-        },
-        "N11": {
-            "Coordinates": "48.990219:2.532695:25",
-            "Code": "ABCDE",
+        "N31": {
+            "Coordinates": "48.995736:2.531893:22",
             "Use": "C",
             "Priority": 5,
             "Block": [
-                "N73"
-            ]
+                "N03"
+            ],
+            "Code": "C"
+        },
+        "N03": {
+            "Coordinates": "48.995476:2.531907:12",
+            "Use": "C",
+            "Priority": 4,
+            "Block": [
+                "N31",
+                "N33"
+            ],
+            "Code": "CDE"
+        },
+        "N33": {
+            "Coordinates": "48.995319:2.532040:15",
+            "Use": "C",
+            "Priority": 5,
+            "Block": [
+                "N03"
+            ],
+            "Code": "C"
         },
         "N41": {
-            "Coordinates": "48.995145:2.531890:25",
-            "Code": "ABC",
+            "Coordinates": "48.995243:2.532040:18",
+            "Code": "C",
             "Use": "C",
-            "Priority": 2,
+            "Priority": 4,
             "Block": [
                 "N04"
             ]
         },
-        "N43": {
-            "Coordinates": "48.994808:2.531858:25",
-            "Code": "ABC",
+        "N04": {
+            "Coordinates": "48.995016:2.532122:15",
             "Use": "C",
-            "Priority": 2,
+            "Priority": 4,
+            "Block": [
+                "N43",
+                "N41"
+            ],
+            "Code": "DE"
+        },
+        "N43": {
+            "Coordinates": "48.994837:2.532201:15",
+            "Code": "C",
+            "Use": "C",
+            "Priority": 4,
             "Block": [
                 "N04"
             ]
         },
         "N51": {
-            "Coordinates": "48.994467:2.531997:25",
-            "Code": "ABC",
+            "Coordinates": "48.994508:2.532228:15",
+            "Code": "C",
             "Use": "C",
-            "Priority": 2
+            "Priority": 2,
+            "Block": [
+                "N05"
+            ]
+        },
+        "N05": {
+            "Coordinates": "48.994333:2.532134:15",
+            "Use": "C",
+            "Priority": 3,
+            "Code": "CDE",
+            "Block": [
+                "N53",
+                "N51"
+            ]
         },
         "N53": {
-            "Coordinates": "48.994108:2.532228:25",
-            "Code": "ABC",
+            "Coordinates": "48.994108:2.532228:20",
+            "Code": "C",
             "Use": "C",
+            "Priority": 2,
+            "Block": [
+                "N05"
+            ]
+        },
+        "N06": {
+            "Coordinates": "48.993673:2.532322:35",
+            "Code": "CDE",
+            "Use": "C",
+            "Priority": 5
+        },
+        "N08": {
+            "Coordinates": "48.992271:2.532432:35",
+            "Code": "CDE",
+            "Use": "C",
+            "Block": [
+                "N63"
+            ],
+            "Priority": 3
+        },
+        "N63": {
+            "Coordinates": "48.991828:2.532152:25",
+            "Code": "F",
+            "Use": "C",
+            "Block": [
+                "N08",
+                "N09"
+            ],
             "Priority": 2
+        },
+        "N09": {
+            "Coordinates": "48.991607:2.532657:20",
+            "Code": "CDE",
+            "Use": "C",
+            "Block": [
+                "N63"
+            ],
+            "Priority": 3
+        },
+        "N10": {
+            "Coordinates": "48.990890:2.532569:35",
+            "Code": "CDE",
+            "Use": "C",
+            "Priority": 3,
+            "Block": [
+                "N73"
+            ]
+        },
+        "N73": {
+            "Coordinates": "48.990389:2.532272:25",
+            "Code": "F",
+            "Use": "C",
+            "Block": [
+                "N10",
+                "N11"
+            ],
+            "Priority": 2
+        },
+        "N11": {
+            "Coordinates": "48.990211:2.532837:20",
+            "Code": "CDE",
+            "Use": "C",
+            "Priority": 3,
+            "Block": [
+                "N73"
+            ]
+        },
+        "P70": {
+            "Coordinates": "48.992732:2.535704:20",
+            "Use": "C",
+            "Priority": 4,
+            "Code": "BC",
+            "Callsigns": [
+                "FPO",
+                "SWN",
+                "NPT"
+            ]
+        },
+        "P71": {
+            "Coordinates": "48.992427:2.535720:20",
+            "Use": "C",
+            "Priority": 4,
+            "Code": "BC",
+            "Callsigns": [
+                "FPO",
+                "SWN",
+                "NPT"
+            ]
+        },
+        "P72": {
+            "Coordinates": "48.992102:2.535750:20",
+            "Use": "C",
+            "Priority": 4,
+            "Code": "BC",
+            "Callsigns": [
+                "FPO",
+                "SWN",
+                "NPT"
+            ]
+        },
+        "P73": {
+            "Coordinates": "48.991732:2.535766:20",
+            "Use": "C",
+            "Priority": 4,
+            "Code": "BC",
+            "Callsigns": [
+                "FPO",
+                "SWN",
+                "NPT"
+            ]
+        },
+        "P74": {
+            "Coordinates": "48.991042:2.535865:20",
+            "Use": "C",
+            "Priority": 4,
+            "Code": "BC",
+            "Callsigns": [
+                "FPO",
+                "SWN",
+                "NPT"
+            ]
+        },
+        "P75": {
+            "Coordinates": "48.990703:2.535929:20",
+            "Use": "C",
+            "Priority": 4,
+            "Code": "BC",
+            "Callsigns": [
+                "FPO",
+                "SWN",
+                "NPT"
+            ]
+        },
+        "P80": {
+            "Coordinates": "48.992790:2.536603:20",
+            "Use": "C",
+            "Priority": 4,
+            "Code": "BC",
+            "Callsigns": [
+                "FPO",
+                "SWN",
+                "NPT"
+            ]
+        },
+        "P81": {
+            "Coordinates": "48.992346:2.536957:20",
+            "Use": "C",
+            "Priority": 4,
+            "Code": "BC",
+            "Callsigns": [
+                "FPO",
+                "SWN",
+                "NPT"
+            ]
+        },
+        "P82": {
+            "Coordinates": "48.992353:2.537528:20",
+            "Use": "C",
+            "Priority": 4,
+            "Code": "BC",
+            "Callsigns": [
+                "FPO",
+                "SWN",
+                "NPT"
+            ]
+        },
+        "P83": {
+            "Coordinates": "48.992876:2.537702:20",
+            "Use": "C",
+            "Priority": 4,
+            "Code": "BC",
+            "Callsigns": [
+                "FPO",
+                "SWN",
+                "NPT"
+            ]
+        },
+        "P84": {
+            "Coordinates": "48.993203:2.537941:20",
+            "Use": "C",
+            "Priority": 4,
+            "Code": "BC",
+            "Callsigns": [
+                "FPO",
+                "SWN",
+                "NPT"
+            ]
+        },
+        "P90": {
+            "Coordinates": "48.990792:2.536906:20",
+            "Use": "C",
+            "Priority": 4,
+            "Code": "DE",
+            "Block": [
+                "P92",
+                "P93"
+            ],
+            "Callsigns": [
+                "BCS",
+                "AWC"
+            ]
+        },
+        "P91": {
+            "Coordinates": "48.990845:2.537831:20",
+            "Use": "C",
+            "Priority": 4,
+            "Code": "DE",
+            "Block": [
+                "P93",
+                "P94"
+            ],
+            "Callsigns": [
+                "BCS",
+                "AWC"
+            ]
+        },
+        "P92": {
+            "Coordinates": "48.990703:2.536557:20",
+            "Use": "C",
+            "Priority": 4,
+            "Code": "BC",
+            "Block": [
+                "P90"
+            ],
+            "Callsigns": [
+                "BCS",
+                "AWC"
+            ]
+        },
+        "P93": {
+            "Coordinates": "48.990783:2.537340:20",
+            "Use": "C",
+            "Priority": 4,
+            "Code": "BC",
+            "Block": [
+                "P91",
+                "P90"
+            ],
+            "Callsigns": [
+                "BCS",
+                "AWC"
+            ]
+        },
+        "P94": {
+            "Coordinates": "48.990801:2.538233:20",
+            "Use": "C",
+            "Priority": 4,
+            "Code": "BC",
+            "Block": [
+                "P91"
+            ],
+            "Callsigns": [
+                "BCS",
+                "AWC"
+            ]
         },
         "Q01": {
             "Coordinates": "49.011536:2.5529:25",
