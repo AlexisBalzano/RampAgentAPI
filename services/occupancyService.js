@@ -294,8 +294,7 @@ function getAircraftWingspan(config, aircraftType) {
   return wingspan;
 }
 
-function getAircraftCode(config, aircraftType) {
-  const wingspan = getAircraftWingspan(config, aircraftType);
+function getAircraftCode(config, aircraftType, wingspan) {
   if (wingspan < 15.0) return "A";
   if (wingspan < 24.0) return "B";
   if (wingspan < 36.0) return "C";
@@ -350,7 +349,8 @@ function assignStand(airportConfig, config, callsign, ac) {
   }
 
   const schengen = isSchengen(ac.origin, ac.destination);
-  const code = getAircraftCode(config, ac.aircraftType);
+  const wingspan = getAircraftWingspan(config, ac.aircraftType);
+  const code = getAircraftCode(config, ac.aircraftType, wingspan);
   const use = getAircraftUse(config, callsign, ac.aircraftType);
 
   let availableStandList = [];
@@ -364,6 +364,9 @@ function assignStand(airportConfig, config, callsign, ac) {
       continue;
     }
     if (standDef.Schengen && standDef.Schengen !== schengen) {
+      continue;
+    }
+    if (standDef.Wingspan && standDef.Wingspan < wingspan) {
       continue;
     }
     if (standDef.Countries && Array.isArray(standDef.Countries)) {
