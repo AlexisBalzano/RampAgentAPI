@@ -46,7 +46,7 @@ function generateRandomCallsign() {
   let callsign = "";
   // const firstLetterCount = 3;
   const digitCount = Math.floor(Math.random() * 3) + 1; // 1 to 3 digits
-    const callsigns = ["FDX", "TAY", "FPO", "ABR", "CLX", "UPS"];
+    const callsigns = ["FDX", "TAY", "FPO", "ABR", "CLX", "UPS", "AAL", "DAL", "UAL", "JBU", "AFR", "SIA", "ACA", "BAW", "EJU", "EZS", "VIR", "KLM", "SWR", "THA", "QTR", "KAL", "CPA", "JAL", "ANA", "RJA", "GFA", "DLH", "NAX", "SAS", "SWR", "RYR", "VLG", "EZY", "IBE", "LOT", "CSA"];
     let randomNum = Math.floor(1000 + Math.random() * 9000);
     callsign = callsigns[randomNum % callsigns.length];
 
@@ -58,7 +58,7 @@ function generateRandomCallsign() {
 }
 
 function generateAircraftType() {
-  const types = ["B738", "B734", "B77W", "A339", "B748", "B763", "B753", "MD80", "A321"];
+  const types = ["B738", "B734", "B77W", "A339", "B748", "B763", "B753", "MD80", "A321", "A388", "A320", "BE58", "C172"];
   return types[Math.floor(Math.random() * types.length)];
 }
 
@@ -143,7 +143,7 @@ let count = 0;
 let totalSent = 0;
 setInterval(async () => {
   count++;
-  const onGroundCount = 0; // FIXME: 0 for on-ground testing
+  const onGroundCount = 0; // FIXME: 0 for airborne testing
   const airborneCount = Math.floor(Math.random() * 10) + 1; // Random count between 1 and 10
   totalSent += onGroundCount + airborneCount;
   console.log(`Sending report ${count} with ${onGroundCount} on-ground and ${airborneCount} airborne aircrafts. Total aircrafts sent so far: ${totalSent}`);
