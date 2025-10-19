@@ -758,7 +758,28 @@ const logContainer = document.getElementById('logContainer');
 if (logContainer) {
   logContainer.addEventListener('scroll', (e) => {
     const element = e.target;
-    if (element.scrollHeight - element.scrollTop <= element.clientHeight + 100) {
+    
+    // Check if user is at the bottom
+    const isAtBottom = element.scrollHeight - element.scrollTop <= element.clientHeight + 50;
+    
+    if (isAtBottom) {
+      // Re-enable auto-scroll when at bottom
+      if (!autoScroll) {
+        autoScroll = true;
+        const button = document.getElementById("toggleAutoScroll");
+        if (button) button.textContent = `Auto-scroll: ON`;
+      }
+    } else {
+      // Disable auto-scroll when scrolling up
+      if (autoScroll) {
+        autoScroll = false;
+        const button = document.getElementById("toggleAutoScroll");
+        if (button) button.textContent = `Auto-scroll: OFF`;
+      }
+    }
+    
+    // Load older logs when scrolling near the top
+    if (element.scrollTop <= 100 && hasMore && !isLoading) {
       fetchFilteredLogs();
     }
   });
@@ -836,10 +857,10 @@ document.addEventListener("DOMContentLoaded", () => {
   setInterval(renderAirportsStatus, 10_000);
   setInterval(populateLogFilters, 5000);
   
-  // Fetch new logs periodically - always fetch latest page
+  // Fetch new logs periodically - only if auto-scroll is enabled
   setInterval(() => {
-    if (!isLoading) {
-      // Reset to page 1 to get latest logs
+    if (!isLoading && autoScroll) {
+      // Only fetch latest logs when user wants auto-scroll
       currentPage = 1;
       hasMore = true;
       fetchFilteredLogs(false);
