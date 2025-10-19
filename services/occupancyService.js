@@ -476,7 +476,7 @@ function assignStand(airportConfig, config, callsign, ac) {
     if (standDef.Code && standDef.Code.includes(code) === false) {
       continue;
     }
-    if (standDef.Schengen && standDef.Schengen !== schengen) {
+    if (standDef.Schengen !== undefined && standDef.Schengen !== schengen) {
       continue;
     }
     if (standDef.Wingspan && standDef.Wingspan < wingspan) {
@@ -544,7 +544,7 @@ function assignStand(airportConfig, config, callsign, ac) {
       (name) => airportConfig.Stands[name] === selectedStandDef
     );
     const stand = new Stand(standName, airportConfig.ICAO, callsign);
-    if (!selectedStandDef.Apron || selectedStandDef.Apron === false) {
+    if (selectedStandDef.Apron === undefined || selectedStandDef.Apron === false) {
       info(`Assigning Stand ${standName} to ${callsign}`, { category: 'Assignation', callsign: callsign, icao: airportConfig.ICAO });
       registry.addAssigned(stand);
       blockStands(selectedStandDef, ac.destination, callsign);
@@ -630,7 +630,7 @@ clientReportParse = async (aircrafts) => {
       });
 
       const standDef = airportJson && airportJson.Stands && airportJson.Stands[ac.stand];
-      if (standDef && (!standDef.Apron || standDef.Apron === false)) {
+      if (standDef && (standDef.Apron === undefined || standDef.Apron === false)) {
         const stand = new Stand(ac.stand, ac.origin || "UNKNOWN", callsign);
         // Remove preceeding entry if any
         registry.removeOccupied(stand);
