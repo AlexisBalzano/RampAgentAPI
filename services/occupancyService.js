@@ -331,7 +331,7 @@ const blockStands = (standDef, icao, callsign) => {
         icao || "UNKNOWN",
         callsign
       );
-      info(`Blocking Stand ${blockedStandName} for ${callsign}`, { category: 'Assignation', callsign: callsign, icao: airportConfig.ICAO });
+      info(`Blocking Stand ${blockedStandName} for ${callsign}`, { category: 'Assignation', callsign: callsign, icao: icao });
       registry.addBlocked(blockedStand);
     }
   }
