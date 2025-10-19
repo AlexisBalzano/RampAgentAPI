@@ -607,6 +607,20 @@ clientReportParse = async (aircrafts) => {
         }
       }
 
+      // remove any existing occupied / blocked / assigned stands for this callsign
+      const existingOccupied = registry.getAllOccupied().filter((s) => s.callsign === callsign);
+      existingOccupied.forEach((s) => {
+        registry.removeOccupied(s);
+      });
+      const existingBlocked = registry.getAllBlocked().filter((s) => s.callsign === callsign);
+      existingBlocked.forEach((s) => {
+        registry.removeBlocked(s);
+      });
+      const existingAssigned = registry.getAllAssigned().filter((s) => s.callsign === callsign);
+      existingAssigned.forEach((s) => {
+        registry.removeAssigned(s);
+      });
+
       const standDef = airportJson && airportJson.Stands && airportJson.Stands[ac.stand];
       if (standDef && (!standDef.Apron || standDef.Apron === false)) {
         const stand = new Stand(ac.stand, ac.origin || "UNKNOWN", callsign);
