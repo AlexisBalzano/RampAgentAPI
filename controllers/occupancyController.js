@@ -18,6 +18,23 @@ exports.getOccupied = (req, res) => {
   }
 };
 
+exports.getAssigned = (req, res) => {
+  try {
+    if (!req.headers['x-internal-request']) {
+      stat.incrementRequestCount();
+    }
+    // registry.getAllAssigned returns array of Stand instances; convert to simple objects
+    const assigned = occupancyService.registry.getAllAssigned().map((s) => ({
+      name: s.name,
+      icao: s.icao,
+      callsign: s.callsign || null,
+    }));
+    res.json(assigned);
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to retrieve assigned stands' });
+  }
+};
+
 exports.getBlocked = (req, res) => {
   try {
     if (!req.headers['x-internal-request']) {

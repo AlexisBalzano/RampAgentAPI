@@ -631,6 +631,7 @@ legend.onAdd = function (map) {
     '<i style="background:#FFFFFF; width:18px; height:18px; display:inline-block; margin-right:8px; opacity:0.7; border-radius:50%; border: 1px solid #CCCCCC;"></i> Airport<br>' +
     '<i style="background:#96CEB4; width:18px; height:18px; display:inline-block; margin-right:8px; opacity:0.7; border-radius:50%; border: 1px solid #CCCCCC;"></i> Free<br>' +
     '<i style="background:#cdc54eff; width:18px; height:18px; display:inline-block; margin-right:8px; opacity:0.7; border-radius:50%; border: 1px solid #CCCCCC;"></i> Blocked<br>' +
+    '<i style="background:#3a91acff; width:18px; height:18px; display:inline-block; margin-right:8px; opacity:0.7; border-radius:50%; border: 1px solid #CCCCCC;"></i> Assigned<br>' +
     '<i style="background:#FF6B6B; width:18px; height:18px; display:inline-block; margin-right:8px; opacity:0.7; border-radius:50%; border: 1px solid #CCCCCC;"></i> Occupied<br><br>';
   // prevent map interactions when interacting with legend
   L.DomEvent.disableClickPropagation(div);
@@ -639,6 +640,7 @@ legend.onAdd = function (map) {
 legend.addTo(map);
 
 let occupiedStands = [];
+let assignedStands = [];
 let blockedStands = [];
 
 function fetchOccupiedStands() {
@@ -655,6 +657,23 @@ function fetchOccupiedStands() {
     })
     .catch((err) => {
       console.error("Failed to load occupied stands", err);
+    });
+}
+
+function fetchAssignedStands() {
+  fetch("/api/occupancy/assigned", { headers: { "X-Internal-Request": "1" } })
+    .then((res) => {
+      if (!res.ok) throw new Error("Network response was not ok");
+      return res.json();
+    })
+    .then((stands) => {
+      if (Array.isArray(stands)) {
+        // Store as ICAO-StandName format instead of just name
+        assignedStands = stands.map((s) => `${s.icao}-${s.name}`);
+      }
+    })
+    .catch((err) => {
+      console.error("Failed to load assigned stands", err);
     });
 }
 
@@ -677,14 +696,20 @@ function fetchBlockedStands() {
 
 // Initial fetch and periodic refresh
 fetchOccupiedStands();
+fetchAssignedStands();
 fetchBlockedStands();
 setInterval(fetchOccupiedStands, 10_000);
+setInterval(fetchAssignedStands, 10_000);
 setInterval(fetchBlockedStands, 10_000);
 
 function getStandColor(standName, apron) {
   // Now both standName and the arrays are in ICAO-StandName format
   if (occupiedStands.includes(standName)) {
     return ["#B22222", "#FF6B6B"]; // dark red border, light red fill (occupied)
+  }
+
+  if (assignedStands.includes(standName)) {
+    return ["#005864ff", "#3a91acff"]; // dark blue border, light blue fill (assigned)
   }
 
   if (blockedStands.includes(standName)) {

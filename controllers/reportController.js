@@ -20,9 +20,10 @@ exports.handleReport = async (req, res) => {
 
   try {
     await occupancyService.clientReportParse(aircrafts);
-    const assignedStands = occupancyService.getAllOccupied();
+    const occupiedStands = occupancyService.getAllOccupied();
+    const assignedStands = occupancyService.getAllAssigned();
     const blockedStands = occupancyService.getAllBlocked();
-    res.status(200).json({ status: 'ok', assignedStands, blockedStands });
+    res.status(200).json({ status: 'ok', occupiedStands, assignedStands, blockedStands });
   } catch (err) {
     error(`Error processing report: ${err.message}`);
     res.status(500).json({ error: 'Internal server error' });
