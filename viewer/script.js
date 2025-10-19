@@ -25,10 +25,8 @@ function checkVolumeAndTogglePerformanceMode(standCount) {
   
   if (shouldBeInPerformanceMode && !performanceMode) {
     enablePerformanceMode();
-    console.log(`Performance mode enabled: ${standCount} stands detected (threshold: ${HIGH_VOLUME_THRESHOLD})`);
   } else if (!shouldBeInPerformanceMode && performanceMode && !manualToggle) {
     disablePerformanceMode();
-    console.log(`Performance mode disabled: ${standCount} stands detected`);
   }
   
   lastStandCount = standCount;
@@ -533,7 +531,6 @@ async function populateLogFilters() {
       callsignsRes.json()
     ]);
 
-    console.log('Fetched filters:', { categories, icaos, callsigns });
 
     // Ensure responses are arrays
     const categoriesArray = Array.isArray(categories) ? categories : [];
@@ -576,7 +573,6 @@ function updateDropdownIfChanged(selectId, newValues, cachedSet, defaultLabel) {
   // Always update if cache is empty (first load)
   if (!hasChanges && cachedSet.size > 0) return; // No changes, skip update
 
-  console.log(`Updating ${selectId} with ${newValues.length} values`);
 
   // Store current selection
   const currentValue = select.value;
@@ -641,12 +637,7 @@ async function fetchFilteredLogs(reset = false) {
     }
     
     const data = await response.json();
-    
-    console.log('Fetched logs:', {
-      page: currentPage,
-      logsCount: data.logs?.length || 0,
-      pagination: data.pagination
-    });
+  
 
     if (data.logs && Array.isArray(data.logs)) {
       appendLogs(data.logs);
