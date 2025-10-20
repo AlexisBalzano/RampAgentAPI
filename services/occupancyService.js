@@ -32,7 +32,7 @@ function parseCoordinates(coordString, defaultRadius = 30) {
 }
 
 class Stand {
-  constructor(name, icao, callsign, remark = '') {
+  constructor(name, icao, callsign, remark = "") {
     this.name = name;
     this.icao = icao;
     this.callsign = callsign;
@@ -59,7 +59,7 @@ class Stand {
       icao: this.icao,
       callsign: this.callsign,
       remark: this.remark,
-      timestamp: this.timestamp
+      timestamp: this.timestamp,
     };
   }
 }
@@ -543,14 +543,16 @@ function assignStand(airportConfig, config, callsign, ac) {
         continue;
       }
     }
-    if (registry.isOccupied(ac.destination, standName)) {
-      continue;
-    }
-    if (registry.isAssigned(ac.destination, standName)) {
-      continue;
-    }
-    if (registry.isBlocked(ac.destination, standName)) {
-      continue;
+    if (standDef.Apron === undefined || standDef.Apron === true) {
+      if (registry.isOccupied(ac.destination, standName)) {
+        continue;
+      }
+      if (registry.isAssigned(ac.destination, standName)) {
+        continue;
+      }
+      if (registry.isBlocked(ac.destination, standName)) {
+        continue;
+      }
     }
     availableStandList.push(standDef);
   }
@@ -594,18 +596,13 @@ function assignStand(airportConfig, config, callsign, ac) {
       (name) => airportConfig.Stands[name] === selectedStandDef
     );
     const stand = new Stand(standName, airportConfig.ICAO, callsign);
-    if (
-      selectedStandDef.Apron === undefined ||
-      selectedStandDef.Apron === false
-    ) {
-      info(`Assigning Stand ${standName} to ${callsign}`, {
-        category: "Assignation",
-        callsign: callsign,
-        icao: airportConfig.ICAO,
-      });
-      registry.addAssigned(stand);
-      blockStands(selectedStandDef, ac.destination, callsign);
-    }
+    info(`Assigning Stand ${standName} to ${callsign}`, {
+      category: "Assignation",
+      callsign: callsign,
+      icao: airportConfig.ICAO,
+    });
+    registry.addAssigned(stand);
+    blockStands(selectedStandDef, ac.destination, callsign);
     return;
   }
   warn(`No available stands found for ${callsign} at ${ac.destination}`, {
@@ -704,11 +701,15 @@ clientReportParse = async (aircrafts) => {
         standDef &&
         (standDef.Apron === undefined || standDef.Apron === false)
       ) {
-        const aircraftCode = getAircraftCode(getAircraftWingspan(config, ac.aircraftType));
+        const aircraftCode = getAircraftCode(
+          getAircraftWingspan(config, ac.aircraftType)
+        );
         let remark = "";
         if (standDef.Remark && typeof standDef.Remark === "object") {
           // Iterate through all keys in the Remark object
-          for (const [codeList, remarkText] of Object.entries(standDef.Remark)) {
+          for (const [codeList, remarkText] of Object.entries(
+            standDef.Remark
+          )) {
             // Check if the aircraft code is in this key
             if (codeList.includes(aircraftCode)) {
               remark = remarkText;
@@ -776,14 +777,14 @@ const getGlobalOccupied = () => {
 async function assignStandToPilot(standName, icao, callsign) {
   // Remove any existing assignment
   const existingStand = registry
-    .getAllAssigned()
-    .filter((s) => s.callsign === callsign);
+  .getAllAssigned()
+  .filter((s) => s.callsign === callsign);
   existingStand.forEach((existingStand) => {
     registry.removeAssigned(existingStand);
   });
   const blockedStands = registry
-    .getAllBlocked()
-    .filter((s) => s.callsign === callsign);
+  .getAllBlocked()
+  .filter((s) => s.callsign === callsign);
   blockedStands.forEach((s) => {
     registry.removeBlocked(s);
   });
@@ -801,48 +802,6 @@ async function assignStandToPilot(standName, icao, callsign) {
       message: `Asssigned Stand has been freed from ${callsign}`,
     };
   }
-  if (registry.isOccupied(icao, standName)) {
-    warn(
-      `Cannot assign stand ${standName} at ${icao} to ${callsign} - already occupied`,
-      { category: "Manual Assign", callsign: callsign, icao: icao }
-    );
-    return {
-      action: "occupied",
-      stand: standName,
-      callsign: callsign,
-      icao: icao,
-      message: `Stand ${standName} could not be assigned to ${callsign} as it is already occupied`,
-    };
-  }
-  if (registry.isAssigned(icao, standName)) {
-    warn(
-      `Cannot assign stand ${standName} at ${icao} to ${callsign} - already assigned`,
-      { category: "Manual Assign", callsign: callsign, icao: icao }
-    );
-    return {
-      action: "assigned",
-      stand: standName,
-      callsign: callsign,
-      icao: icao,
-      message: `Stand ${standName} could not be assigned to ${callsign} as it is already assigned`,
-    };
-  }
-  if (registry.isBlocked(icao, standName)) {
-    warn(
-      `Cannot assign stand ${standName} at ${icao} to ${callsign} - already blocked`,
-      { category: "Manual Assign", callsign: callsign, icao: icao }
-    );
-    return {
-      action: "blocked",
-      stand: standName,
-      callsign: callsign,
-      icao: icao,
-      message: `Stand ${standName} could not be assigned to ${callsign} as it is blocked`,
-    };
-  }
-  const stand = new Stand(standName, icao, callsign);
-  registry.addAssigned(stand);
-  // Block stands
   const standDef = await airportService
     .getAirportConfig(icao)
     .then((airportConfig) => {
@@ -851,6 +810,50 @@ async function assignStandToPilot(standName, icao, callsign) {
       }
       return null;
     });
+  if (standDef.Apron === undefined || standDef.Apron === true) {
+    if (registry.isOccupied(icao, standName)) {
+      warn(
+        `Cannot assign stand ${standName} at ${icao} to ${callsign} - already occupied`,
+        { category: "Manual Assign", callsign: callsign, icao: icao }
+      );
+      return {
+        action: "occupied",
+        stand: standName,
+        callsign: callsign,
+        icao: icao,
+        message: `Stand ${standName} could not be assigned to ${callsign} as it is already occupied`,
+      };
+    }
+    if (registry.isAssigned(icao, standName)) {
+      warn(
+        `Cannot assign stand ${standName} at ${icao} to ${callsign} - already assigned`,
+        { category: "Manual Assign", callsign: callsign, icao: icao }
+      );
+      return {
+        action: "assigned",
+        stand: standName,
+        callsign: callsign,
+        icao: icao,
+        message: `Stand ${standName} could not be assigned to ${callsign} as it is already assigned`,
+      };
+    }
+    if (registry.isBlocked(icao, standName)) {
+      warn(
+        `Cannot assign stand ${standName} at ${icao} to ${callsign} - already blocked`,
+        { category: "Manual Assign", callsign: callsign, icao: icao }
+      );
+      return {
+        action: "blocked",
+        stand: standName,
+        callsign: callsign,
+        icao: icao,
+        message: `Stand ${standName} could not be assigned to ${callsign} as it is blocked`,
+      };
+    }
+  }
+  const stand = new Stand(standName, icao, callsign);
+  registry.addAssigned(stand);
+  // Block stands
   blockStands(standDef, icao, callsign);
   info(`Manually assigned stand ${standName} at ${icao} to ${callsign}`, {
     category: "Manual Assign",
