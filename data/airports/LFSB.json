@@ -134,10 +134,7 @@
             "Coordinates": "47.599960:7.527649:20",
             "Code": "BC",
             "Use": "A",
-            "Priority": 20,
-            "Block": [
-                "26A"
-            ]
+            "Priority": 20
         },
         "30A": {
             "Coordinates": "47.599743:7.528237:20",
@@ -245,6 +242,9 @@
         "48": {
             "Coordinates": "47.602671:7.526767:20",
             "Code": "B",
+            "Remark": {
+                "BC": "No Push in corridor"
+            },
             "Priority": 50
         },
         "F1": {
