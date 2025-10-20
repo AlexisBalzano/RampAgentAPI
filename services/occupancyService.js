@@ -32,10 +32,11 @@ function parseCoordinates(coordString, defaultRadius = 30) {
 }
 
 class Stand {
-  constructor(name, icao, callsign) {
+  constructor(name, icao, callsign, remark = "") {
     this.name = name;
     this.icao = icao;
     this.callsign = callsign;
+    this.remark = remark;
     this.timestamp = Date.now();
   }
 
@@ -693,7 +694,7 @@ clientReportParse = async (aircrafts) => {
         standDef &&
         (standDef.Apron === undefined || standDef.Apron === false)
       ) {
-        const stand = new Stand(ac.stand, ac.origin || "UNKNOWN", callsign);
+        const stand = new Stand(ac.stand, ac.origin || "UNKNOWN", callsign, standDef.Remark || "");
         // Remove preceeding entry if any
         registry.removeOccupied(stand);
         registry.addOccupied(stand);
