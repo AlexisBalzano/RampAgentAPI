@@ -32,7 +32,7 @@ function parseCoordinates(coordString, defaultRadius = 30) {
 }
 
 class Stand {
-  constructor(name, icao, callsign, remark = "") {
+  constructor(name, icao, callsign, remark = '') {
     this.name = name;
     this.icao = icao;
     this.callsign = callsign;
@@ -51,6 +51,16 @@ class Stand {
       this.name === other.name &&
       this.callsign === other.callsign
     );
+  }
+
+  toJSON() {
+    return {
+      name: this.name,
+      icao: this.icao,
+      callsign: this.callsign,
+      remark: this.remark,
+      timestamp: this.timestamp
+    };
   }
 }
 
@@ -694,7 +704,24 @@ clientReportParse = async (aircrafts) => {
         standDef &&
         (standDef.Apron === undefined || standDef.Apron === false)
       ) {
-        const stand = new Stand(ac.stand, ac.origin || "UNKNOWN", callsign, standDef.Remark || "");
+        const aircraftCode = getAircraftCode(getAircraftWingspan(config, ac.aircraftType));
+        let remark = "";
+        if (standDef.Remark && typeof standDef.Remark === "object") {
+          // Iterate through all keys in the Remark object
+          for (const [codeList, remarkText] of Object.entries(standDef.Remark)) {
+            // Check if the aircraft code is in this key
+            if (codeList.includes(aircraftCode)) {
+              remark = remarkText;
+              break;
+            }
+          }
+        }
+        const stand = new Stand(
+          ac.stand,
+          ac.origin || "UNKNOWN",
+          callsign,
+          remark
+        );
         // Remove preceeding entry if any
         registry.removeOccupied(stand);
         registry.addOccupied(stand);
