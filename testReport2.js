@@ -10,7 +10,7 @@ const __dirname = path.dirname(__filename);
 const airportFiles = ["LFPG.json"];
 const airportData = {};
 const allStands = [];
-const airportICAOs = [];
+const airportICAOs = ["EGLL","LFMN"];
 
 for (const file of airportFiles) {
   const filePath = path.join(__dirname, "data", "airports", file);
@@ -46,7 +46,8 @@ function generateRandomCallsign() {
   let callsign = "";
   // const firstLetterCount = 3;
   const digitCount = Math.floor(Math.random() * 3) + 1; // 1 to 3 digits
-    const callsigns = ["FDX", "TAY", "FPO", "ABR", "CLX", "UPS", "AAL", "DAL", "UAL", "JBU", "AFR", "SIA", "ACA", "BAW", "EJU", "EZS", "VIR", "KLM", "SWR", "THA", "QTR", "KAL", "CPA", "JAL", "ANA", "RJA", "GFA", "DLH", "NAX", "SAS", "SWR", "RYR", "VLG", "EZY", "IBE", "LOT", "CSA"];
+    // const callsigns = ["FDX", "TAY", "FPO", "ABR", "CLX", "UPS", "AAL", "DAL", "UAL", "JBU", "AFR", "SIA", "ACA", "BAW", "EJU", "EZS", "VIR", "KLM", "SWR", "THA", "QTR", "KAL", "CPA", "JAL", "ANA", "RJA", "GFA", "DLH", "NAX", "SAS", "SWR", "RYR", "VLG", "EZY", "IBE", "LOT", "CSA"];
+    const callsigns = ["AFR"];
     let randomNum = Math.floor(1000 + Math.random() * 9000);
     callsign = callsigns[randomNum % callsigns.length];
 
@@ -152,4 +153,4 @@ setInterval(async () => {
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(generateReport(onGroundCount, airborneCount)),
   });
-}, 100); // Every 1 seconds
+}, 500); // Every 1 seconds
