@@ -127,9 +127,16 @@
             "Use": "A",
             "Priority": 20
         },
+        "29": {
+            "Coordinates": "47.599960:7.527649:20",
+            "Code": "C",
+            "Use": "A",
+            "Priority": 20
+        },
         "29A": {
             "Coordinates": "47.599960:7.527649:20",
             "Code": "BC",
+            "Wingspan": 28.5,
             "Use": "A",
             "Priority": 20
         },
@@ -137,28 +144,19 @@
             "Coordinates": "47.599743:7.528237:20",
             "Code": "BC",
             "Use": "A",
-            "Priority": 20,
-            "Block": [
-                "26A"
-            ]
+            "Priority": 20
         },
         "32A": {
             "Coordinates": "47.599584:7.528805:20",
             "Code": "BC",
             "Use": "A",
-            "Priority": 20,
-            "Block": [
-                "26A"
-            ]
+            "Priority": 20
         },
         "34": {
             "Coordinates": "47.599667:7.529454:20",
             "Code": "BC",
             "Use": "A",
-            "Priority": 20,
-            "Block": [
-                "26A"
-            ]
+            "Priority": 20
         },
         "35": {
             "Coordinates": "47.599853:7.529934:20",
@@ -173,10 +171,7 @@
             "Coordinates": "47.600356:7.530085:20",
             "Code": "BCD",
             "Use": "A",
-            "Priority": 20,
-            "Block": [
-                "26A"
-            ]
+            "Priority": 20
         },
         "37": {
             "Coordinates": "47.600974:7.529503:20",
