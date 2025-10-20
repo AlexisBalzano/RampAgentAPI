@@ -125,10 +125,7 @@
             "Coordinates": "47.599822:7.527198:15",
             "Code": "BC",
             "Use": "A",
-            "Priority": 20,
-            "Block": [
-                "26"
-            ]
+            "Priority": 20
         },
         "29A": {
             "Coordinates": "47.599960:7.527649:20",
