@@ -1,5 +1,5 @@
 {
-    "version": "v1.0.4",
+    "version": "v1.0.0",
     "ICAO": "LFMN",
     "Coordinates": "43.661663:7.210765:2000",
     "Stands": {
@@ -23,7 +23,7 @@
             ]
         },
         "2C": {
-            "Coordinates": "43.666056:7.216601:25",
+            "Coordinates": "43.666001:7.216749:20",
             "Use": "A",
             "Priority": 15,
             "Code": "ABDEF",
@@ -1305,7 +1305,7 @@
             ]
         },
         "54A": {
-            "Coordinates": "43.658063:7.205484:18",
+            "Coordinates": "43.658063:7.205484:12",
             "Use": "A",
             "Priority": 5,
             "Code": "ABC",

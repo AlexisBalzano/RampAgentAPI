@@ -1,5 +1,5 @@
 {
-    "version": "v1.0.4",
+    "version": "v1.0.0",
     "ICAO": "LFBO",
     "Coordinates": "43.629242:1.363506:3000",
     "Stands": {
@@ -568,7 +568,7 @@
             ]
         },
         "U21": {
-            "Coordinates": "43.631247:1.370363:18",
+            "Coordinates": "43.631247:1.370363:30",
             "Code": "ABCDE",
             "Use": "A",
             "Block": [
