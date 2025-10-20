@@ -1,5 +1,7 @@
 const express = require('express');
 const path = require('path');
+const crypto = require('crypto');
+const { exec } = require('child_process');
 require('dotenv').config();
 const logger = require('./utils/logger');
 
@@ -33,6 +35,21 @@ app.use('/api/airports', airportRoutes);
 // API endpoint to get stats (call service and return JSON)
 app.use('/api/stats', statRoutes);
  
+// Github webhook for automatic deployment of config
+// TODO: add webhook to GitHub repo when url confirmed
+// TODO: add secret to .env
+const SECRET = process.env.GH_SECRET;
+app.post('/api/github-webhook', (req, res) => {
+  const sig = req.headers['x-hub-signature-256'];
+  const hmac = 'sha256=' + crypto.createHmac('sha256', SECRET).update(JSON.stringify(req.body)).digest('hex');
+  if (sig !== hmac) return res.status(403).send('Invalid signature');
+
+  exec('cd /data && git pull origin main', (err, stdout, stderr) => {
+    if (err) return res.status(500).send(stderr);
+    res.send('Config updated:\n' + stdout);
+  });
+});
+
 // Register routes
 app.use('/debug', express.static(path.join(__dirname, 'viewer')));
 app.use('/api/report', reportRoutes);
