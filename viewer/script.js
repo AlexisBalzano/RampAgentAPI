@@ -245,13 +245,11 @@ let reportsChart = null;
 let airportChart = null;
 
 async function fetchReportsPerHour() {
-  const res = await fetch("/api/stats/reports-per-hour"); // match server route
+  const res = await fetch("/api/stats/reports-per-hour", {
+    headers: { "X-Internal-Request": "1" }
+  });
   if (!res.ok) {
-    console.warn(
-      "fetchReportsPerHour -> network not ok",
-      res.status,
-      await res.text()
-    );
+    console.warn("fetchReportsPerHour -> network not ok", res.status, await res.text());
     throw new Error("Failed to fetch stats");
   }
   const json = await res.json();
@@ -260,14 +258,10 @@ async function fetchReportsPerHour() {
 
 async function fetchRequestsPerHour() {
   const res = await fetch("/api/stats/requests-per-hour", {
-    headers: { "X-Internal-Request": "1" },
-  }); // match server route
+    headers: { "X-Internal-Request": "1" }
+  });
   if (!res.ok) {
-    console.warn(
-      "fetchRequestsPerHour -> network not ok",
-      res.status,
-      await res.text()
-    );
+    console.warn("fetchRequestsPerHour -> network not ok", res.status, await res.text());
     throw new Error("Failed to fetch stats");
   }
   const json = await res.json();
@@ -526,11 +520,10 @@ let cachedFilters = {
 // Populate dropdowns
 async function populateLogFilters() {
   try {
-    // Fetch all filter options
     const [categoriesRes, icaosRes, callsignsRes] = await Promise.all([
-      fetch("/api/logs/categories"),
-      fetch("/api/logs/icaos"),
-      fetch("/api/logs/callsigns")
+      fetch("/api/logs/categories", { headers: { "X-Internal-Request": "1" } }),
+      fetch("/api/logs/icaos", { headers: { "X-Internal-Request": "1" } }),
+      fetch("/api/logs/callsigns", { headers: { "X-Internal-Request": "1" } })
     ]);
 
     // Check responses
@@ -671,7 +664,10 @@ async function fetchFilteredLogs(reset = false) {
 
   try {
     const url = "/api/logs/filter?" + params.toString();
-    const response = await fetch(url);
+    
+    const response = await fetch(url, {
+      headers: { "X-Internal-Request": "1" }
+    });
     
     if (!response.ok) {
       throw new Error("HTTP " + response.status + ": " + response.statusText);
