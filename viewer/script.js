@@ -1222,7 +1222,7 @@ function initializeMap() {
     // Initialize Leaflet map
     map = L.map("map", {
       maxZoom: 19,
-    }).setView([49.009279, 2.565732], 14);
+    }).setView([47.009279, 3.765732], 6);
 
   // Add satellite tile layer
   L.tileLayer(
@@ -1286,11 +1286,7 @@ function initializeMap() {
       container.title = "Return to initial view";
 
       container.onclick = function () {
-        if (initialBounds && initialBounds.isValid()) {
-          map.fitBounds(initialBounds, { animate: true, duration: 1 });
-        } else {
-          map.setView([49.009279, 2.565732], 7, { animate: true });
-        }
+          map.setView([47.009279, 3.765732], 6, { animate: true });
       };
 
       L.DomEvent.disableClickPropagation(container);
@@ -1398,14 +1394,6 @@ function loadMapData() {
           "No valid airport coordinates found in /api/airports response",
           data
         );
-      } else {
-        const markers = airports.map((a) => L.marker(a.coords));
-        const group = new L.featureGroup(markers);
-        const bounds = group.getBounds();
-        if (bounds.isValid && bounds.isValid()) {
-          map.fitBounds(bounds.pad(0.5));
-          initialBounds = bounds.pad(0.5);
-        }
       }
 
       const zoomThreshold = 5;
