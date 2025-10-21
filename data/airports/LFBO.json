@@ -1,5 +1,5 @@
 {
-    "version": "v1.0.2",
+    "version": "v1.0.3",
     "ICAO": "LFBO",
     "Coordinates": "43.629242:1.363506:3000",
     "Stands": {
@@ -300,14 +300,6 @@
             "Code": "ABC",
             "Use": "A",
             "Priority": 1,
-            "Callsigns": [
-                "EJU",
-                "EZS",
-                "RYR",
-                "TRA",
-                "VOE",
-                "CCM"
-            ],
             "Schengen": true
         },
         "F20": {
@@ -315,14 +307,6 @@
             "Code": "ABC",
             "Use": "A",
             "Priority": 1,
-            "Callsigns": [
-                "EJU",
-                "EZS",
-                "RYR",
-                "TRA",
-                "VOE",
-                "CCM"
-            ],
             "Schengen": true
         },
         "F30": {
@@ -330,14 +314,6 @@
             "Code": "ABC",
             "Use": "A",
             "Priority": 1,
-            "Callsigns": [
-                "EJU",
-                "EZS",
-                "RYR",
-                "TRA",
-                "VOE",
-                "CCM"
-            ],
             "Schengen": true
         },
         "F40": {
@@ -345,14 +321,6 @@
             "Code": "ABC",
             "Use": "A",
             "Priority": 1,
-            "Callsigns": [
-                "EJU",
-                "EZS",
-                "RYR",
-                "TRA",
-                "VOE",
-                "CCM"
-            ],
             "Schengen": true
         },
         "F50": {
