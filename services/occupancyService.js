@@ -665,7 +665,6 @@ clientReportParse = async (aircrafts) => {
     );
     if (aircraftOnStand) {
       ac.stand = aircraftOnStand;
-      // Check if the stand is an apron by looking into json
       // Use cached config
       let airportJson = airportConfigCache.get(ac.origin);
       if (!airportJson) {
@@ -810,7 +809,7 @@ async function assignStandToPilot(standName, icao, callsign) {
       }
       return null;
     });
-  if (standDef.Apron === undefined || standDef.Apron === true) {
+  if (standDef.Apron === undefined || standDef.Apron === false) {
     if (registry.isOccupied(icao, standName)) {
       warn(
         `Cannot assign stand ${standName} at ${icao} to ${callsign} - already occupied`,
