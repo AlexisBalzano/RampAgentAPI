@@ -543,7 +543,7 @@ function assignStand(airportConfig, config, callsign, ac) {
         continue;
       }
     }
-    if (standDef.Apron === undefined || standDef.Apron === true) {
+    if (standDef.Apron === undefined || standDef.Apron === false) {
       if (registry.isOccupied(ac.destination, standName)) {
         continue;
       }
