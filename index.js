@@ -17,6 +17,7 @@ const redisService = require('./services/redisService');
 const airportService = require('./services/airportService');
 const authRoutes = require('./routes/auth');
 const authController = require('./controllers/authController'); // To use verifyToken middleware
+const healthRoutes = require('./routes/health');
 
 const app = express();
 app.use(express.json());
@@ -25,6 +26,9 @@ app.use(express.json());
 app.get('/debug', (req, res) => {
   res.sendFile(path.join(__dirname, 'viewer', 'viewer.html'));
 });
+
+// Health endpoint for load balancer
+app.use('/health', healthRoutes);
 
 // API endpoint to get logs
 app.use('/api/logs', logRoutes);
