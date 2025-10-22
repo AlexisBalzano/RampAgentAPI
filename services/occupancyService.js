@@ -521,7 +521,7 @@ function assignStand(airportConfig, config, callsign, ac) {
 
   for (const [standName, standDef] of Object.entries(airportConfig.Stands)) {
     // Implements checks
-    if (standDef.Use && standDef.Use !== use) {
+    if (standDef.Use && standDef.Use.includes(use) === false) {
       continue;
     }
     if (standDef.Code && standDef.Code.includes(code) === false) {
