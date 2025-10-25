@@ -23,17 +23,27 @@ services:
     ports:
       - "3000:3000"
     environment:
-      - NODE_ENV=production
+      - NODE_ENV=development
       - REDIS_HOST=redis
       - REDIS_PORT=6379
+      - CONFIG_REPO_URL=https://github.com/vaccfr/RampAgent-Config.git
+      - CONFIG_BRANCH=main
+      - GH_SECRET=${GH_SECRET:-dev-secret-key}
     volumes:
-      - ./data:/app/data:ro  # Mount data folder as read-only
-      - ./logs:/app/logs      # Mount logs folder
+      - rampagent-config:/app/data 
+      - ./logs:/app/logs
     depends_on:
       redis:
         condition: service_healthy
     restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:3000/api/airports"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
 
 volumes:
   redis-data:
+    driver: local
+  rampagent-config:
     driver: local

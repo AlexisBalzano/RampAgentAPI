@@ -25,12 +25,12 @@ RUN npm ci --only=production
 # Copy application code
 COPY . .
 
-# Create data directory
-RUN mkdir -p ./data
-
 # Create initialization script
 COPY scripts/init-config.sh /app/init-config.sh
 RUN chmod +x /app/init-config.sh
+
+# Create data directory as a volume mount point
+VOLUME ["/app/data"]
 
 EXPOSE 3000
 
