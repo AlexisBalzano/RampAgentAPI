@@ -40,8 +40,6 @@ app.use('/api/airports', airportRoutes);
 app.use('/api/stats', statRoutes);
  
 // Github webhook for automatic deployment of config
-// TODO: add webhook to GitHub repo when url confirmed
-// TODO: add secret to .env
 const SECRET = process.env.GH_SECRET;
 
 // Add this new webhook endpoint for config updates
