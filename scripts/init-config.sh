@@ -37,4 +37,6 @@ else
 fi
 
 echo "🚀 Starting application..."
+# ✅ FIX: Change back to app directory before starting Node.js
+cd /app
 exec node index.js
