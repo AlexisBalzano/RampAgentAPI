@@ -43,13 +43,25 @@ app.use('/api/stats', statRoutes);
 // TODO: add webhook to GitHub repo when url confirmed
 // TODO: add secret to .env
 const SECRET = process.env.GH_SECRET;
-app.post('/api/github-webhook', (req, res) => {
+
+// Add this new webhook endpoint for config updates
+app.post('/api/config-webhook', (req, res) => {
   const sig = req.headers['x-hub-signature-256'];
   const hmac = 'sha256=' + crypto.createHmac('sha256', SECRET).update(JSON.stringify(req.body)).digest('hex');
   if (sig !== hmac) return res.status(403).send('Invalid signature');
 
-  exec('cd /data && git pull origin main', (err, stdout, stderr) => {
-    if (err) return res.status(500).send(stderr);
+  // Update config from git repo
+  exec('cd /app/data && git pull origin main', (err, stdout, stderr) => {
+    if (err) {
+      logger.error(`Config update failed: ${stderr}`, { category: 'Config' });
+      return res.status(500).send(stderr);
+    }
+    
+    logger.info(`Config updated: ${stdout}`, { category: 'Config' });
+    
+    // Optionally reload airport configs
+    airportService.reloadConfigs();
+    
     res.send('Config updated:\n' + stdout);
   });
 });
