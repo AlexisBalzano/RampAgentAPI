@@ -57,9 +57,6 @@ app.post('/api/config-webhook', (req, res) => {
     
     logger.info(`Config updated: ${stdout}`, { category: 'Config' });
     
-    // Optionally reload airport configs
-    airportService.reloadConfigs();
-    
     res.send('Config updated:\n' + stdout);
   });
 });
