@@ -69,6 +69,7 @@ class StandRegistry {
     this.occupied = new Map(); // key -> Stand
     this.assigned = new Map(); // key -> Stand
     this.blocked = new Map(); // key -> Stand
+    this.apron = new Map(); // key -> Stand
   }
 
   addOccupied(stand) {
@@ -93,6 +94,14 @@ class StandRegistry {
 
   removeBlocked(stand) {
     this.blocked.delete(stand.key());
+  }
+
+  addApron(stand) {
+    this.apron.set(stand.key(), stand);
+  }
+
+  removeApron(stand) {
+    this.apron.delete(stand.key());
   }
 
   isOccupied(icao, name) {
@@ -152,6 +161,19 @@ class StandRegistry {
         this.blocked.delete(key);
         warn(
           `Clearing expired blocked stand ${stand.name} at ${stand.icao} for ${stand.callsign}`,
+          {
+            category: "Stand Management",
+            callsign: stand.callsign,
+            icao: stand.icao,
+          }
+        );
+      }
+    }
+    for (const [key, stand] of this.apron) {
+      if (predicateFn(stand)) {
+        this.apron.delete(key);
+        warn(
+          `Clearing expired Apron stand ${stand.name} at ${stand.icao} for ${stand.callsign}`,
           {
             category: "Stand Management",
             callsign: stand.callsign,
@@ -497,10 +519,17 @@ function assignStand(airportConfig, config, callsign, ac) {
   const blockedStands = registry
     .getAllBlocked()
     .filter((s) => s.callsign === callsign);
-  if (assignedStand) {
-    assignedStand.timestamp = Date.now();
-    for (const s of blockedStands) {
-      s.timestamp = Date.now();
+  const apronStands = registry
+    .getAllApron()
+    .find((s) => s.callsign === callsign);
+  if (assignedStand || apronStands) {
+    if (apronStands) {
+      apronStands.timestamp = Date.now();
+    } else {
+      assignedStand.timestamp = Date.now();
+      for (const s of blockedStands) {
+        s.timestamp = Date.now();
+      }
     }
     return;
   }
@@ -553,6 +582,9 @@ function assignStand(airportConfig, config, callsign, ac) {
       if (registry.isBlocked(ac.destination, standName)) {
         continue;
       }
+    } else {
+      registry.addApron(new Stand(standName, ac.destination, callsign));
+      continue;
     }
     availableStandList.push(standDef);
   }
@@ -727,6 +759,8 @@ clientReportParse = async (aircrafts) => {
         registry.addOccupied(stand);
 
         blockStands(standDef, ac.origin, callsign);
+      } else {
+        registry.addApron(new Stand(ac.stand, ac.origin, callsign));
       }
     }
   }
@@ -786,6 +820,12 @@ async function assignStandToPilot(standName, icao, callsign) {
   .filter((s) => s.callsign === callsign);
   blockedStands.forEach((s) => {
     registry.removeBlocked(s);
+  });
+  const apronStands = registry
+  .getAllApron()
+  .filter((s) => s.callsign === callsign);
+  apronStands.forEach((s) => {
+    registry.removeApron(s);
   });
   if (standName === "None") {
     info(`Removed stand assignment for ${callsign}`, {
