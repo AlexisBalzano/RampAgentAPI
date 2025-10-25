@@ -15,7 +15,7 @@ FROM node:18-alpine
 
 WORKDIR /app
 
-# Install git for runtime updates
+# Install git
 RUN apk add --no-cache git
 
 # Copy package files
@@ -25,13 +25,14 @@ RUN npm ci --only=production
 # Copy application code
 COPY . .
 
-# Copy config from the fetcher stage
-COPY --from=config-fetcher /tmp/config-repo ./data
+# Create data directory
+RUN mkdir -p ./data
 
-# Create a script for updating config
-RUN echo '#!/bin/sh\ncd /app/data && git pull origin main' > /app/update-config.sh && \
-    chmod +x /app/update-config.sh
+# Create initialization script
+COPY scripts/init-config.sh /app/init-config.sh
+RUN chmod +x /app/init-config.sh
 
 EXPOSE 3000
 
-CMD ["node", "index.js"]
+# Use init script that fetches config then starts the app
+CMD ["/app/init-config.sh"]
