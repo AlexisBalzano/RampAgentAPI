@@ -128,6 +128,10 @@ class StandRegistry {
     return Array.from(this.blocked.values());
   }
 
+  getAllApron() {
+    return Array.from(this.apron.values());
+  }
+
   clearExpired(predicateFn) {
     // e.g. remove old stands if needed
     for (const [key, stand] of this.occupied) {
