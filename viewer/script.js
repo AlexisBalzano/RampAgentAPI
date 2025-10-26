@@ -415,7 +415,7 @@ function renderAirportChart(airports) {
   // Convert airports object to array
   const airportArr = Object.values(airports);
 
-  const chartColors = ["#4a90e2", "#e94e77", "#50b848", "#f5a623"];
+  const chartColors = ["#4a90e2", "#e94e77", "#50b848", "#f5a623", "#9013fe", "#f8e71c", "#7ed321", "#d0021b"];
   const canvas = document.getElementById("airportChart");
   if (!canvas) {
     console.warn("renderAirportChart -> canvas#airportChart not found");
