@@ -92,9 +92,15 @@ body.dark-mode .bx-menu:hover {
 #darkModeMoon, #darkModeSun {
   position: absolute;
   font-size: 30px;
-  top: 0.7em;
+  top: 0.9em;
   right: 0.7em;
   cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+#darkModeMoon:hover, #darkModeSun:hover {
+  transform: scale(1.1);
+  color: #FFFFFF;
 }
 
 body.dark-mode #darkModeMoon {
@@ -181,6 +187,7 @@ body.dark-mode .sidenav a:hover {
 .container {
   display: flex;
   gap: 20px;
+  flex-wrap: wrap;
 }
 
 .subContainer {
@@ -234,6 +241,7 @@ body.dark-mode .log-container {
   padding-top: 10px;
   margin-bottom: 10px;
   display: flex;
+  flex-wrap: wrap;
   gap: 10px;
 }
 
@@ -363,6 +371,14 @@ body.dark-mode .log-container::-webkit-scrollbar-track {
 @media screen and (max-height: 450px) {
   .sidenav a {
     font-size: 18px;
+  }
+}
+@media screen and (max-width: 500px) {
+  h1 {
+    display: none;
+  }
+  header {
+    min-height: 80px;
   }
 }
 #map {
@@ -1810,22 +1826,22 @@ body.dark-mode .letter::after {
     transform: rotateX(0deg);
   }
   20% {
-    content: "C";
+    content: "E";
     transform: rotateX(360deg);
   }
   40% {
     color: #afafaf;
-    content: "U";
+    content: "3";
     transform: rotateX(0deg);
   }
   60% {
     color: #afafaf;
-    content: "0";
+    content: "U";
     transform: rotateX(360deg);
   }
   80% {
     color: #afafaf;
-    content: "N";
+    content: "G";
     transform: rotateX(0deg);
   }
   100% {
@@ -1875,14 +1891,14 @@ body.dark-mode .performance-notification {
 /* Performance mode toggle button */
 .performance-toggle {
   position: absolute;
-  top: 0.9em;
-  right: 3.5em;
+  top: 1.8em;
+  right: 4em;
   background: rgba(255, 255, 255, 0.1);
   border: 2px solid rgba(255, 255, 255, 0.3);
   border-radius: 50%;
-  width: 40px;
-  height: 40px;
-  font-size: 20px;
+  width: 30px;
+  height: 30px;
+  font-size: 15px;
   cursor: pointer;
   transition: all 0.3s ease;
   color: #c9c9c9;
