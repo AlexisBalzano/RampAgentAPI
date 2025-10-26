@@ -521,20 +521,12 @@ let cachedFilters = {
 
 // Populate dropdowns
 async function populateLogFilters() {
-  console.log('populateLogFilters: Starting');
-  
   try {
     const [categoriesRes, icaosRes, callsignsRes] = await Promise.all([
       fetch(API_BASE_URL + "/api/logs/categories", { headers: { "X-Internal-Request": "1" } }),
       fetch(API_BASE_URL + "/api/logs/icaos", { headers: { "X-Internal-Request": "1" } }),
       fetch(API_BASE_URL + "/api/logs/callsigns", { headers: { "X-Internal-Request": "1" } })
     ]);
-
-    console.log('populateLogFilters: Responses received', {
-      categories: categoriesRes.ok,
-      icaos: icaosRes.ok,
-      callsigns: callsignsRes.ok
-    });
 
     // Check responses
     if (!categoriesRes.ok || !icaosRes.ok || !callsignsRes.ok) {
@@ -546,7 +538,6 @@ async function populateLogFilters() {
       return;
     }
 
-    // ✅ Parse JSON with explicit error handling
     let categories, icaos, callsigns;
     
     try {
@@ -570,12 +561,6 @@ async function populateLogFilters() {
       callsigns = [];
     }
 
-    console.log('populateLogFilters: Parsed data', {
-      categoriesCount: Array.isArray(categories) ? categories.length : 0,
-      icaosCount: Array.isArray(icaos) ? icaos.length : 0,
-      callsignsCount: Array.isArray(callsigns) ? callsigns.length : 0
-    });
-
     // Ensure responses are arrays
     const categoriesArray = Array.isArray(categories) ? categories : [];
     const icaosArray = Array.isArray(icaos) ? icaos : [];
@@ -589,8 +574,6 @@ async function populateLogFilters() {
     
     // Update callsigns if changed
     updateDropdownIfChanged('callsign-select', callsignsArray, cachedFilters.callsigns, 'All Callsigns');
-
-    console.log('populateLogFilters: Completed successfully');
 
   } catch (err) {
     console.error("Failed to load log filters", err);
@@ -687,7 +670,6 @@ async function fetchFilteredLogs(reset = false) {
   const icao = icaoSelect.value || '';
   const callsign = callsignSelect.value || '';
   
-  // ✅ Build params with explicit string conversion
   const params = new URLSearchParams();
   if (level) params.append('level', String(level));
   if (category) params.append('category', String(category));
@@ -698,7 +680,6 @@ async function fetchFilteredLogs(reset = false) {
 
   try {
     const url = API_BASE_URL + "/api/logs/filter?" + params.toString();
-    console.log('fetchFilteredLogs: URL =', url);
     
     const response = await fetch(url, {
       headers: { "X-Internal-Request": "1" }
