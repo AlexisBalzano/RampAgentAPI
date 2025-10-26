@@ -22,13 +22,15 @@ services:
     container_name: rampagent-api
     ports:
       - "3000:3000"
+    env_file:
+      - .env
     environment:
       - NODE_ENV=development
       - REDIS_HOST=redis
       - REDIS_PORT=6379
       - CONFIG_REPO_URL=https://github.com/vaccfr/RampAgent-Config.git
       - CONFIG_BRANCH=main
-      - GH_SECRET=${GH_SECRET:-dev-secret-key}
+      - GH_SECRET=${GH_SECRET:-}
     volumes:
       - rampagent-config:/app/data 
       - ./logs:/app/logs

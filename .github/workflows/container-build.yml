@@ -40,3 +40,6 @@ jobs:
             docker build --pull -t ${{ env.REGISTRY }}/alexisbalzano/rampagent_api:dev .
             docker push ${{ env.REGISTRY }}/alexisbalzano/rampagent_api:dev
           fi
+
+environment:
+  - GH_SECRET=${{ secrets.GH_SECRET }}
