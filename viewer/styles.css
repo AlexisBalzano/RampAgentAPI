@@ -3,7 +3,7 @@ body {
   margin: 0;
   padding: 0;
   background-color: #e8f2fb;
-  overflow: hidden;
+  overflow: auto;
 }
 
 body.dark-mode {
@@ -1826,22 +1826,22 @@ body.dark-mode .letter::after {
     transform: rotateX(0deg);
   }
   20% {
-    content: "E";
+    content: "0";
     transform: rotateX(360deg);
   }
   40% {
     color: #afafaf;
-    content: "3";
+    content: "H";
     transform: rotateX(0deg);
   }
   60% {
     color: #afafaf;
-    content: "U";
+    content: "J";
     transform: rotateX(360deg);
   }
   80% {
     color: #afafaf;
-    content: "G";
+    content: "E";
     transform: rotateX(0deg);
   }
   100% {
