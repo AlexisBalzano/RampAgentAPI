@@ -16,7 +16,6 @@ const statRoutes = require('./routes/stats');
 const redisService = require('./services/redisService');
 const airportService = require('./services/airportService');
 const authRoutes = require('./routes/auth');
-const authController = require('./controllers/authController'); // To use verifyToken middleware
 const healthRoutes = require('./routes/health');
 
 const app = express();
