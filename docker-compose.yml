@@ -31,6 +31,7 @@ services:
       - CONFIG_REPO_URL=https://github.com/vaccfr/RampAgent-Config.git
       - CONFIG_BRANCH=main
       - GH_SECRET=${GH_SECRET:-}
+      - AUTH_SECRET=${AUTH_SECRET:-}
     volumes:
       - rampagent-config:/app/data 
       - ./logs:/app/logs
