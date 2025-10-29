@@ -1,7 +1,7 @@
 const occupancyService = require('../services/occupancyService');
 const { info, error } = require('../utils/logger');
 const stats = require('../services/statService');
-const authController = require('./controllers/authController'); // To use verifyToken middleware
+const authController = require('./authController');
 
 
 let onlineControllers = new Map(); // key: callsign, value: last seen timestamp and report count
@@ -30,11 +30,10 @@ exports.handleReport = async (req, res) => {
     return res.status(400).json({ error: 'Invalid client info' });
   }
 
-  // TODO: Client validation using authController
-  // token = formatted key from secret+cid+client
-  // if (!authController.verifyToken(token, cid, client)) {
-  //   return res.status(403).json({ error: 'Invalid token' });
-  // }
+  if (!authController.verifyToken(token, cid, client)) {
+    error(`Invalid token from client: ${client}, token was: ${token}`, { category: 'Report', callsign: client });
+    return res.status(403).json({ error: 'Invalid token' });
+  }
 
 
   if (!aircrafts || typeof aircrafts !== 'object') {

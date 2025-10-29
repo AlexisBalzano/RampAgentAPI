@@ -15,7 +15,6 @@ const logRoutes = require('./routes/log');
 const statRoutes = require('./routes/stats');
 const redisService = require('./services/redisService');
 const airportService = require('./services/airportService');
-const authRoutes = require('./routes/auth');
 const healthRoutes = require('./routes/health');
 
 const app = express();
@@ -82,7 +81,6 @@ app.use('/debug', express.static(path.join(__dirname, 'viewer')));
 app.use('/api/report', reportRoutes);
 app.use('/api/assign', assignRoutes);
 app.use('/api/occupancy', occupancyRoutes);
-app.use('/auth', authRoutes);
 
 // Connect to Redis
 redisService.connect().then(() => {
