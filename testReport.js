@@ -5,7 +5,7 @@ await fetch("http://localhost:3000/api/report", {
   body: JSON.stringify({
     client: "LFBO_APP",
     cid: "123456",
-    token: "2",
+    token: "a1c407ecfa501bc947f863de357581ac96cd29513dabe773f1da97f5918345e1",
     aircrafts: {
       onGround: {},
       airborne: {},
