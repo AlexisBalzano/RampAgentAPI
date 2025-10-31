@@ -37,11 +37,11 @@ app.use('/api/airports', airportRoutes);
 // API endpoint to get stats (call service and return JSON)
 app.use('/api/stats', statRoutes);
  
-// Github webhook for automatic deployment of config
-const SECRET = process.env.GH_SECRET;
 
 // Add this new webhook endpoint for config updates
 app.post('/api/config-webhook', async (req, res) => {
+  // Github webhook for automatic deployment of config
+  const SECRET = process.env.GH_SECRET;
   // Check if SECRET is defined
   if (!SECRET) {
     logger.warn('GH_SECRET not configured, skipping signature verification', { category: 'Config' });
