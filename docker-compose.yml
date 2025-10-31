@@ -20,9 +20,6 @@ services:
   api:
     build:
       context: .
-      args:
-        - GH_SECRET=${GH_SECRET}
-        - AUTH_SECRET=${AUTH_SECRET}
     container_name: rampagent-api
     ports:
       - "3000:3000"
@@ -34,8 +31,6 @@ services:
       - REDIS_PORT=6379
       - CONFIG_REPO_URL=https://github.com/vaccfr/RampAgent-Config.git
       - CONFIG_BRANCH=main
-      - GH_SECRET=${GH_SECRET}
-      - AUTH_SECRET=${AUTH_SECRET}
     volumes:
       - rampagent-config:/app/data 
       - ./logs:/app/logs

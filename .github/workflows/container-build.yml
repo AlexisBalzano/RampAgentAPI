@@ -35,14 +35,10 @@ jobs:
           if [[ "${{ github.ref }}" == refs/tags/* ]]; then
             TAG_NAME=${GITHUB_REF#refs/tags/}
             docker build --pull \
-              --build-arg GH_SECRET=${{ secrets.GH_SECRET }} \
-              --build-arg AUTH_SECRET=${{ secrets.AUTH_SECRET }} \
               -t ${{ env.REGISTRY }}/alexisbalzano/rampagent_api:${TAG_NAME} .
             docker push ${{ env.REGISTRY }}/alexisbalzano/rampagent_api:${TAG_NAME}
           else
             docker build --pull \
-              --build-arg GH_SECRET=${{ secrets.GH_SECRET }} \
-              --build-arg AUTH_SECRET=${{ secrets.AUTH_SECRET }} \
               -t ${{ env.REGISTRY }}/alexisbalzano/rampagent_api:dev .
             docker push ${{ env.REGISTRY }}/alexisbalzano/rampagent_api:dev
           fi
