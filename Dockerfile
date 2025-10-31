@@ -18,6 +18,14 @@ WORKDIR /app
 # Install git
 RUN apk add --no-cache git
 
+# Accept build arguments
+ARG GH_SECRET
+ARG AUTH_SECRET
+
+# Set as environment variables
+ENV GH_SECRET=${GH_SECRET}
+ENV AUTH_SECRET=${AUTH_SECRET}
+
 # Copy package files
 COPY package*.json ./
 RUN npm ci --only=production
