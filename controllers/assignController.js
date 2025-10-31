@@ -1,5 +1,6 @@
 const occupancyService = require('../services/occupancyService');
 const stat = require('../services/statService');
+const { error } = require('../utils/logger');
 const { verifyToken } = require('./authController');
 
 exports.assignStand = async (req, res) => {
@@ -10,6 +11,7 @@ exports.assignStand = async (req, res) => {
     }
 
     if (verifyToken(token, client) === false) {
+        error(`Invalid token from custom assign request - Requester: ${client}`, { category: 'Manual Assign', callsign: callsign, icao: icao});
         return res.status(403).json({ success: false, message: 'Invalid token' });
     }
 
