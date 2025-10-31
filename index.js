@@ -38,21 +38,27 @@ app.use('/api/airports', airportRoutes);
 app.use('/api/stats', statRoutes);
  
 
-// Add this new webhook endpoint for config updates
+// GitHub webhook for config updates
+app.use('/api/config-webhook', express.raw({ type: 'application/json' }));
+
 app.post('/api/config-webhook', async (req, res) => {
-  // Github webhook for automatic deployment of config
   const SECRET = process.env.GH_SECRET;
-  // Check if SECRET is defined
   if (!SECRET) {
     logger.warn('GH_SECRET not configured, skipping signature verification', { category: 'Config' });
   } else {
     const sig = req.headers['x-hub-signature-256'];
     if (sig) {
-      const hmac = 'sha256=' + crypto.createHmac('sha256', SECRET).update(JSON.stringify(req.body)).digest('hex');
-      if (sig !== hmac) {
+      const expected = 'sha256=' + crypto.createHmac('sha256', SECRET).update(req.body).digest('hex');
+      const sigBuf = Buffer.from(sig);
+      const expBuf = Buffer.from(expected);
+      if (sigBuf.length !== expBuf.length || !crypto.timingSafeEqual(sigBuf, expBuf)) {
         logger.error('Invalid webhook signature', { category: 'Config' });
+        logger.error(`Computed HMAC: ${expected}`, { category: 'Config' });
+        logger.error(`Received Signature: ${sig}`, { category: 'Config' });
         return res.status(403).send('Invalid signature');
       }
+    } else {
+      logger.warn('No signature provided', { category: 'Config' });
     }
   }
 
