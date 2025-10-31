@@ -6,7 +6,7 @@ exports.verifyToken = (token, cid, client) => {
   const secret = process.env.AUTH_SECRET;
   
   if (!secret) {
-    error('No secret found');
+    error('No secret found', { category: 'Auth' });
     return false;
   }
 
