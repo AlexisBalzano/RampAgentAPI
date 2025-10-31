@@ -24,17 +24,17 @@ setInterval(cleanupOfflineControllers, CLEANUP_INTERVAL);
 
 // Handle incoming reports from clients
 exports.handleReport = async (req, res) => {
-  stats.incrementReportCount();
   const { client, token, cid, aircrafts } = req.body;
   if (!client) {
     return res.status(400).json({ error: 'Invalid client info' });
   }
-
+  
   if (!authController.verifyToken(token, cid, client)) {
     error(`Invalid token from client: ${client}, token was: ${token}`, { category: 'Report', callsign: client });
     return res.status(403).json({ error: 'Invalid token' });
   }
-
+  
+  stats.incrementReportCount();
 
   if (!aircrafts || typeof aircrafts !== 'object') {
     return res.status(400).json({ error: 'Invalid aircrafts info' });
