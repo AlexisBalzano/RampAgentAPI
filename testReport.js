@@ -4,11 +4,17 @@ await fetch("http://localhost:3000/api/report", {
   headers: { "Content-Type": "application/json" },
   body: JSON.stringify({
     client: "LFBO_APP",
-    cid: "123456",
-    token: "a1c407ecfa501bc947f863de357581ac96cd29513dabe773f1da97f5918345e1",
+    token: "c6c61659c5dae268c025e5dd89ca6df5e4649958054b471aedaa271ce9af8998",
     aircrafts: {
       onGround: {},
-      airborne: {},
+      airborne: {
+        "FHBLM": {
+          origin: "LFMD",
+          destination: "LFMN",
+          aircraftType: "H145",
+          position: { lat: 43.5361, lon: 7.0175, alt: 5000, dist: 25 },
+        }
+      },
     },
   }),
 });
