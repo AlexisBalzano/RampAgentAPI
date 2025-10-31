@@ -1,4 +1,4 @@
-const { error } = require('console');
+const { error } = require('../utils/logger');
 const crypto = require('crypto');
 
 exports.verifyToken = (token, cid, client) => {
@@ -6,6 +6,7 @@ exports.verifyToken = (token, cid, client) => {
   const secret = process.env.AUTH_SECRET;
   
   if (!secret) {
+    error('No secret found');
     return false;
   }
 
