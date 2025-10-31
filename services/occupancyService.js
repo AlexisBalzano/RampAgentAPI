@@ -811,7 +811,7 @@ const getGlobalOccupied = () => {
   return Array.from(occupied);
 };
 
-async function assignStandToPilot(standName, icao, callsign) {
+async function assignStandToPilot(standName, icao, callsign, client) {
   // Remove any existing assignment
   const existingStand = registry
   .getAllAssigned()
@@ -832,10 +832,10 @@ async function assignStandToPilot(standName, icao, callsign) {
     registry.removeApron(s);
   });
   if (standName === "None") {
-    info(`Removed stand assignment for ${callsign}`, {
+    info(`Removed stand assignment for ${callsign}, Requester: ${client}`, {
       category: "Manual Assign",
       callsign: callsign,
-      icao: icao,
+      icao: icao
     });
     return {
       action: "free",
@@ -856,7 +856,7 @@ async function assignStandToPilot(standName, icao, callsign) {
   if (standDef.Apron === undefined || standDef.Apron === false) {
     if (registry.isOccupied(icao, standName)) {
       warn(
-        `Cannot assign stand ${standName} at ${icao} to ${callsign} - already occupied`,
+        `Cannot assign stand ${standName} at ${icao} to ${callsign} - already occupied, Requester: ${client}`,
         { category: "Manual Assign", callsign: callsign, icao: icao }
       );
       return {
@@ -869,7 +869,7 @@ async function assignStandToPilot(standName, icao, callsign) {
     }
     if (registry.isAssigned(icao, standName)) {
       warn(
-        `Cannot assign stand ${standName} at ${icao} to ${callsign} - already assigned`,
+        `Cannot assign stand ${standName} at ${icao} to ${callsign} - already assigned, Requester: ${client}`,
         { category: "Manual Assign", callsign: callsign, icao: icao }
       );
       return {
@@ -882,7 +882,7 @@ async function assignStandToPilot(standName, icao, callsign) {
     }
     if (registry.isBlocked(icao, standName)) {
       warn(
-        `Cannot assign stand ${standName} at ${icao} to ${callsign} - already blocked`,
+        `Cannot assign stand ${standName} at ${icao} to ${callsign} - already blocked, Requester: ${client}`,
         { category: "Manual Assign", callsign: callsign, icao: icao }
       );
       return {
@@ -898,7 +898,7 @@ async function assignStandToPilot(standName, icao, callsign) {
   registry.addAssigned(stand);
   // Block stands
   blockStands(standDef, icao, callsign);
-  info(`Manually assigned stand ${standName} at ${icao} to ${callsign}`, {
+  info(`Manually assigned stand ${standName} at ${icao} to ${callsign}, Requester: ${client}`, {
     category: "Manual Assign",
     callsign: callsign,
     icao: icao,

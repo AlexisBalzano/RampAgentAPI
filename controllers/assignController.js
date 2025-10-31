@@ -15,7 +15,7 @@ exports.assignStand = async (req, res) => {
 
     try {
         stat.incrementRequestCount();
-        const result = await occupancyService.assignStandToPilot(stand, icao, callsign);
+        const result = await occupancyService.assignStandToPilot(stand, icao, callsign, client);
         res.json({ success: true, message: result });
     } catch (error) {
         res.status(500).json({ success: false, message: error.message });
