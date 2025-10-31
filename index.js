@@ -18,28 +18,10 @@ const airportService = require('./services/airportService');
 const healthRoutes = require('./routes/health');
 
 const app = express();
-app.use(express.json());
-
-// Serve viewer
-app.get('/debug', (req, res) => {
-  res.sendFile(path.join(__dirname, 'viewer', 'viewer.html'));
-});
-
-// Health endpoint for load balancer
-app.use('/health', healthRoutes);
-
-// API endpoint to get logs
-app.use('/api/logs', logRoutes);
-
-// API endpoint to get Airports
-app.use('/api/airports', airportRoutes);
-
-// API endpoint to get stats (call service and return JSON)
-app.use('/api/stats', statRoutes);
- 
 
 // GitHub webhook for config updates
 app.use('/api/config-webhook', express.raw({ type: 'application/json' }));
+
 
 app.post('/api/config-webhook', async (req, res) => {
   const SECRET = process.env.GH_SECRET;
@@ -61,9 +43,9 @@ app.post('/api/config-webhook', async (req, res) => {
       logger.warn('No signature provided', { category: 'Config' });
     }
   }
-
+  
   logger.info('Config webhook received', { category: 'Config' });
-
+  
   // Update config from git repo (works with volumes)
   exec('cd /app/data && git pull origin main', (err, stdout, stderr) => {
     if (err) {
@@ -81,6 +63,27 @@ app.post('/api/config-webhook', async (req, res) => {
     });
   });
 });
+
+app.use(express.json());
+
+// Serve viewer
+app.get('/debug', (req, res) => {
+  res.sendFile(path.join(__dirname, 'viewer', 'viewer.html'));
+});
+
+// Health endpoint for load balancer
+app.use('/health', healthRoutes);
+
+// API endpoint to get logs
+app.use('/api/logs', logRoutes);
+
+// API endpoint to get Airports
+app.use('/api/airports', airportRoutes);
+
+// API endpoint to get stats (call service and return JSON)
+app.use('/api/stats', statRoutes);
+ 
+
 
 // Register routes
 app.use('/debug', express.static(path.join(__dirname, 'viewer')));
