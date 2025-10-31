@@ -527,15 +527,19 @@ function assignStand(airportConfig, config, callsign, ac) {
     .getAllApron()
     .find((s) => s.callsign === callsign);
   if (assignedStand || apronStands) {
-    if (apronStands) {
-      apronStands.timestamp = Date.now();
+    if (registry.isOccupied(ac.destination, assignedStand.name) || registry.isBlocked(ac.destination, assignedStand.name)) {
+      registry.removeAssigned(assignedStand);
     } else {
-      assignedStand.timestamp = Date.now();
-      for (const s of blockedStands) {
-        s.timestamp = Date.now();
+      if (apronStands) {
+        apronStands.timestamp = Date.now();
+      } else {
+        assignedStand.timestamp = Date.now();
+        for (const s of blockedStands) {
+          s.timestamp = Date.now();
+        }
       }
+      return;
     }
-    return;
   }
 
   const schengen = isSchengen(ac.origin, ac.destination);
@@ -650,7 +654,6 @@ function assignStand(airportConfig, config, callsign, ac) {
 
 clientReportParse = async (aircrafts) => {
   // Parse JSON of all the reported aircraft positions/states
-  // Use Set for O(1) lookup performance instead of Array.includes()
   let airportSet = new Set();
   const airportConfigCache = new Map(); // Cache airport configs to avoid repeated loads
 
