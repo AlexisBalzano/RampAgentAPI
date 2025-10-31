@@ -3,13 +3,13 @@ const stat = require('../services/statService');
 const { verifyToken } = require('./authController');
 
 exports.assignStand = async (req, res) => {
-    const { stand, icao, callsign, token, client, cid } = req.query;
+    const { stand, icao, callsign, token, client } = req.query;
 
-    if (!stand || !icao || !callsign || !token || !client || !cid) {
+    if (!stand || !icao || !callsign || !token || !client) {
         return res.status(400).json({ success: false, message: 'Missing required parameters' });
     }
 
-    if (verifyToken(token, client, cid) === false) {
+    if (verifyToken(token, client) === false) {
         return res.status(403).json({ success: false, message: 'Invalid token' });
     }
 
