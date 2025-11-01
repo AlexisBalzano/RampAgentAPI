@@ -8,6 +8,11 @@ const coordinateCache = new Map(); // key: "lat:lon:alt" -> { lat, lon, radius }
 // Cache to avoid log flooding when unknown aircraft types are encountered
 const aircraftTypeCache = new Set();
 
+setInterval(() => {
+  coordinateCache.clear();
+  aircraftTypeCache.clear();
+}, 60 * 60 * 1000); // Clear every hour
+
 // Helper to parse and cache coordinates
 function parseCoordinates(coordString, defaultRadius = 30) {
   if (!coordString) return null;
