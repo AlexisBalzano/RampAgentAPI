@@ -569,7 +569,7 @@ function assignStand(airportConfig, config, ac) {
   const compagnyPrefix = ac.callsign.substring(0, 3).toUpperCase();
 
   info(
-    `Searching stand for ${ac.callsign} at ${ac.destination} (Use: ${use}, Code: ${code}, Schengen: ${schengen}, Compagny: ${compagnyPrefix}, Origin Country: ${originPrefix}, Wingspan: ${wingspan}m)`,
+    `Searching stand for ${ac.callsign} at ${ac.destination} (Use: ${use}, Code: ${code}, Schengen: ${schengen}, Compagny: ${compagnyPrefix}, Origin Country: ${originPrefix}, Wingspan: ${wingspan}m, AircraftType: ${ac.flight_plan.aircraft_short})`,
     { category: "Assignation", callsign: ac.callsign, icao: airportConfig.ICAO }
   );
 
