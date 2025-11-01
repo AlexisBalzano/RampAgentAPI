@@ -51,3 +51,34 @@ exports.getBlocked = (req, res) => {
     res.status(500).json({ error: 'Failed to retrieve blocked stands' });
   }
 };
+
+exports.getAllStandsStatus = (req, res) => {
+  try {
+    if (!req.headers['x-internal-request']) {
+      stat.incrementRequestCount();
+    }
+    // registry.getAllStands returns array of Stand instances; convert to simple objects
+    
+      const assignedStands = occupancyService.registry.getAllAssigned().map((s) => ({
+        name: s.name,
+        icao: s.icao,
+        callsign: s.callsign || null,
+      }));
+
+      const occupiedStands = occupancyService.registry.getAllOccupied().map((s) => ({
+        name: s.name,
+        icao: s.icao,
+        callsign: s.callsign || null,
+      }));
+
+      const blockedStands = occupancyService.registry.getAllBlocked().map((s) => ({
+        name: s.name,
+        icao: s.icao,
+        callsign: s.callsign || null,
+      }));
+      
+    res.status(200).json({ occupiedStands, assignedStands, blockedStands });
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to retrieve all stands status' });
+  }
+};

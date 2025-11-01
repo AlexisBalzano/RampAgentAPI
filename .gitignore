@@ -2,6 +2,8 @@
 .env
 logs.db
 
+data/
+
 generateToken.js
 testAssign.js
 testReport.js
