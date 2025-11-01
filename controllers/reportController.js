@@ -1,66 +1,53 @@
 const occupancyService = require('../services/occupancyService');
 const { info, error } = require('../utils/logger');
 const stats = require('../services/statService');
-const authController = require('./authController');
+const { haversineMeters } = require('../utils/utils');
 
+function filterDatafeed(pilots) {
+  let filteredPilots = pilots.filter(pilot => {
+    const distance = haversineMeters(pilot.latitude, pilot.longitude, 46.22545, 2.10924); // Center of France
+    return distance <= 600_000; // 600 km
+  });
 
-let onlineControllers = new Map(); // key: callsign, value: last seen timestamp and report count
+  const onGround = [];
+  const airborne = [];
 
-// Configuration
-const CONTROLLER_TIMEOUT = 60 * 1000; // 1 minutes timeout
-const CLEANUP_INTERVAL = 59 * 1000; // Check every 59 seconds
-
-function cleanupOfflineControllers() {
-  const now = Date.now();
-  for (const [callsign, data] of onlineControllers.entries()) {
-    if (now - data.lastSeen > CONTROLLER_TIMEOUT) { // 1 minutes timeout
-      onlineControllers.delete(callsign);
-      info(`Controller disconnected: ${callsign}`, { category: 'Report', callsign });
+  filteredPilots.forEach(pilot => {
+    if (pilot.altitude < 20000) {
+      if (pilot.groundspeed < 2) {
+        onGround.push(pilot);
+      } else {
+        airborne.push(pilot);
+      }
     }
-  }
+  });
+
+  return { onGround, airborne };
 }
 
-setInterval(cleanupOfflineControllers, CLEANUP_INTERVAL);
+// Handle incoming reports from datafeed
+exports.getDatafeed = () => {
+  fetch('https://data.vatsim.net/v3/vatsim-data.json', { method: 'GET', headers: { 'Accept': 'application/json' } })
+    .then(response => response.json())
+    .then(data => {
+      // Validate and process data
+      if (data && data.pilots && data.pilots.length > 0) {
+        // Process aircraft data
+        const filteredDatafeed = filterDatafeed(data.pilots);
+        info(`Datafeed processed: ${filteredDatafeed.onGround.length} on ground, ${filteredDatafeed.airborne.length} airborne`, { category: 'Report' });
+        // Pass to occupancy service
+        occupancyService.processDatafeed(filteredDatafeed);
+      }
+      else {
+        error('Invalid datafeed format', { category: 'Report' });
+        return;
+      }
+    })
+    .catch(err => {
+      error(`Error fetching datafeed: ${err}`, { category: 'Report'});
+      return;
+    });
 
-// Handle incoming reports from clients
-exports.handleReport = async (req, res) => {
-  const { client, token, aircrafts } = req.body;
-  if (!client) {
-    return res.status(400).json({ error: 'Invalid client info' });
-  }
-  
-  if (!authController.verifyToken(token, client)) {
-    error(`Invalid token from client: ${client}, token was: ${token}`, { category: 'Report', callsign: client });
-    return res.status(403).json({ error: 'Invalid token' });
-  }
-  
+  // Increment only if valid report
   stats.incrementReportCount();
-
-  if (!aircrafts || typeof aircrafts !== 'object') {
-    return res.status(400).json({ error: 'Invalid aircrafts info' });
-  }
-
-  // Track controller activity
-  const isNewController = !onlineControllers.has(client);
-  const now = Date.now();
-  
-  if (isNewController) {
-    info(`Controller connected: ${client}`, { category: 'Report', callsign: client });
-    onlineControllers.set(client, { lastSeen: now, reportCount: 1 });
-  } else {
-    const data = onlineControllers.get(client);
-    data.lastSeen = now;
-    data.reportCount++;
-  }
-
-  try {
-    await occupancyService.clientReportParse(aircrafts);
-    const occupiedStands = occupancyService.getAllOccupied();
-    const assignedStands = occupancyService.getAllAssigned();
-    const blockedStands = occupancyService.getAllBlocked();
-    res.status(200).json({ status: 'ok', occupiedStands, assignedStands, blockedStands });
-  } catch (err) {
-    error(`Error processing report: ${err.message}`, { category: 'Report', callsign: client });
-    res.status(500).json({ error: 'Internal server error' });
-  }
 };
