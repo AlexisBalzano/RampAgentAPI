@@ -876,11 +876,27 @@ async function assignStandToPilot(standName, icao, callsign, client) {
   const standDef = await airportService
     .getAirportConfig(icao)
     .then((airportConfig) => {
-      if (airportConfig && airportConfig.Stands) {
+      if (airportConfig && airportConfig.Stands && airportConfig.Stands[standName]) {
         return airportConfig.Stands[standName];
       }
       return null;
     });
+
+  if (!standDef) {
+    warn(`Stand ${standName} not found at ${icao}, Requester: ${client}`, {
+      category: "Manual Assign",
+      callsign: callsign,
+      icao: icao
+    });
+    return {
+    action: "not_found",
+    stand: standName,
+    callsign: callsign,
+    icao: icao,
+    message: `Stand ${standName} does not exist at ${icao}`,
+  };
+}
+
   if (standDef.Apron === undefined || standDef.Apron === false) {
     if (registry.isOccupied(icao, standName)) {
       warn(
