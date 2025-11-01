@@ -546,7 +546,7 @@ function assignStand(airportConfig, config, ac) {
     .getAllApron()
     .find((s) => s.callsign === ac.callsign);
   if (assignedStand || apronStands) {
-    if (registry.isOccupied(ac.destination, assignedStand.name) || registry.isBlocked(ac.destination, assignedStand.name)) {
+    if (assignedStand && (registry.isOccupied(ac.destination, assignedStand.name) || registry.isBlocked(ac.destination, assignedStand.name))) {
       registry.removeAssigned(assignedStand);
     } else {
       if (apronStands) {
@@ -610,7 +610,7 @@ function assignStand(airportConfig, config, ac) {
         continue;
       }
     } else {
-      registry.addApron(new Stand(standName, ac.destination, callsign));
+      registry.addApron(new Stand(standName, ac.destination, ac.callsign));
       continue;
     }
     availableStandList.push(standDef);
