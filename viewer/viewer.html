@@ -4,6 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Ramp Agent API</title>
+  <meta name="mobile-web-app-capable" content="yes">
 
   <!-- Leaflet CSS (needed for controls/legend positioning) -->
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
@@ -11,7 +12,7 @@
   <link rel="stylesheet" href="styles.css" />
   <!-- Leaflet JS before your script, both deferred so order is preserved -->
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" defer></script>
-  <script src="https://cdn.jsdelivr.net/npm/chart.js@4/dist/chart.umd.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4/dist/chart.umd.min.js" defer></script>
   <script src="script.js" defer></script>
 
   <!-- Boxicons -->
@@ -37,7 +38,7 @@
         <a href="#standMap" onclick="closeNav()">Map</a>
         <a href="#log" onclick="closeNav()">Logs</a>
         <a href="#configs" onclick="closeNav()">Configs</a>
-        <p class="version">Version 1.0.0</p>
+        <p class="version">Version 1.0.2</p>
       </div>
     </div>
     <section id="status" data-page="status">

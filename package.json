@@ -5,7 +5,7 @@
   "scripts": {
     "start": "node index.js",
     "dev": "nodemon index.js",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "docker": "docker-compose down -v && docker-compose up --build"
   },
   "keywords": [],
   "author": "Alexis Balzano",

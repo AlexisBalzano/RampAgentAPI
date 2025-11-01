@@ -1,23 +1,38 @@
-# Use official Node.js LTS image
-FROM node:20-alpine
+# Multi-stage build
+FROM node:18-alpine AS config-fetcher
 
-# Set working directory
+# Install git
+RUN apk add --no-cache git
+
+# Clone the config repository
+ARG CONFIG_REPO_URL
+ARG CONFIG_BRANCH=main
+WORKDIR /tmp
+RUN git clone --branch ${CONFIG_BRANCH} --depth 1 ${CONFIG_REPO_URL} config-repo
+
+# Main application stage
+FROM node:18-alpine
+
 WORKDIR /app
+
+# Install git
+RUN apk add --no-cache git
 
 # Copy package files
 COPY package*.json ./
-
-# Install dependencies
 RUN npm ci --only=production
 
-# Copy application files
+# Copy application code
 COPY . .
 
-# Expose the API port
+# Create initialization script
+COPY scripts/init-config.sh /app/init-config.sh
+RUN chmod +x /app/init-config.sh
+
+# Create data directory as a volume mount point
+VOLUME ["/app/data"]
+
 EXPOSE 3000
 
-# Set environment to production
-ENV NODE_ENV=production
-
-# Start the application
-CMD ["node", "index.js"]
+# Use init script that fetches config then starts the app
+CMD ["/app/init-config.sh"]

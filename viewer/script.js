@@ -1,3 +1,5 @@
+const API_BASE_URL = 'https://pintade.vatsim.fr/rampagent';
+
 /* Set the width of the side navigation to 250px */
 function openNav() {
   document.getElementById("mySidenav").style.width = "200px";
@@ -132,20 +134,20 @@ function padAirportIcao(name) {
 async function renderAirportsStatus() {
   try {
     // Fetch all airports
-    const airportList = await fetch("/api/airports", {
+    const airportList = await fetch(API_BASE_URL + "/api/airports", {
       headers: { "X-Internal-Request": "1" },
     })
       .then((res) => res.json())
       .catch(() => []);
 
     // Fetch stands
-    const allOccupiedStands = await fetch("/api/occupancy/occupied", {
+    const allOccupiedStands = await fetch(API_BASE_URL + "/api/occupancy/occupied", {
       headers: { "X-Internal-Request": "1" },
     }).then((res) => res.json());
-    const getAllAssignedStands = await fetch("/api/occupancy/assigned", {
+    const getAllAssignedStands = await fetch(API_BASE_URL + "/api/occupancy/assigned", {
       headers: { "X-Internal-Request": "1" },
     }).then((res) => res.json());
-    const getAllBlockedStands = await fetch("/api/occupancy/blocked", {
+    const getAllBlockedStands = await fetch(API_BASE_URL + "/api/occupancy/blocked", {
       headers: { "X-Internal-Request": "1" },
     }).then((res) => res.json());
     
@@ -245,7 +247,7 @@ let reportsChart = null;
 let airportChart = null;
 
 async function fetchReportsPerHour() {
-  const res = await fetch("/api/stats/reports-per-hour", {
+  const res = await fetch(API_BASE_URL + "/api/stats/reports-per-hour", {
     headers: { "X-Internal-Request": "1" }
   });
   if (!res.ok) {
@@ -257,7 +259,7 @@ async function fetchReportsPerHour() {
 }
 
 async function fetchRequestsPerHour() {
-  const res = await fetch("/api/stats/requests-per-hour", {
+  const res = await fetch(API_BASE_URL + "/api/stats/requests-per-hour", {
     headers: { "X-Internal-Request": "1" }
   });
   if (!res.ok) {
@@ -413,7 +415,7 @@ function renderAirportChart(airports) {
   // Convert airports object to array
   const airportArr = Object.values(airports);
 
-  const chartColors = ["#4a90e2", "#e94e77", "#50b848", "#f5a623"];
+  const chartColors = ["#4a90e2", "#e94e77", "#50b848", "#f5a623", "#9013fe", "#f8e71c", "#7ed321", "#d0021b"];
   const canvas = document.getElementById("airportChart");
   if (!canvas) {
     console.warn("renderAirportChart -> canvas#airportChart not found");
@@ -521,9 +523,9 @@ let cachedFilters = {
 async function populateLogFilters() {
   try {
     const [categoriesRes, icaosRes, callsignsRes] = await Promise.all([
-      fetch("/api/logs/categories", { headers: { "X-Internal-Request": "1" } }),
-      fetch("/api/logs/icaos", { headers: { "X-Internal-Request": "1" } }),
-      fetch("/api/logs/callsigns", { headers: { "X-Internal-Request": "1" } })
+      fetch(API_BASE_URL + "/api/logs/categories", { headers: { "X-Internal-Request": "1" } }),
+      fetch(API_BASE_URL + "/api/logs/icaos", { headers: { "X-Internal-Request": "1" } }),
+      fetch(API_BASE_URL + "/api/logs/callsigns", { headers: { "X-Internal-Request": "1" } })
     ]);
 
     // Check responses
@@ -536,12 +538,28 @@ async function populateLogFilters() {
       return;
     }
 
-    const [categories, icaos, callsigns] = await Promise.all([
-      categoriesRes.json(),
-      icaosRes.json(),
-      callsignsRes.json()
-    ]);
-
+    let categories, icaos, callsigns;
+    
+    try {
+      categories = await categoriesRes.json();
+    } catch (e) {
+      console.error('Failed to parse categories JSON:', e);
+      categories = [];
+    }
+    
+    try {
+      icaos = await icaosRes.json();
+    } catch (e) {
+      console.error('Failed to parse icaos JSON:', e);
+      icaos = [];
+    }
+    
+    try {
+      callsigns = await callsignsRes.json();
+    } catch (e) {
+      console.error('Failed to parse callsigns JSON:', e);
+      callsigns = [];
+    }
 
     // Ensure responses are arrays
     const categoriesArray = Array.isArray(categories) ? categories : [];
@@ -566,24 +584,23 @@ async function populateLogFilters() {
 function updateDropdownIfChanged(selectId, newValues, cachedSet, defaultLabel) {
   const select = document.getElementById(selectId);
   if (!select) {
-    console.warn("updateDropdownIfChanged: select element #" + selectId + " not found");
+    console.warn('updateDropdownIfChanged: select element not found -', selectId);
     return;
   }
 
   // Ensure newValues is an array
   if (!Array.isArray(newValues)) {
-    console.warn("updateDropdownIfChanged: newValues for #" + selectId + " is not an array", newValues);
+    console.warn('updateDropdownIfChanged: newValues is not an array for', selectId, newValues);
     newValues = [];
   }
 
   // Check if there are new values
   const newSet = new Set(newValues);
   const hasChanges = newSet.size !== cachedSet.size || 
-                     [...newSet].some(v => !cachedSet.has(v));
+                     [...newSet].some(function(v) { return !cachedSet.has(v); }); // ✅ Use function instead of arrow
 
   // Always update if cache is empty (first load)
   if (!hasChanges && cachedSet.size > 0) return; // No changes, skip update
-
 
   // Store current selection
   const currentValue = select.value;
@@ -591,7 +608,7 @@ function updateDropdownIfChanged(selectId, newValues, cachedSet, defaultLabel) {
   // Clear and rebuild dropdown
   select.innerHTML = '<option value="">' + defaultLabel + '</option>';
 
-  newValues.forEach((value) => {
+  newValues.forEach(function(value) { // ✅ Use function instead of arrow
     const option = document.createElement("option");
     option.value = value;
     option.textContent = value;
@@ -605,7 +622,7 @@ function updateDropdownIfChanged(selectId, newValues, cachedSet, defaultLabel) {
 
   // Update cache
   cachedSet.clear();
-  newSet.forEach(v => cachedSet.add(v));
+  newSet.forEach(function(v) { cachedSet.add(v); }); // ✅ Use function instead of arrow
 }
 
 // Fetch logs from server and render into the log area
@@ -648,22 +665,21 @@ async function fetchFilteredLogs(reset = false) {
     return;
   }
   
-  const level = levelSelect.value;
-  const category = categorySelect.value;
-  const icao = icaoSelect.value;
-  const callsign = callsignSelect.value;
+  const level = levelSelect.value || '';
+  const category = categorySelect.value || '';
+  const icao = icaoSelect.value || '';
+  const callsign = callsignSelect.value || '';
   
-  const params = new URLSearchParams({
-    level,
-    category,
-    icao,
-    callsign,
-    page: currentPage,
-    pageSize: 100
-  });
+  const params = new URLSearchParams();
+  if (level) params.append('level', String(level));
+  if (category) params.append('category', String(category));
+  if (icao) params.append('icao', String(icao));
+  if (callsign) params.append('callsign', String(callsign));
+  params.append('page', String(currentPage));
+  params.append('pageSize', '100');
 
   try {
-    const url = "/api/logs/filter?" + params.toString();
+    const url = API_BASE_URL + "/api/logs/filter?" + params.toString();
     
     const response = await fetch(url, {
       headers: { "X-Internal-Request": "1" }
@@ -827,24 +843,6 @@ function updateLogDisplay(logs) {
   }
 }
 
-// FIXME: disabled for now, check if really needed
-function addLogEntry(level, message) {
-  // const entry = {
-  //   timestamp: new Date().toISOString(),
-  //   level: level,
-  //   message: message,
-  // };
-
-  // logEntries.push(entry);
-
-  // // Keep only last 1000 entries to prevent memory issues
-  // if (logEntries.length > 1000) {
-  //   logEntries = logEntries.slice(-1000);
-  // }
-
-  // updateLogDisplay();
-}
-
 function toggleAutoScroll() {
   autoScroll = !autoScroll;
   const button = document.getElementById("toggleAutoScroll");
@@ -999,7 +997,7 @@ let assignedStands = [];
 let blockedStands = [];
 
 function fetchOccupiedStands() {
-  fetch("/api/occupancy/occupied", { headers: { "X-Internal-Request": "1" } })
+  fetch(API_BASE_URL + "/api/occupancy/occupied", { headers: { "X-Internal-Request": "1" } })
     .then((res) => {
       if (!res.ok) throw new Error("Network response was not ok");
       return res.json();
@@ -1016,7 +1014,7 @@ function fetchOccupiedStands() {
 }
 
 function fetchAssignedStands() {
-  fetch("/api/occupancy/assigned", { headers: { "X-Internal-Request": "1" } })
+  fetch(API_BASE_URL + "/api/occupancy/assigned", { headers: { "X-Internal-Request": "1" } })
     .then((res) => {
       if (!res.ok) throw new Error("Network response was not ok");
       return res.json();
@@ -1033,7 +1031,7 @@ function fetchAssignedStands() {
 }
 
 function fetchBlockedStands() {
-  fetch("/api/occupancy/blocked", { headers: { "X-Internal-Request": "1" } })
+  fetch(API_BASE_URL + "/api/occupancy/blocked", { headers: { "X-Internal-Request": "1" } })
     .then((res) => {
       if (!res.ok) throw new Error("Network response was not ok");
       return res.json();
@@ -1127,7 +1125,7 @@ function renderConfigButtons() {
   const container = document.getElementById("configButtonContainer");
   if (!container) return;
   container.innerHTML = "<p>Loading presets...</p>";
-  fetch("/api/airports", { headers: { "X-Internal-Request": "1" } })
+  fetch(API_BASE_URL + "/api/airports", { headers: { "X-Internal-Request": "1" } })
     .then((res) => {
       if (!res.ok) throw new Error("Network response was not ok");
       return res.json();
@@ -1183,7 +1181,7 @@ function syntaxHighlight(json) {
 
 function loadConfig(presetName) {
   if (!presetName) return;
-  fetch("/api/airports/config/" + encodeURIComponent(presetName), {
+  fetch(API_BASE_URL + "/api/airports/config/" + encodeURIComponent(presetName), {
     method: "GET",
     headers: { "X-Internal-Request": "1" },
   })
@@ -1222,7 +1220,7 @@ function initializeMap() {
     // Initialize Leaflet map
     map = L.map("map", {
       maxZoom: 19,
-    }).setView([49.009279, 2.565732], 14);
+    }).setView([47.009279, 3.765732], 6);
 
   // Add satellite tile layer
   L.tileLayer(
@@ -1286,11 +1284,7 @@ function initializeMap() {
       container.title = "Return to initial view";
 
       container.onclick = function () {
-        if (initialBounds && initialBounds.isValid()) {
-          map.fitBounds(initialBounds, { animate: true, duration: 1 });
-        } else {
-          map.setView([49.009279, 2.565732], 7, { animate: true });
-        }
+          map.setView([47.009279, 3.765732], 6, { animate: true });
       };
 
       L.DomEvent.disableClickPropagation(container);
@@ -1311,7 +1305,7 @@ function initializeMap() {
 
 function loadMapData() {
   // Draw stands on map
-  fetch("/api/airports/stands")
+  fetch(API_BASE_URL + "/api/airports/stands", { headers: { "X-Internal-Request": "1" } })
     .then((res) => {
       if (!res.ok) throw new Error("Network response was not ok");
       return res.json();
@@ -1375,7 +1369,7 @@ function loadMapData() {
   }, 10000);
 
   // Draw airports on map
-  fetch("/api/airports")
+  fetch(API_BASE_URL + "/api/airports")
     .then((res) => {
       if (!res.ok) throw new Error("Network response was not ok");
       return res.json();
@@ -1398,14 +1392,6 @@ function loadMapData() {
           "No valid airport coordinates found in /api/airports response",
           data
         );
-      } else {
-        const markers = airports.map((a) => L.marker(a.coords));
-        const group = new L.featureGroup(markers);
-        const bounds = group.getBounds();
-        if (bounds.isValid && bounds.isValid()) {
-          map.fitBounds(bounds.pad(0.5));
-          initialBounds = bounds.pad(0.5);
-        }
       }
 
       const zoomThreshold = 5;
