@@ -336,8 +336,8 @@ function renderReportsChart(reportsData, requestsData = []) {
           {
             label: "Reports / hour",
             data: reportsCounts,
-            backgroundColor: "rgba(104, 139, 239,0.7)",
-            borderColor: "rgba(54,162,235,1)",
+            backgroundColor: "#30a9d8",
+            borderColor: "#3997bdff",
             borderWidth: 1,
             borderRadius: 3,
             maxBarThickness: 40,
@@ -415,7 +415,7 @@ function renderAirportChart(airports) {
   // Convert airports object to array
   const airportArr = Object.values(airports);
 
-  const chartColors = ["#4a90e2", "#e94e77", "#50b848", "#f5a623", "#9013fe", "#f8e71c", "#7ed321", "#d0021b"];
+  const chartColors = ["#36e695", "#2fdba9", "#2bccbc", "#2cbbcc", "#30a9d8", "#3896dc", "#4382df", "#4f70d9", "#5c60cc", "#6650bc"];
   const canvas = document.getElementById("airportChart");
   if (!canvas) {
     console.warn("renderAirportChart -> canvas#airportChart not found");
@@ -437,8 +437,8 @@ function renderAirportChart(airports) {
           {
             data: airportArr.map((a) => a.occupied.length),
             backgroundColor: chartColors,
-            borderColor: "#222",
-            borderWidth: 0,
+            borderColor: "#5f5f5f",
+            borderWidth: 1,
           },
         ],
       },
@@ -449,7 +449,7 @@ function renderAirportChart(airports) {
           legend: {
             position: "top",
             labels: {
-              color: "#888888",
+              color: "#b1b1b1ff",
             },
           },
           tooltip: {
