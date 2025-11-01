@@ -272,10 +272,12 @@ const isAircraftOnStand = async (
 
     if (aircraftDist <= coords.radius) {
       if (!ac.flight_plan || !ac.flight_plan.aircraft_short || ac.flight_plan.aircraft_short === "UNKNOWN" || ac.flight_plan.aircraft_short === "") {
-        warn(
-          `Aircraft ${ac.callsign} on ground at ${ac.origin} has unknown type`,
-          { category: "Missing Data", callsign: ac.callsign, icao: ac.origin }
-        );
+        if (ac.flight_plan) {
+          warn(
+            `Aircraft ${ac.callsign} on ground at ${ac.origin} has unknown type`,
+            { category: "Missing Data", callsign: ac.callsign, icao: ac.origin }
+          );
+        }
         return standName;
       }
       if (!standDef.Block) {
@@ -369,12 +371,16 @@ const blockStands = (standDef, icao, callsign) => {
   }
 };
 
-function getAirportCoordinates(icao) {
-  const airport = airportService.getAirportConfig(icao);
-  if (!airport || !airport.coordinates) {
+async function getAirportCoordinates(icao) {
+  const airport = await airportService.getAirportConfig(icao);
+  if (!airport || !airport.Coordinates) {
+    info(`Cannot retrieve coordinates for airport ${icao}`, {
+      category: "Assignation",
+      icao: icao,
+    });
     return null;
   }
-  let coordinates = parseCoordinates(airport.coordinates, 5000);
+  let coordinates = parseCoordinates(airport.Coordinates, 5000);
   return coordinates;
 }
 
@@ -406,7 +412,12 @@ function isConcernedArrival(ac, config, airportSet) {
     return false;
   }
   ac.remainingDistance = calculateRemainingDistance(ac);
-  if (ac.remainingDistance * 0.00053996 > config.max_distance) { // convert to nautical miles
+  if (ac.remainingDistance / 1000 * 0.00053996 > config.max_distance) { // convert to nautical miles
+    info(`Aircraft ${ac.callsign} is not concerned for arrival at ${ac.destination} since distance ${ac.remainingDistance * 0.00053996} > ${config.max_distance}`, {
+      category: "Arrival",
+      callsign: ac.callsign,
+      icao: ac.destination,
+    });
     return false;
   }
   return true;
@@ -637,7 +648,7 @@ function assignStand(airportConfig, config, ac) {
     const standName = Object.keys(airportConfig.Stands).find(
       (name) => airportConfig.Stands[name] === selectedStandDef
     );
-    const stand = new Stand(standName, airportConfig.ICAO, callsign);
+    const stand = new Stand(standName, airportConfig.ICAO, ac.callsign);
     info(`Assigning Stand ${standName} to ${ac.callsign}`, {
       category: "Assignation",
       callsign: ac.callsign,
@@ -739,9 +750,12 @@ processDatafeed = async (aircrafts) => {
         standDef &&
         (standDef.Apron === undefined || standDef.Apron === false)
       ) {
-        const aircraftCode = getAircraftCode(
-          getAircraftWingspan(config, ac.flight_plan.aircraft_short)
-        );
+        let aircraftCode = "UNKNOWN";
+        if (ac.flight_plan && ac.flight_plan.aircraft_short && ac.flight_plan.aircraft_short !== "UNKNOWN" && ac.flight_plan.aircraft_short !== "") {
+          aircraftCode = getAircraftCode(
+            getAircraftWingspan(config, ac.flight_plan.aircraft_short)
+          );
+        }
         let remark = "";
         if (standDef.Remark && typeof standDef.Remark === "object") {
           // Iterate through all keys in the Remark object
@@ -774,14 +788,16 @@ processDatafeed = async (aircrafts) => {
 
   // Handle airborne aircraft - (ie: assign stand if criterias met)
   for (let ac of Object.values(aircrafts.airborne || {})) {
-    // console.log(`Airborne Aircraft Info: ${JSON.stringify(ac)}`);
+    if (!ac.flight_plan) {
+      continue;
+    }
     ac.origin = ac.flight_plan.departure;
     ac.destination = ac.flight_plan.arrival;
     // Check Assignement conditions
     if (!isConcernedArrival(ac, config, airportSet)) {
       continue;
     }
-
+    
     // Aircraft meets requirements for stand assignment
     // Use cached config
     let airportConfig = airportConfigCache.get(ac.destination);
