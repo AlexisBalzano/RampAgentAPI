@@ -34,7 +34,6 @@ exports.getDatafeed = () => {
       if (data && data.pilots && data.pilots.length > 0) {
         // Process aircraft data
         const filteredDatafeed = filterDatafeed(data.pilots);
-        info(`Datafeed processed: ${filteredDatafeed.onGround.length} on ground, ${filteredDatafeed.airborne.length} airborne`, { category: 'Report' });
         // Pass to occupancy service
         occupancyService.processDatafeed(filteredDatafeed);
       }
