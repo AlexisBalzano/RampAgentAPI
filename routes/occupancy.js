@@ -5,5 +5,6 @@ const occupancyController = require('../controllers/occupancyController');
 router.get('/occupied', occupancyController.getOccupied);
 router.get('/assigned', occupancyController.getAssigned);
 router.get('/blocked', occupancyController.getBlocked);
+router.get('/', occupancyController.getAllStandsStatus);
 
 module.exports = router;

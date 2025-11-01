@@ -1826,22 +1826,22 @@ body.dark-mode .letter::after {
     transform: rotateX(0deg);
   }
   20% {
-    content: "0";
+    content: "V";
     transform: rotateX(360deg);
   }
   40% {
     color: #afafaf;
-    content: "H";
+    content: "5";
     transform: rotateX(0deg);
   }
   60% {
     color: #afafaf;
-    content: "J";
+    content: "B";
     transform: rotateX(360deg);
   }
   80% {
     color: #afafaf;
-    content: "E";
+    content: "1";
     transform: rotateX(0deg);
   }
   100% {
