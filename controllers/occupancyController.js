@@ -64,11 +64,12 @@ exports.getAllStandsStatus = (req, res) => {
         icao: s.icao,
         callsign: s.callsign || null,
       }));
-
+      
       const occupiedStands = occupancyService.registry.getAllOccupied().map((s) => ({
         name: s.name,
         icao: s.icao,
         callsign: s.callsign || null,
+        remark: s.remark || null,
       }));
 
       const blockedStands = occupancyService.registry.getAllBlocked().map((s) => ({
