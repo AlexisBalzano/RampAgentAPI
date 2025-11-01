@@ -7,7 +7,7 @@ const logger = require('./utils/logger');
 
 const env = process.env.NODE_ENV || 'default';
 const config = require(`./config/${env}.js`);
-const reportRoutes = require('./routes/report');
+const reportController = require('./controllers/reportController');
 const assignRoutes = require('./routes/assign');
 const occupancyRoutes = require('./routes/occupancy');
 const airportRoutes = require('./routes/airports');
@@ -87,7 +87,6 @@ app.use('/api/stats', statRoutes);
 
 // Register routes
 app.use('/debug', express.static(path.join(__dirname, 'viewer')));
-app.use('/api/report', reportRoutes);
 app.use('/api/assign', assignRoutes);
 app.use('/api/occupancy', occupancyRoutes);
 
@@ -95,11 +94,24 @@ app.use('/api/occupancy', occupancyRoutes);
 redisService.connect().then(() => {
   app.listen(config.port, () => {
     logger.info(`Server running at http://localhost:${config.port}`, { category: 'System' });
+    startDatafeedProcessing();
   });
 }).catch(err => {
   logger.error(`Failed to start server: ${err.message}`, { category: 'System' });
   process.exit(1);
 });
+
+function startDatafeedProcessing() {
+  // Initial call
+  reportController.getDatafeed();
+  
+  const datafeedInterval = setInterval(() => {
+    reportController.getDatafeed();
+  }, 15_000); // Every 15 seconds since datafeed regenerate every 15 seconds
+  
+  // Store interval ID for cleanup
+  process.datafeedInterval = datafeedInterval;
+}
 
 // Periodically check for airport config updates
 setInterval(async () => {
@@ -113,6 +125,13 @@ setInterval(async () => {
 // Shutdown handling
 process.on('SIGINT', async () => {
   logger.info('Shutting down...', { category: 'System' });
+
+  // Clean up intervals
+  if (process.datafeedInterval) {
+    clearInterval(process.datafeedInterval);
+    logger.info('Datafeed interval cleared', { category: 'System' });
+  }
+
   await redisService.disconnect();
   process.exit(0);
 });
