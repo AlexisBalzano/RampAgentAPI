@@ -5,6 +5,9 @@ const { haversineMeters } = require("../utils/utils");
 // Cache for parsed coordinates to avoid repeated string splitting
 const coordinateCache = new Map(); // key: "lat:lon:alt" -> { lat, lon, radius }
 
+// Cache to avoid log flooding when unknown aircraft types are encountered
+const aircraftTypeCache = new Set();
+
 // Helper to parse and cache coordinates
 function parseCoordinates(coordString, defaultRadius = 30) {
   if (!coordString) return null;
@@ -473,9 +476,12 @@ function getAircraftWingspan(config, aircraftType) {
     return 81;
   const wingspan = config.AircraftWingspans[aircraftType.toUpperCase()];
   if (!wingspan) {
-    warn(`Unknown wingspan for aircraft type ${aircraftType}`, {
-      category: "Missing Data",
-    });
+    if (!aircraftTypeCache.has(aircraftType)) {
+      warn(`Unknown wingspan for aircraft type ${aircraftType}`, {
+        category: "Missing Data",
+      });
+      aircraftTypeCache.add(aircraftType);
+    }
     return 81; // default if unknown
   }
   return wingspan;
