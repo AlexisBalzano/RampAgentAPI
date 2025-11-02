@@ -1,4 +1,4 @@
-const API_BASE_URL = 'https://pintade.vatsim.fr/rampagent';
+const API_BASE_URL = "";
 
 /* Set the width of the side navigation to 250px */
 function openNav() {
@@ -20,6 +20,7 @@ function toggleDarkMode() {
   if (typeof window.switchMapLayer === "function") {
     window.switchMapLayer();
   }
+  updateChartColors(isDarkMode);
 }
 
 document.addEventListener("DOMContentLoaded", function () {
@@ -346,6 +347,34 @@ function generateTimeWindow(hours = 24) {
   return timeLabels;
 }
 
+function updateChartColors(isDarkMode) {
+  const gridColor = isDarkMode ? "#ccc" : "#595959";
+  const axisTextColor = isDarkMode ? "#ccc" : "#333";
+  const legendTextColor = isDarkMode ? "#ccc" : "#333";
+
+  // Update reports chart if it exists
+  if (reportsChart) {
+    // Update grid colors
+    reportsChart.options.scales.x.grid.color = gridColor;
+    reportsChart.options.scales.y.grid.color = gridColor;
+    
+    // Update tick colors
+    reportsChart.options.scales.x.ticks.color = axisTextColor;
+    reportsChart.options.scales.y.ticks.color = axisTextColor;
+    
+    // Update legend color
+    reportsChart.options.plugins.legend.labels.color = legendTextColor;
+    
+    reportsChart.update('active');
+  }
+
+  // Update airport chart if it exists
+  if (airportChart) {
+    airportChart.options.plugins.legend.labels.color = legendTextColor;
+    airportChart.update('active');
+  }
+}
+
 function renderReportsChart(reportsData, requestsData = []) {
   if (!Array.isArray(reportsData)) {
     console.warn("renderReportsChart -> invalid data", reportsData);
@@ -353,9 +382,9 @@ function renderReportsChart(reportsData, requestsData = []) {
   }
 
   const isDarkMode = document.body.classList.contains("dark-mode");
-  const gridColor = isDarkMode ? "#444" : "#b0b0b0";
-  const axisTextColor = isDarkMode ? "#444" : "#b0b0b0";
-  const legendTextColor = isDarkMode ? "#444" : "#b0b0b0";
+  const gridColor = isDarkMode ? "#666" : "#ddd";
+  const axisTextColor = isDarkMode ? "#ccc" : "#333";
+  const legendTextColor = isDarkMode ? "#ccc" : "#333";
 
   const timeWindow = generateTimeWindow(24);
   const reportsMap = new Map(
@@ -1370,17 +1399,18 @@ function initializeMap() {
       {
         attribution: "Tiles &copy; Esri",
         maxZoom: 19,
-        className: 'map-layer'
+        className: "map-layer",
       }
     );
 
     const darkLayer = L.tileLayer(
       "https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png",
       {
-        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>',
-        subdomains: 'abcd',
+        attribution:
+          '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>',
+        subdomains: "abcd",
         maxZoom: 20,
-        className: 'map-layer'
+        className: "map-layer",
       }
     );
 
@@ -1444,7 +1474,6 @@ function initializeMap() {
           "leaflet-bar leaflet-control leaflet-control-custom"
         );
         container.innerHTML = "<i class='bx  bx-home'></i>";
-
 
         container.style.backgroundSize = "16px 16px";
         container.style.backgroundPosition = "center";
