@@ -52,9 +52,8 @@ body.dark-mode h2 {
   color: #b6b6b6;
 }
 
-.bx {
+.bx-menu {
   font-size: 50px;
-  color: white;
 }
 
 .bx-menu {
@@ -372,6 +371,28 @@ body.dark-mode .log-container::-webkit-scrollbar-track {
   z-index: 0;
 }
 
+.map-layer {
+  filter: brightness(1) contrast(1);
+}
+body.dark-mode .map-layer {
+  filter: brightness(2) contrast(1.1);
+}
+
+
+.leaflet-bar a, .leaflet-control-custom{
+  background-color: #FFFFFF;
+  color: #000000;
+  font-size: 20px;
+  text-align: center;
+  border-bottom: 1px solid #ccc;
+}
+body.dark-mode .leaflet-bar a, body.dark-mode .leaflet-control-custom {
+  background-color: #4a4a4a;
+  color: #FFFFFF;
+  border-bottom: 1px solid #636363;
+}
+
+
 .stand-info {
   font-weight: bold;
 }
@@ -421,6 +442,10 @@ body.dark-mode .stand-popup-content strong {
   padding: 10px;
   border-radius: 5px;
   box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+}
+body.dark-mode .legend {
+  background: #4a4a4a;
+  color: #e0e0e0;
 }
 
 /* center stand label at the point */
