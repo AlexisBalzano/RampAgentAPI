@@ -15,7 +15,28 @@ function toggleDarkMode() {
   document.body.classList.toggle("dark-mode");
   const isDarkMode = document.body.classList.contains("dark-mode");
   localStorage.setItem("darkMode", isDarkMode ? "enabled" : "disabled");
+
+  // Switch map layer 
+  if (typeof window.switchMapLayer === 'function') {
+    window.switchMapLayer();
+  }
 }
+
+document.addEventListener('DOMContentLoaded', function() {
+  // Check localStorage for dark mode preference
+  const darkMode = localStorage.getItem("darkMode");
+  
+  if (darkMode === "enabled") {
+    document.body.classList.add("dark-mode");
+  }
+  
+  // Switch map layer after map is initialized
+  setTimeout(() => {
+    if (typeof window.switchMapLayer === 'function') {
+      window.switchMapLayer();
+    }
+  }, 100);
+});
 
 // High volume detection and performance mode
 let performanceMode = false;
@@ -1222,79 +1243,107 @@ function initializeMap() {
       maxZoom: 19,
     }).setView([47.009279, 3.765732], 6);
 
-  // Add satellite tile layer
-  L.tileLayer(
-    "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
-    {
-      attribution:
-        "Tiles &copy; Esri &mdash; Source: Esri, i-cubed, USDA, USGS, AEX, GeoEye, Getmapping, Aerogrid, IGN, IGP, UPR-EGP, and the GIS User Community",
-      maxZoom: 19,
-    }
-  ).addTo(map);
+    // Define multiple tile layers
+    const satelliteLayer = L.tileLayer(
+      "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
+      {
+        attribution: "Tiles &copy; Esri",
+        maxZoom: 19,
+      }
+    );
 
-  // Add legend
-  var legend = L.control({ position: "topright" });
-  legend.onAdd = function (map) {
-    var div = L.DomUtil.create("div", "legend");
-    div.innerHTML =
-      "<h4>Stands Legend</h4>" +
-      '<i style="background:#FFFFFF; width:18px; height:18px; display:inline-block; margin-right:8px; opacity:0.7; border-radius:50%; border: 1px solid #CCCCCC;"></i> Airport<br>' +
-      '<i style="background:#96CEB4; width:18px; height:18px; display:inline-block; margin-right:8px; opacity:0.7; border-radius:50%; border: 1px solid #CCCCCC;"></i> Free<br>' +
-      '<i style="background:#cdc54eff; width:18px; height:18px; display:inline-block; margin-right:8px; opacity:0.7; border-radius:50%; border: 1px solid #CCCCCC;"></i> Blocked<br>' +
-      '<i style="background:#3a91acff; width:18px; height:18px; display:inline-block; margin-right:8px; opacity:0.7; border-radius:50%; border: 1px solid #CCCCCC;"></i> Assigned<br>' +
-      '<i style="background:#FF6B6B; width:18px; height:18px; display:inline-block; margin-right:8px; opacity:0.7; border-radius:50%; border: 1px solid #CCCCCC;"></i> Occupied<br><br>';
-    L.DomEvent.disableClickPropagation(div);
-    return div;
-  };
-  legend.addTo(map);
+    const darkLayer = L.tileLayer(
+      "https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png",
+      {
+        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>',
+        subdomains: 'abcd',
+        maxZoom: 20
+      }
+    );
 
-  // Initial fetch and periodic refresh for stand status
-  fetchOccupiedStands();
-  fetchAssignedStands();
-  fetchBlockedStands();
-  setInterval(fetchOccupiedStands, 10000);
-  setInterval(fetchAssignedStands, 10000);
-  setInterval(fetchBlockedStands, 10000);
+    window.mapLayers = {
+      light: satelliteLayer,
+      dark: darkLayer,
+      current: null
+    };
 
-  // Add map event handlers
-  map.on("zoomend", updateMarkerSizes);
+    window.switchMapLayer = function() {
+      const isDarkMode = document.body.classList.contains("dark-mode");
+      const newLayer = isDarkMode ? darkLayer : satelliteLayer;
+      
+      if (window.mapLayers.current && map.hasLayer(window.mapLayers.current)) {
+        map.removeLayer(window.mapLayers.current);
+      }
+      
+      newLayer.addTo(map);
+      window.mapLayers.current = newLayer;
+    };
 
-  // Store initial bounds when ready
-  map.whenReady(function () {
-    initialBounds = map.getBounds();
-  });
+    switchMapLayer();
 
-  // Add home control
-  var HomeControl = L.Control.extend({
-    onAdd: function (map) {
-      var container = L.DomUtil.create(
-        "div",
-        "leaflet-bar leaflet-control leaflet-control-custom"
-      );
+    // Add legend
+    var legend = L.control({ position: "topright" });
+    legend.onAdd = function (map) {
+      var div = L.DomUtil.create("div", "legend");
+      div.innerHTML =
+        "<h4>Stands Legend</h4>" +
+        '<i style="background:#FFFFFF; width:18px; height:18px; display:inline-block; margin-right:8px; opacity:0.7; border-radius:50%; border: 1px solid #CCCCCC;"></i> Airport<br>' +
+        '<i style="background:#96CEB4; width:18px; height:18px; display:inline-block; margin-right:8px; opacity:0.7; border-radius:50%; border: 1px solid #CCCCCC;"></i> Free<br>' +
+        '<i style="background:#cdc54eff; width:18px; height:18px; display:inline-block; margin-right:8px; opacity:0.7; border-radius:50%; border: 1px solid #CCCCCC;"></i> Blocked<br>' +
+        '<i style="background:#3a91acff; width:18px; height:18px; display:inline-block; margin-right:8px; opacity:0.7; border-radius:50%; border: 1px solid #CCCCCC;"></i> Assigned<br>' +
+        '<i style="background:#FF6B6B; width:18px; height:18px; display:inline-block; margin-right:8px; opacity:0.7; border-radius:50%; border: 1px solid #CCCCCC;"></i> Occupied<br><br>';
+      L.DomEvent.disableClickPropagation(div);
+      return div;
+    };
+    legend.addTo(map);
 
-      container.style.backgroundColor = "white";
-      container.style.backgroundImage =
-        "url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyNCIgaGVpZ2h0PSIyNCIgdmlld0JveD0iMCAwIDI0IDI0IiBmaWxsPSJub25lIiBzdHJva2U9ImN1cnJlbnRDb2xvciIgc3Ryb2tlLXdpZHRoPSIyIiBzdHJva2UtbGluZWNhcD0icm91bmQiIHN0cm9rZS1saW5lam9pbj0icm91bmQiPjxwYXRoIGQ9Im0zIDkgOS03IDkgN3YxMWgtNnYtNGgtNnY0aC02eiIvPjwvc3ZnPg==')";
-      container.style.backgroundSize = "16px 16px";
-      container.style.backgroundPosition = "center";
-      container.style.backgroundRepeat = "no-repeat";
-      container.style.width = "30px";
-      container.style.height = "30px";
-      container.style.cursor = "pointer";
-      container.title = "Return to initial view";
+    // Initial fetch and periodic refresh for stand status
+    fetchOccupiedStands();
+    fetchAssignedStands();
+    fetchBlockedStands();
+    setInterval(fetchOccupiedStands, 10000);
+    setInterval(fetchAssignedStands, 10000);
+    setInterval(fetchBlockedStands, 10000);
 
-      container.onclick = function () {
-          map.setView([47.009279, 3.765732], 6, { animate: true });
-      };
+    // Add map event handlers
+    map.on("zoomend", updateMarkerSizes);
 
-      L.DomEvent.disableClickPropagation(container);
-      return container;
-    },
-    onRemove: function (map) {}
-  });
+    // Store initial bounds when ready
+    map.whenReady(function () {
+      initialBounds = map.getBounds();
+    });
 
-  var homeControl = new HomeControl({ position: "topleft" });
-  homeControl.addTo(map);
+    // Add home control
+    var HomeControl = L.Control.extend({
+      onAdd: function (map) {
+        var container = L.DomUtil.create(
+          "div",
+          "leaflet-bar leaflet-control leaflet-control-custom"
+        );
+
+        container.style.backgroundColor = "white";
+        container.style.backgroundImage =
+          "url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyNCIgaGVpZ2h0PSIyNCIgdmlld0JveD0iMCAwIDI0IDI0IiBmaWxsPSJub25lIiBzdHJva2U9ImN1cnJlbnRDb2xvciIgc3Ryb2tlLXdpZHRoPSIyIiBzdHJva2UtbGluZWNhcD0icm91bmQiIHN0cm9rZS1saW5lam9pbj0icm91bmQiPjxwYXRoIGQ9Im0zIDkgOS03IDkgN3YxMWgtNnYtNGgtNnY0aC02eiIvPjwvc3ZnPg==')";
+        container.style.backgroundSize = "16px 16px";
+        container.style.backgroundPosition = "center";
+        container.style.backgroundRepeat = "no-repeat";
+        container.style.width = "30px";
+        container.style.height = "30px";
+        container.style.cursor = "pointer";
+        container.title = "Return to initial view";
+
+        container.onclick = function () {
+            map.setView([47.009279, 3.765732], 6, { animate: true });
+        };
+
+        L.DomEvent.disableClickPropagation(container);
+        return container;
+      },
+      onRemove: function (map) {}
+    });
+
+    var homeControl = new HomeControl({ position: "topleft" });
+    homeControl.addTo(map);
 
     // Load stands and airports data
     loadMapData();

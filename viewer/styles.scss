@@ -371,9 +371,6 @@ body.dark-mode .log-container::-webkit-scrollbar-track {
   border-radius: 15px;
   z-index: 0;
 }
-body.dark-mode #map {
-  filter: brightness(0.6);
-}
 
 .stand-info {
   font-weight: bold;

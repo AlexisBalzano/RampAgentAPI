@@ -389,10 +389,6 @@ body.dark-mode .log-container::-webkit-scrollbar-track {
   z-index: 0;
 }
 
-body.dark-mode #map {
-  filter: brightness(0.6);
-}
-
 .stand-info {
   font-weight: bold;
 }
@@ -1826,17 +1822,17 @@ body.dark-mode .letter::after {
     transform: rotateX(0deg);
   }
   20% {
-    content: "V";
+    content: "T";
     transform: rotateX(360deg);
   }
   40% {
     color: #afafaf;
-    content: "5";
+    content: "H";
     transform: rotateX(0deg);
   }
   60% {
     color: #afafaf;
-    content: "B";
+    content: "C";
     transform: rotateX(360deg);
   }
   80% {
@@ -1926,4 +1922,4 @@ body.dark-mode .performance-toggle.active {
   box-shadow: 0 0 10px rgba(230, 126, 34, 0.5);
 }
 
-/*# sourceMappingURL=styles.css.map */
+/*# sourceMappingURL=Styles.css.map */
