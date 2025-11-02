@@ -1026,7 +1026,10 @@ function fetchOccupiedStands() {
     .then((stands) => {
       if (Array.isArray(stands)) {
         // Store as ICAO-StandName format instead of just name
-        occupiedStands = stands.map((s) => s.icao + "-" + s.name);
+        occupiedStands = stands.map((s) => ({
+          id: s.icao + "-" + s.name,
+          callsign: s.callsign
+        }));
       }
     })
     .catch((err) => {
@@ -1043,7 +1046,10 @@ function fetchAssignedStands() {
     .then((stands) => {
       if (Array.isArray(stands)) {
         // Store as ICAO-StandName format instead of just name
-        assignedStands = stands.map((s) => s.icao + "-" + s.name);
+        assignedStands = stands.map((s) => ({
+          id: s.icao + "-" + s.name,
+          callsign: s.callsign
+        }));
       }
     })
     .catch((err) => {
@@ -1060,7 +1066,10 @@ function fetchBlockedStands() {
     .then((stands) => {
       if (Array.isArray(stands)) {
         // Store as ICAO-StandName format instead of just name
-        blockedStands = stands.map((s) => s.icao + "-" + s.name);
+        blockedStands = stands.map((s) => ({
+          id: s.icao + "-" + s.name,
+          callsign: s.callsign
+        }));
       }
     })
     .catch((err) => {
@@ -1070,15 +1079,15 @@ function fetchBlockedStands() {
 
 function getStandColor(standName, apron) {
   // Now both standName and the arrays are in ICAO-StandName format
-  if (occupiedStands.includes(standName)) {
+  if (occupiedStands.some(s => s.id === standName)) {
     return ["#B22222", "#FF6B6B"]; // dark red border, light red fill (occupied)
   }
 
-  if (assignedStands.includes(standName)) {
+  if (assignedStands.some(s => s.id === standName)) {
     return ["#005864ff", "#3a91acff"]; // dark blue border, light blue fill (assigned)
   }
 
-  if (blockedStands.includes(standName)) {
+  if (blockedStands.some(s => s.id === standName)) {
     return ["#9c7c22ff", "#cdc54eff"]; // dark teal border, light teal fill (blocked)
   }
 
@@ -1352,6 +1361,27 @@ function initializeMap() {
   }
 }
 
+function createStandPopupContent(standId) {
+  const div = document.createElement("div");
+  div.className = "stand-popup-content";
+  div.innerHTML = "<h1>" + standId + "</h1>";
+
+  // Check occupied/assigned/blocked arrays for callsign
+  const occupied = occupiedStands.find(s => s.id === standId);
+  const assigned = assignedStands.find(s => s.id === standId);
+  const blocked = blockedStands.find(s => s.id === standId);
+  if (occupied) {
+    div.innerHTML += `<p>Occupied by <strong>${occupied.callsign}</strong></p>`;
+  } else if (assigned) {
+    div.innerHTML += `<p>Assigned to <strong>${assigned.callsign}</strong></p>`;
+  } else if (blocked) {
+    div.innerHTML += `<p>Blocked by <strong>${blocked.callsign}</strong></p>`;
+  } else {
+    div.innerHTML += `<p>Free</p>`;
+  }
+  return div;
+}
+
 function loadMapData() {
   // Draw stands on map
   fetch(API_BASE_URL + "/api/airports/stands", { headers: { "X-Internal-Request": "1" } })
@@ -1386,7 +1416,9 @@ function loadMapData() {
             fillOpacity: 0.8,
             radius: stand.radius,
             weight: 3,
-          }).bindPopup("<strong>" + stand.name + "</strong>");
+          }).bindPopup( () => {
+            return createStandPopupContent(stand.name);
+          });
 
           stand.label = L.marker(stand.coords, {
             interactive: false,

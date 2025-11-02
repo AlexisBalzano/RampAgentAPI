@@ -393,6 +393,51 @@ body.dark-mode .log-container::-webkit-scrollbar-track {
   font-weight: bold;
 }
 
+.leaflet-popup-content-wrapper {
+  padding: 1px;
+  text-align: center;
+}
+
+.leaflet-popup-content-wrapper, .leaflet-popup-tip {
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+}
+
+body.dark-mode .leaflet-popup-content-wrapper, body.dark-mode .leaflet-popup-tip {
+  background-color: #4a4a4a;
+  color: #e0e0e0;
+}
+
+.stand-popup-content h1 {
+  font-size: 15px;
+  margin: 0 0 8px 0;
+  color: #222;
+}
+
+body.dark-mode .stand-popup-content h1 {
+  color: #e0e0e0;
+}
+
+.stand-popup-content p {
+  margin: 1px 0;
+  font-size: 11px;
+  text-align: center;
+  color: #333;
+}
+
+body.dark-mode .stand-popup-content p {
+  color: #c0c0c0;
+}
+
+.stand-popup-content strong {
+  font-size: 12px;
+  font-weight: bold;
+  color: #000000;
+}
+
+body.dark-mode .stand-popup-content strong {
+  color: #ffffff;
+}
+
 .legend {
   background: white;
   padding: 10px;
@@ -1822,12 +1867,12 @@ body.dark-mode .letter::after {
     transform: rotateX(0deg);
   }
   20% {
-    content: "T";
+    content: "6";
     transform: rotateX(360deg);
   }
   40% {
     color: #afafaf;
-    content: "H";
+    content: "B";
     transform: rotateX(0deg);
   }
   60% {
@@ -1922,4 +1967,4 @@ body.dark-mode .performance-toggle.active {
   box-shadow: 0 0 10px rgba(230, 126, 34, 0.5);
 }
 
-/*# sourceMappingURL=Styles.css.map */
+/*# sourceMappingURL=styles.css.map */
