@@ -26,6 +26,13 @@ function toggleDarkMode() {
 document.addEventListener("DOMContentLoaded", function () {
   // Check localStorage for dark mode preference
   const darkMode = localStorage.getItem("darkMode");
+  
+  // Restore manual performance-mode preference from previous session
+  const performanceModeStored = localStorage.getItem("performanceModeManual");
+  manualToggle = performanceModeStored === "true";
+  if (manualToggle) {
+    enablePerformanceMode();
+  }
 
   if (darkMode === "enabled") {
     document.body.classList.add("dark-mode");
@@ -96,11 +103,15 @@ function showPerformanceModeNotification(enabled) {
 }
 
 let manualToggle = false;
+
 function togglePerformanceModeManual() {
   if (performanceMode) {
     disablePerformanceMode();
+    localStorage.setItem("performanceModeManual", "false");
+    manualToggle = false;
   } else {
     enablePerformanceMode();
+    localStorage.setItem("performanceModeManual", "true");
     manualToggle = true;
   }
   updatePerformanceToggleButton();
