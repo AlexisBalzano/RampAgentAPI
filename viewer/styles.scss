@@ -896,12 +896,25 @@ body.dark-mode .renewButton:hover {
   letter-spacing: 1px;
 }
 
-.actionCell {
-  width: 300px;
+/* visual for grabbed row during swipe */
+#apiKeyListTable tbody tr.swipe-dragging {
+  position: relative; /* allow z-index */
+  cursor: grabbing;
+  user-select: none;
+  /* subtle background so row reads as 'picked up' */
+  background-color: rgba(255, 255, 255, 0.02);
+  /* keep the rounded wrapper shadow intact; shadow appears on drag */
+  /* transform is applied inline by JS while dragging */
+  z-index: 1500;
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.18);
+  border-radius: 6px; /* soft edges while lifted */
 }
 
-
-
+/* dark-mode tweak */
+body.dark-mode #apiKeyListTable tbody tr.swipe-dragging {
+  background-color: rgba(0,0,0,0.06);
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.35);
+}
 
 /* Media Queries */
 @media screen and (min-width: 1100px) {
@@ -928,20 +941,16 @@ body.dark-mode .renewButton:hover {
   #apiKeyListTable .revokeButton {
     display: none;
   }
+  
+  .actionCell {
+    font-size: 0px;
+  }
 
   /* ensure vertical scrolling still works and allow horizontal gesture detection */
   #apiKeyListTable tbody tr {
     touch-action: pan-y;
     -webkit-tap-highlight-color: transparent;
-  }
-
-  /* small hint under each row (optional) */
-  #apiKeyListTable tbody tr::after {
-    content: 'Swipe ← to revoke • → to renew';
-    display: block;
-    font-size: 12px;
-    color: #777;
-    padding: 6px 12px;
+    height: 60px;
   }
 }
 

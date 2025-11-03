@@ -1709,47 +1709,150 @@ function revokeApiKey(apiKey) {
   if (!tbody) return;
 
   let startX = 0, startY = 0, activeRow = null;
+  let dragging = false;
   const HORIZONTAL_THRESHOLD = 50; // px needed to count as swipe
+  const MAX_TRANSLATE = 120; // px maximum visual translation
 
   function getRow(el) {
     while (el && el !== tbody && el.tagName !== 'TR') el = el.parentElement;
     return (el && el.tagName === 'TR') ? el : null;
   }
 
+  function startDrag(x, y, target) {
+    startX = x; startY = y;
+    activeRow = getRow(target);
+    if (!activeRow) return;
+    dragging = true;
+    activeRow.classList.add('swipe-dragging');
+    // remove transition to follow finger immediately
+    activeRow.style.transition = 'none';
+    activeRow.style.willChange = 'transform';
+    // visual lift while holding
+    activeRow.style.zIndex = '1500';
+    activeRow.style.boxShadow = '0 12px 30px rgba(0,0,0,0.18)';
+    // a tiny initial scale so user sees it's picked up
+    activeRow.style.transform = 'translateX(0) scale(1.01)';
+    // prevent text selection while dragging
+    activeRow.style.userSelect = 'none';
+  }
+
+  function moveDrag(x, y) {
+    if (!dragging || !activeRow) return;
+    const dx = x - startX;
+    const dy = y - startY;
+    // if mostly vertical, ignore horizontal visual moves
+    if (Math.abs(dy) > Math.abs(dx)) return;
+    const limited = Math.max(-MAX_TRANSLATE, Math.min(MAX_TRANSLATE, dx));
+    // small scale effect proportional to drag distance
+    const scale = 1 + Math.min(Math.abs(limited) / 800, 0.03);
+    activeRow.style.transform = `translateX(${limited}px) scale(${scale})`;
+  }
+
+  function endDrag(x, y) {
+    if (!activeRow) { dragging = false; return; }
+    const dx = x - startX;
+    const dy = y - startY;
+    dragging = false;
+
+    // enable smooth return/finish animation
+    activeRow.style.transition = 'transform 220ms ease, box-shadow 180ms ease';
+    // decide action
+    if (Math.abs(dx) >= HORIZONTAL_THRESHOLD && Math.abs(dx) > Math.abs(dy)) {
+      const apiCell = activeRow.querySelector('.apiValue');
+      const apiKey = apiCell ? apiCell.textContent.trim() : null;
+      if (apiKey) {
+        const direction = dx > 0 ? 'right' : 'left';
+        // animate to a full offset to give clear feedback
+        const finishTranslate = dx > 0 ? MAX_TRANSLATE : -MAX_TRANSLATE;
+        activeRow.style.transform = `translateX(${finishTranslate}px) scale(1.02)`;
+        // call action shortly after visual completes
+        setTimeout(() => {
+          if (direction === 'right') {
+            try { renewApiKey(apiKey); } catch (err) { console.error(err); }
+          } else {
+            try { revokeApiKey(apiKey); } catch (err) { console.error(err); }
+          }
+          // return row to original position
+          activeRow.style.transform = 'translateX(0) scale(1)';
+        }, 180);
+      } else {
+        activeRow.style.transform = 'translateX(0) scale(1)';
+      }
+    } else {
+      // not a swipe — snap back
+      activeRow.style.transform = 'translateX(0) scale(1)';
+    }
+
+    // cleanup after transition
+    const cleanup = () => {
+      if (!activeRow) return;
+      activeRow.classList.remove('swipe-dragging');
+      activeRow.style.transition = '';
+      activeRow.style.transform = '';
+      activeRow.style.willChange = '';
+      activeRow.style.boxShadow = '';
+      activeRow.style.zIndex = '';
+      activeRow.style.userSelect = '';
+      activeRow.removeEventListener('transitionend', cleanup);
+      activeRow = null;
+    };
+    activeRow.addEventListener('transitionend', cleanup);
+  }
+
+  // Touch handlers
   tbody.addEventListener('touchstart', (e) => {
     const t = e.changedTouches[0];
-    startX = t.clientX; startY = t.clientY;
-    activeRow = getRow(e.target);
+    startDrag(t.clientX, t.clientY, e.target);
+  }, { passive: true });
+
+  tbody.addEventListener('touchmove', (e) => {
+    if (!dragging) return;
+    const t = e.changedTouches[0];
+    moveDrag(t.clientX, t.clientY);
   }, { passive: true });
 
   tbody.addEventListener('touchend', (e) => {
-    if (!activeRow) return;
     const t = e.changedTouches[0];
-    const dx = t.clientX - startX;
-    const dy = t.clientY - startY;
-    // ignore mostly-vertical gestures or small moves
-    if (Math.abs(dx) < HORIZONTAL_THRESHOLD || Math.abs(dx) < Math.abs(dy)) {
-      activeRow = null;
-      return;
-    }
-
-    const apiCell = activeRow.querySelector('.apiValue');
-    const apiKey = apiCell ? apiCell.textContent.trim() : null;
-    if (!apiKey) { activeRow = null; return; }
-
-    if (dx > 0) {
-      // right swipe -> Renew
-      try { renewApiKey(apiKey); } catch (err) { console.error(err); }
-    } else {
-      // left swipe -> Revoke
-      try { revokeApiKey(apiKey); } catch (err) { console.error(err); }
-    }
-    activeRow = null;
+    endDrag(t.clientX, t.clientY);
   }, { passive: true });
 
-  // optional: clear on touchcancel/move
-  tbody.addEventListener('touchcancel', () => { activeRow = null; }, { passive: true });
-  tbody.addEventListener('touchmove', (e) => {
-    // could add visual feedback here (translateX), keep minimal for now
+  tbody.addEventListener('touchcancel', () => {
+    if (activeRow) {
+      // snap back
+      activeRow.style.transition = 'transform 150ms ease';
+      activeRow.style.transform = 'translateX(0) scale(1)';
+      activeRow.addEventListener('transitionend', () => {
+        if (activeRow) {
+          activeRow.classList.remove('swipe-dragging');
+          activeRow.style.transition = '';
+          activeRow.style.transform = '';
+          activeRow = null;
+        }
+      }, { once: true });
+    }
+    dragging = false;
   }, { passive: true });
+
+  // Optional: mouse support for desktop drag-to-preview
+  let mouseDown = false;
+  tbody.addEventListener('mousedown', (e) => {
+    // only left button
+    if (e.button !== 0) return;
+    mouseDown = true;
+    startDrag(e.clientX, e.clientY, e.target);
+    e.preventDefault();
+  });
+
+  window.addEventListener('mousemove', (e) => {
+    if (!mouseDown || !dragging) return;
+    moveDrag(e.clientX, e.clientY);
+  });
+
+  window.addEventListener('mouseup', (e) => {
+    if (!mouseDown) return;
+    mouseDown = false;
+    if (dragging && activeRow) {
+      endDrag(e.clientX, e.clientY);
+    }
+  });
 })();
