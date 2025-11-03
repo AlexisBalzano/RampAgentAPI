@@ -26,7 +26,7 @@ app.use('/api/config-webhook', express.raw({ type: 'application/json' }));
 app.post('/api/config-webhook', async (req, res) => {
   const SECRET = process.env.GH_SECRET;
   if (!SECRET) {
-    logger.warn('GH_SECRET not configured, skipping signature verification', { category: 'Config' });
+    logger.warn('GH_SECRET not configured, skipping signature verification', { category: 'System' });
   } else {
     const sig = req.headers['x-hub-signature-256'];
     if (sig) {
@@ -34,27 +34,25 @@ app.post('/api/config-webhook', async (req, res) => {
       const sigBuf = Buffer.from(sig);
       const expBuf = Buffer.from(expected);
       if (sigBuf.length !== expBuf.length || !crypto.timingSafeEqual(sigBuf, expBuf)) {
-        logger.error('Invalid webhook signature', { category: 'Config' });
-        logger.error(`Computed HMAC: ${expected}`, { category: 'Config' });
-        logger.error(`Received Signature: ${sig}`, { category: 'Config' });
+        logger.error('Invalid webhook signature', { category: 'System' });
         return res.status(403).send('Invalid signature');
       }
     } else {
-      logger.warn('No signature provided', { category: 'Config' });
+      logger.warn('No signature provided', { category: 'System' });
     }
   }
-  
-  logger.info('Config webhook received', { category: 'Config' });
-  
+
+  logger.info('Config webhook received', { category: 'System' });
+
   // Update config from git repo (works with volumes)
   exec('cd /app/data && git pull origin main', (err, stdout, stderr) => {
     if (err) {
-      logger.error(`Config update failed: ${stderr}`, { category: 'Config' });
+      logger.error(`Config update failed: ${stderr}`, { category: 'System' });
       return res.status(500).json({ error: stderr });
     }
-    
-    logger.info(`Config updated: ${stdout}`, { category: 'Config' });
-    
+
+    logger.info(`Config updated: ${stdout}`, { category: 'System' });
+
     res.json({ 
       status: 'success',
       message: 'Config updated successfully',
