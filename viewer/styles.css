@@ -366,20 +366,6 @@ body.dark-mode .log-container::-webkit-scrollbar-track {
   background: #a8a8a8;
 }
 
-/* On smaller screens, where height is less than 450px, change the style of the sidenav (less padding and a smaller font size) */
-@media screen and (max-height: 450px) {
-  .sidenav a {
-    font-size: 18px;
-  }
-}
-@media screen and (max-width: 500px) {
-  h1 {
-    display: none;
-  }
-  header {
-    min-height: 80px;
-  }
-}
 #map {
   min-height: 300px;
   height: calc(100vh - 220px);
@@ -1893,22 +1879,22 @@ body.dark-mode .letter::after {
     transform: rotateX(0deg);
   }
   20% {
-    content: "5";
+    content: "I";
     transform: rotateX(360deg);
   }
   40% {
     color: #afafaf;
-    content: "G";
+    content: "Q";
     transform: rotateX(0deg);
   }
   60% {
     color: #afafaf;
-    content: "V";
+    content: "S";
     transform: rotateX(360deg);
   }
   80% {
     color: #afafaf;
-    content: "Q";
+    content: "M";
     transform: rotateX(0deg);
   }
   100% {
@@ -1991,6 +1977,169 @@ body.dark-mode .performance-toggle.active {
   background: #804a1b;
   border-color: #e67e22;
   box-shadow: 0 0 10px rgba(230, 126, 34, 0.5);
+}
+
+/* DASHBOARD */
+#dashboardData {
+  height: 100px;
+  min-width: 330px;
+  max-width: none;
+}
+
+#apiKeyManagementContainer {
+  margin-top: 20px;
+  max-width: 100%;
+  min-width: 330px;
+  height: calc(100vh - 350px);
+  min-height: 250px;
+  overflow: hidden;
+}
+
+#apiKeyListWrapper {
+  width: 90%;
+  margin-top: 10px;
+  margin-bottom: 30px;
+  border-radius: 10px;
+  background-color: #fafafa;
+  border: 2px solid #ccc;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  max-height: calc(100vh - 420px);
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+
+body.dark-mode #apiKeyListWrapper {
+  background-color: #6b6b6b;
+  border: 2px solid #444;
+}
+
+#apiKeyListTable {
+  width: 100%;
+  margin: 0;
+  border-collapse: collapse;
+  border: none;
+  background: transparent;
+}
+
+#apiKeyListTable thead {
+  position: sticky;
+  top: 0;
+  z-index: 3;
+  background-color: #ebebeb;
+}
+
+body.dark-mode #apiKeyListTable thead {
+  background-color: #646464;
+  box-shadow: 0 2px 0 rgba(0, 0, 0, 0.06);
+}
+
+#apiKeyListTable th, #apiKeyListTable td {
+  text-align: center;
+  border-bottom: 2px solid #ccc;
+}
+
+body.dark-mode #apiKeyListTable th, body.dark-mode #apiKeyListTable td {
+  color: #b6b6b6;
+  border-bottom: 2px solid #444;
+}
+
+.revokeButton {
+  padding: 8px 30px;
+  border: 1px solid #ccc;
+  border-radius: 8px;
+  background-color: #dc3545;
+  cursor: pointer;
+  font-weight: bold;
+  color: white;
+}
+
+body.dark-mode .revokeButton {
+  background-color: #a94442;
+  border: 1px solid #666;
+  color: #e0e0e0;
+}
+
+.revokeButton:hover {
+  background-color: #c82333;
+}
+
+body.dark-mode .revokeButton:hover {
+  background-color: #b03a3a;
+}
+
+.renewButton {
+  padding: 8px 30px;
+  border: 1px solid #ccc;
+  border-radius: 8px;
+  background-color: #28a745;
+  cursor: pointer;
+  font-weight: bold;
+  color: white;
+}
+
+body.dark-mode .renewButton {
+  background-color: #1e7e34;
+  border: 1px solid #1c7430;
+  color: #e0e0e0;
+}
+
+.renewButton:hover {
+  background-color: #218838;
+}
+
+body.dark-mode .renewButton:hover {
+  background-color: #1c7430;
+}
+
+.apiValue {
+  font-family: "Fira Code", monospace;
+  letter-spacing: 1px;
+}
+
+.createdValue {
+  font-family: "Fira Code", monospace;
+  letter-spacing: 1px;
+}
+
+.actionCell {
+  width: 300px;
+}
+
+/* Media Queries */
+@media screen and (min-width: 1100px) {
+  #dashboardData {
+    width: calc((100% - 60px) / 3);
+  }
+}
+@media screen and (max-width: 1050px) {
+  .apiValue {
+    font-size: 0px;
+  }
+}
+@media screen and (max-width: 850px) {
+  .createdValue {
+    font-size: 0px;
+  }
+}
+@media screen and (max-width: 600px) {
+  .actionCell {
+    width: 80px;
+  }
+}
+@media screen and (max-width: 500px) {
+  h1 {
+    display: none;
+  }
+  header {
+    min-height: 80px;
+  }
+}
+@media screen and (max-height: 450px) {
+  .sidenav a {
+    font-size: 18px;
+  }
 }
 
 /*# sourceMappingURL=styles.css.map */
