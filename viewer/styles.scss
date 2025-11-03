@@ -896,10 +896,12 @@ body.dark-mode .renewButton:hover {
   letter-spacing: 1px;
 }
 
-
 .actionCell {
   width: 300px;
 }
+
+
+
 
 /* Media Queries */
 @media screen and (min-width: 1100px) {
@@ -921,8 +923,25 @@ body.dark-mode .renewButton:hover {
 }
 
 @media screen and (max-width: 600px) {
-  .actionCell {
-    width: 80px;
+    /* hide action buttons on small screens */
+  #apiKeyListTable .renewButton,
+  #apiKeyListTable .revokeButton {
+    display: none;
+  }
+
+  /* ensure vertical scrolling still works and allow horizontal gesture detection */
+  #apiKeyListTable tbody tr {
+    touch-action: pan-y;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  /* small hint under each row (optional) */
+  #apiKeyListTable tbody tr::after {
+    content: 'Swipe ← to revoke • → to renew';
+    display: block;
+    font-size: 12px;
+    color: #777;
+    padding: 6px 12px;
   }
 }
 

@@ -1689,3 +1689,67 @@ if (document.readyState === "loading") {
   // DOM already loaded
   initializeMap();
 }
+
+
+
+// Dashboard
+
+// API actions
+function renewApiKey(apiKey) {
+  console.log("Renewing API key:", apiKey);
+}
+
+function revokeApiKey(apiKey) {
+  console.log("Revoking API key:", apiKey);
+}
+
+// Swipe buttons
+(function enableRowSwipeActions() {
+  const tbody = document.querySelector('#apiKeyListTable tbody');
+  if (!tbody) return;
+
+  let startX = 0, startY = 0, activeRow = null;
+  const HORIZONTAL_THRESHOLD = 50; // px needed to count as swipe
+
+  function getRow(el) {
+    while (el && el !== tbody && el.tagName !== 'TR') el = el.parentElement;
+    return (el && el.tagName === 'TR') ? el : null;
+  }
+
+  tbody.addEventListener('touchstart', (e) => {
+    const t = e.changedTouches[0];
+    startX = t.clientX; startY = t.clientY;
+    activeRow = getRow(e.target);
+  }, { passive: true });
+
+  tbody.addEventListener('touchend', (e) => {
+    if (!activeRow) return;
+    const t = e.changedTouches[0];
+    const dx = t.clientX - startX;
+    const dy = t.clientY - startY;
+    // ignore mostly-vertical gestures or small moves
+    if (Math.abs(dx) < HORIZONTAL_THRESHOLD || Math.abs(dx) < Math.abs(dy)) {
+      activeRow = null;
+      return;
+    }
+
+    const apiCell = activeRow.querySelector('.apiValue');
+    const apiKey = apiCell ? apiCell.textContent.trim() : null;
+    if (!apiKey) { activeRow = null; return; }
+
+    if (dx > 0) {
+      // right swipe -> Renew
+      try { renewApiKey(apiKey); } catch (err) { console.error(err); }
+    } else {
+      // left swipe -> Revoke
+      try { revokeApiKey(apiKey); } catch (err) { console.error(err); }
+    }
+    activeRow = null;
+  }, { passive: true });
+
+  // optional: clear on touchcancel/move
+  tbody.addEventListener('touchcancel', () => { activeRow = null; }, { passive: true });
+  tbody.addEventListener('touchmove', (e) => {
+    // could add visual feedback here (translateX), keep minimal for now
+  }, { passive: true });
+})();
