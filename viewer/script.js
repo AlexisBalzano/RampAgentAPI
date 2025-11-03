@@ -10,6 +10,16 @@ function closeNav() {
   document.getElementById("mySidenav").style.width = "0";
 }
 
+document.addEventListener("click", function (event) {
+  if (event.x <= 200) return; 
+  const sidenav = document.getElementById("mySidenav");
+  if (sidenav && sidenav.style.width !== "0") {
+    if (!sidenav.contains(event.target)) {
+      closeNav();
+    }
+  }
+});
+
 // Dark mode toggle
 function toggleDarkMode() {
   document.body.classList.toggle("dark-mode");
