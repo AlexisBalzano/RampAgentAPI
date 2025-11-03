@@ -1879,22 +1879,22 @@ body.dark-mode .letter::after {
     transform: rotateX(0deg);
   }
   20% {
-    content: "W";
+    content: "E";
     transform: rotateX(360deg);
   }
   40% {
     color: #afafaf;
-    content: "H";
+    content: "Q";
     transform: rotateX(0deg);
   }
   60% {
     color: #afafaf;
-    content: "N";
+    content: "6";
     transform: rotateX(360deg);
   }
   80% {
     color: #afafaf;
-    content: "G";
+    content: "3";
     transform: rotateX(0deg);
   }
   100% {
@@ -2103,24 +2103,70 @@ body.dark-mode .renewButton:hover {
   letter-spacing: 1px;
 }
 
+#apiKeyListTable tbody tr {
+  position: relative; /* needed so indicators can be positioned inside each row */
+  overflow: visible;
+}
+
 /* visual for grabbed row during swipe */
 #apiKeyListTable tbody tr.swipe-dragging {
   position: relative; /* allow z-index */
   cursor: grabbing;
   user-select: none;
-  /* subtle background so row reads as 'picked up' */
   background-color: rgba(255, 255, 255, 0.02);
-  /* keep the rounded wrapper shadow intact; shadow appears on drag */
-  /* transform is applied inline by JS while dragging */
   z-index: 1500;
   box-shadow: 0 12px 30px rgba(0, 0, 0, 0.18);
-  border-radius: 6px; /* soft edges while lifted */
+  border-radius: 6px;
 }
 
-/* dark-mode tweak */
-body.dark-mode #apiKeyListTable tbody tr.swipe-dragging {
-  background-color: rgba(0, 0, 0, 0.06);
-  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.35);
+/* swipe indicator backgrounds (sitting behind the row) */
+#apiKeyListTable tbody tr .swipe-indicator {
+  position: absolute;
+  top: 6px; /* small inset so background peek aligns with rounded row */
+  bottom: 6px;
+  width: 0;
+  pointer-events: none;
+  display: flex;
+  align-items: center;
+  padding: 0 16px;
+  font-weight: 700;
+  color: #fff;
+  border-radius: 6px;
+  z-index: 1400; /* below the lifted row (1500) */
+  transition: width 120ms linear, opacity 120ms linear;
+  opacity: 0;
+  white-space: nowrap;
+  font-family: "Fira Code", monospace;
+  font-size: 14px;
+}
+
+/* left indicator for Renew (revealed when swiping right) */
+#apiKeyListTable tbody tr .swipe-indicator.left {
+  left: 6px;
+  justify-content: flex-start;
+  background: linear-gradient(90deg, #2ecc71 0%, #28a745 100%);
+}
+
+/* right indicator for Revoke (revealed when swiping left) */
+#apiKeyListTable tbody tr .swipe-indicator.right {
+  right: 6px;
+  justify-content: flex-end;
+  background: linear-gradient(270deg, #e74c3c 0%, #c82333 100%);
+}
+
+/* small icon/text spacing inside indicator */
+#apiKeyListTable tbody tr .swipe-indicator span {
+  display: inline-block;
+  padding: 8px 10px;
+}
+
+/* dark-mode tweaks */
+body.dark-mode #apiKeyListTable tbody tr .swipe-indicator.left {
+  background: linear-gradient(90deg, #27ae60 0%, #1e7e34 100%);
+}
+
+body.dark-mode #apiKeyListTable tbody tr .swipe-indicator.right {
+  background: linear-gradient(270deg, #c0392b 0%, #b03a3a 100%);
 }
 
 /* Media Queries */

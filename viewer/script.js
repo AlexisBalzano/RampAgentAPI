@@ -1701,6 +1701,23 @@ function renewApiKey(apiKey) {
 
 function revokeApiKey(apiKey) {
   console.log("Revoking API key:", apiKey);
+  // Remove entire row from table
+  const row = document.getElementById(apiKey);
+  if (row) {
+    row.remove();
+  }
+
+  // If table is empty after removal, show "no keys" message
+  const tbody = document.querySelector('#apiKeyListTable tbody');
+  if (tbody && tbody.children.length === 0) {
+    const noKeysRow = document.createElement('tr');
+    const noKeysCell = document.createElement('td');
+    noKeysCell.colSpan = 5;
+    noKeysCell.textContent = "No API keys found";
+    noKeysRow.appendChild(noKeysCell);
+    tbody.appendChild(noKeysRow);
+  }
+
 }
 
 // Swipe buttons
@@ -1718,34 +1735,79 @@ function revokeApiKey(apiKey) {
     return (el && el.tagName === 'TR') ? el : null;
   }
 
+  function ensureIndicators(row) {
+    if (!row) return;
+    if (!row.querySelector('.swipe-indicator.left')) {
+      const left = document.createElement('div');
+      left.className = 'swipe-indicator left';
+      left.innerHTML = '<span>Renew</span>';
+      row.appendChild(left);
+    }
+    if (!row.querySelector('.swipe-indicator.right')) {
+      const right = document.createElement('div');
+      right.className = 'swipe-indicator right';
+      right.innerHTML = '<span>Revoke</span>';
+      row.appendChild(right);
+    }
+  }
+
   function startDrag(x, y, target) {
     startX = x; startY = y;
     activeRow = getRow(target);
     if (!activeRow) return;
+    ensureIndicators(activeRow);
     dragging = true;
     activeRow.classList.add('swipe-dragging');
-    // remove transition to follow finger immediately
     activeRow.style.transition = 'none';
     activeRow.style.willChange = 'transform';
-    // visual lift while holding
     activeRow.style.zIndex = '1500';
     activeRow.style.boxShadow = '0 12px 30px rgba(0,0,0,0.18)';
-    // a tiny initial scale so user sees it's picked up
     activeRow.style.transform = 'translateX(0) scale(1.01)';
-    // prevent text selection while dragging
     activeRow.style.userSelect = 'none';
+
+    // initialize indicators
+    const left = activeRow.querySelector('.swipe-indicator.left');
+    const right = activeRow.querySelector('.swipe-indicator.right');
+    if (left) { left.style.width = '0px'; left.style.opacity = '0'; }
+    if (right) { right.style.width = '0px'; right.style.opacity = '0'; }
   }
 
   function moveDrag(x, y) {
     if (!dragging || !activeRow) return;
     const dx = x - startX;
     const dy = y - startY;
-    // if mostly vertical, ignore horizontal visual moves
     if (Math.abs(dy) > Math.abs(dx)) return;
     const limited = Math.max(-MAX_TRANSLATE, Math.min(MAX_TRANSLATE, dx));
-    // small scale effect proportional to drag distance
     const scale = 1 + Math.min(Math.abs(limited) / 800, 0.03);
     activeRow.style.transform = `translateX(${limited}px) scale(${scale})`;
+
+    const left = activeRow.querySelector('.swipe-indicator.left');
+    const right = activeRow.querySelector('.swipe-indicator.right');
+    if (limited > 0) {
+      // reveal left indicator proportionally
+      if (left) {
+        left.style.width = `${Math.min(limited, MAX_TRANSLATE)}px`;
+        left.style.opacity = String(Math.min(1, Math.abs(limited) / 20));
+      }
+      if (right) {
+        right.style.width = '0px';
+        right.style.opacity = '0';
+      }
+    } else if (limited < 0) {
+      // reveal right indicator proportionally
+      const w = Math.min(-limited, MAX_TRANSLATE);
+      if (right) {
+        right.style.width = `${w}px`;
+        right.style.opacity = String(Math.min(1, Math.abs(limited) / 20));
+      }
+      if (left) {
+        left.style.width = '0px';
+        left.style.opacity = '0';
+      }
+    } else {
+      if (left) { left.style.width = '0px'; left.style.opacity = '0'; }
+      if (right) { right.style.width = '0px'; right.style.opacity = '0'; }
+    }
   }
 
   function endDrag(x, y) {
@@ -1754,36 +1816,43 @@ function revokeApiKey(apiKey) {
     const dy = y - startY;
     dragging = false;
 
-    // enable smooth return/finish animation
     activeRow.style.transition = 'transform 220ms ease, box-shadow 180ms ease';
-    // decide action
+
+    const left = activeRow.querySelector('.swipe-indicator.left');
+    const right = activeRow.querySelector('.swipe-indicator.right');
+
     if (Math.abs(dx) >= HORIZONTAL_THRESHOLD && Math.abs(dx) > Math.abs(dy)) {
       const apiCell = activeRow.querySelector('.apiValue');
       const apiKey = apiCell ? apiCell.textContent.trim() : null;
       if (apiKey) {
         const direction = dx > 0 ? 'right' : 'left';
-        // animate to a full offset to give clear feedback
         const finishTranslate = dx > 0 ? MAX_TRANSLATE : -MAX_TRANSLATE;
         activeRow.style.transform = `translateX(${finishTranslate}px) scale(1.02)`;
-        // call action shortly after visual completes
+        // expand corresponding indicator fully for the action
+        if (direction === 'right' && left) { left.style.width = `${MAX_TRANSLATE}px`; left.style.opacity = '1'; }
+        if (direction === 'left' && right) { right.style.width = `${MAX_TRANSLATE}px`; right.style.opacity = '1'; }
+
         setTimeout(() => {
           if (direction === 'right') {
             try { renewApiKey(apiKey); } catch (err) { console.error(err); }
           } else {
             try { revokeApiKey(apiKey); } catch (err) { console.error(err); }
           }
-          // return row to original position
+          // animate row back
           activeRow.style.transform = 'translateX(0) scale(1)';
+          if (left) { left.style.width = '0px'; left.style.opacity = '0'; }
+          if (right) { right.style.width = '0px'; right.style.opacity = '0'; }
         }, 180);
       } else {
         activeRow.style.transform = 'translateX(0) scale(1)';
       }
     } else {
-      // not a swipe — snap back
+      // snap back
       activeRow.style.transform = 'translateX(0) scale(1)';
+      if (left) { left.style.width = '0px'; left.style.opacity = '0'; }
+      if (right) { right.style.width = '0px'; right.style.opacity = '0'; }
     }
 
-    // cleanup after transition
     const cleanup = () => {
       if (!activeRow) return;
       activeRow.classList.remove('swipe-dragging');
@@ -1793,6 +1862,11 @@ function revokeApiKey(apiKey) {
       activeRow.style.boxShadow = '';
       activeRow.style.zIndex = '';
       activeRow.style.userSelect = '';
+      // remove indicators to keep DOM clean
+      const l = activeRow.querySelector('.swipe-indicator.left');
+      const r = activeRow.querySelector('.swipe-indicator.right');
+      if (l) l.remove();
+      if (r) r.remove();
       activeRow.removeEventListener('transitionend', cleanup);
       activeRow = null;
     };
@@ -1818,7 +1892,6 @@ function revokeApiKey(apiKey) {
 
   tbody.addEventListener('touchcancel', () => {
     if (activeRow) {
-      // snap back
       activeRow.style.transition = 'transform 150ms ease';
       activeRow.style.transform = 'translateX(0) scale(1)';
       activeRow.addEventListener('transitionend', () => {
@@ -1833,10 +1906,9 @@ function revokeApiKey(apiKey) {
     dragging = false;
   }, { passive: true });
 
-  // Optional: mouse support for desktop drag-to-preview
+  // Optional: mouse support
   let mouseDown = false;
   tbody.addEventListener('mousedown', (e) => {
-    // only left button
     if (e.button !== 0) return;
     mouseDown = true;
     startDrag(e.clientX, e.clientY, e.target);
