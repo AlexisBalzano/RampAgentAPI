@@ -1888,22 +1888,22 @@ body.dark-mode .letter::after {
     transform: rotateX(0deg);
   }
   20% {
-    content: "A";
+    content: "L";
     transform: rotateX(360deg);
   }
   40% {
     color: #afafaf;
-    content: "F";
+    content: "2";
     transform: rotateX(0deg);
   }
   60% {
     color: #afafaf;
-    content: "C";
+    content: "5";
     transform: rotateX(360deg);
   }
   80% {
     color: #afafaf;
-    content: "U";
+    content: "K";
     transform: rotateX(0deg);
   }
   100% {
@@ -1996,6 +1996,11 @@ body.dark-mode .performance-toggle.active {
   justify-content: center;
 }
 
+.connectedLayout {
+  display: flex;
+  flex-direction: column;
+}
+
 #loginButton {
   padding: 15px 40px;
   font-size: 20px;
@@ -2024,6 +2029,7 @@ body.dark-mode #loginButton:hover {
 #selfAPIKey {
   font-family: "Fira Code", monospace;
   letter-spacing: 1px;
+  margin-bottom: 10px;
   margin-top: 1px;
   padding: 8px 20px;
   border-radius: 10px;

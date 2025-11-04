@@ -1735,7 +1735,12 @@ function renderLoginLayout() {
     Array.from(document.getElementsByClassName("connectedLayout")).forEach(el => el.style.display = "none");
   } else {
     Array.from(document.getElementsByClassName("loginLayout")).forEach(el => el.style.display = "none");
-    Array.from(document.getElementsByClassName("connectedLayout")).forEach(el => el.style.display = "block");
+    // Check maxwidth to adjust layout
+    if (window.innerWidth <= 600) {
+      Array.from(document.getElementsByClassName("connectedLayout")).forEach(el => el.style.display = "flex");
+    } else {
+      Array.from(document.getElementsByClassName("connectedLayout")).forEach(el => el.style.display = "inline");
+    }
     document.getElementById("username").textContent = "Alexis"; //TODO: Replace with actual username
     apiKeyDisplay();
   }
