@@ -60,6 +60,15 @@ body.dark-mode h2 {
   color: #b6b6b6;
 }
 
+h3 {
+  color: #000000;
+  cursor: default;
+}
+
+body.dark-mode h3 {
+  color: #b6b6b6;
+}
+
 .bx-menu {
   font-size: 50px;
 }
@@ -1879,22 +1888,22 @@ body.dark-mode .letter::after {
     transform: rotateX(0deg);
   }
   20% {
-    content: "N";
+    content: "A";
     transform: rotateX(360deg);
   }
   40% {
     color: #afafaf;
-    content: "O";
+    content: "F";
     transform: rotateX(0deg);
   }
   60% {
     color: #afafaf;
-    content: "Y";
+    content: "C";
     transform: rotateX(360deg);
   }
   80% {
     color: #afafaf;
-    content: "V";
+    content: "U";
     transform: rotateX(0deg);
   }
   100% {
@@ -1980,10 +1989,82 @@ body.dark-mode .performance-toggle.active {
 }
 
 /* DASHBOARD */
+/* User Dashboard */
+.loginLayout {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+#loginButton {
+  padding: 15px 40px;
+  font-size: 20px;
+  border: 1px solid #ccc;
+  border-radius: 14px;
+  background-color: #4a5d83;
+  cursor: pointer;
+  font-weight: bold;
+  color: white;
+}
+
+body.dark-mode #loginButton {
+  background-color: #3a3a3a;
+  border: 1px solid #666;
+  color: #e0e0e0;
+}
+
+#loginButton:hover {
+  background-color: #3d5073;
+}
+
+body.dark-mode #loginButton:hover {
+  background-color: #4a4a4a;
+}
+
+#selfAPIKey {
+  font-family: "Fira Code", monospace;
+  letter-spacing: 1px;
+  margin-top: 1px;
+  padding: 8px 20px;
+  border-radius: 10px;
+  background-color: #fafafa;
+}
+
+body.dark-mode #selfAPIKey {
+  background-color: #6b6b6b;
+  color: #e0e0e0;
+}
+
+#generateAPIKeyButton {
+  padding: 10px 20px;
+  border: 1px solid #ccc;
+  border-radius: 8px;
+  background-color: #28a745;
+  cursor: pointer;
+  font-weight: bold;
+  color: white;
+}
+
+body.dark-mode #generateAPIKeyButton {
+  background-color: #218838;
+  border: 1px solid #1c7430;
+  color: #e0e0e0;
+}
+
+#generateAPIKeyButton:hover {
+  background-color: #218838;
+}
+
+body.dark-mode #generateAPIKeyButton:hover {
+  background-color: #1c7430;
+}
+
+/* Admin Dashboard */
 #dashboardData {
   height: 100px;
   min-width: 330px;
   max-width: none;
+  justify-content: center;
 }
 
 #apiKeyManagementContainer {

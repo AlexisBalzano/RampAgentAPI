@@ -1,13 +1,17 @@
-const API_BASE_URL = "https://pintade.vatsim.fr/rampagent";
+const API_BASE_URL = "";
 
 /* Set the width of the side navigation to 250px */
 function openNav() {
-  document.getElementById("mySidenav").style.width = "200px";
+  const nav = document.getElementById("mySidenav");
+  if (!nav) return; // guard
+  nav.style.width = "200px";
 }
 
 /* Set the width of the side navigation to 0 */
 function closeNav() {
-  document.getElementById("mySidenav").style.width = "0";
+  const nav = document.getElementById("mySidenav");
+  if (!nav) return; // guard
+  nav.style.width = "0";
 }
 
 document.addEventListener("click", function (event) {
@@ -54,6 +58,8 @@ document.addEventListener("DOMContentLoaded", function () {
       window.switchMapLayer();
     }
   }, 100);
+
+  updateApiKeyCount();
 });
 
 // High volume detection and performance mode
@@ -1132,6 +1138,11 @@ document.addEventListener("DOMContentLoaded", () => {
         }, 150);
       }
 
+      if (page === "dashboard") {
+        displayDashboard();
+        renderLoginLayout();
+      }
+
       // optional: scroll to top of content area
       window.scrollTo(0, 0);
     }
@@ -1704,6 +1715,60 @@ if (document.readyState === "loading") {
 
 // Dashboard
 
+// Select correct dashboard based on isAdmin or not
+function displayDashboard() {
+  const isAdmin = false; // Replace with actual admin check
+  if (isAdmin) {
+    document.getElementById("dashboardAdmin").style.display = "block";
+    document.getElementById("dashboardUser").style.display = "none";
+  } else {
+    document.getElementById("dashboardAdmin").style.display = "none";
+    document.getElementById("dashboardUser").style.display = "block";
+  }
+}
+
+function renderLoginLayout() {
+  // If not connected, show login button
+  const isConnected = true; //TODO: Replace with actual connection check
+  if (!isConnected) {
+    Array.from(document.getElementsByClassName("loginLayout")).forEach(el => el.style.display = "flex");
+    Array.from(document.getElementsByClassName("connectedLayout")).forEach(el => el.style.display = "none");
+  } else {
+    Array.from(document.getElementsByClassName("loginLayout")).forEach(el => el.style.display = "none");
+    Array.from(document.getElementsByClassName("connectedLayout")).forEach(el => el.style.display = "block");
+    document.getElementById("username").textContent = "Alexis"; //TODO: Replace with actual username
+    apiKeyDisplay();
+  }
+}
+
+function apiKeyDisplay() {
+  let apiKey = localStorage.getItem("apiKey");
+  if (apiKey && apiKey.length > 0) {
+    document.getElementById("selfAPIKey").style.display = "inline";
+    document.getElementById("selfAPIKey").textContent = apiKey;
+  } else {
+    document.getElementById("selfAPIKey").style.display = "none";
+  }
+}
+
+function generateApiKey() {
+  console.log("Generating new API key...");
+  // generate random API key
+  const apiKey = "NEW-API-KEY-" + Math.random().toString(36).substring(2, 15);
+  //FIXME: do not store in localStorage, call backend to create and retrieve
+  localStorage.setItem("apiKey", apiKey);
+  apiKeyDisplay();
+}
+
+
+function updateApiKeyCount() {
+  const countElem = document.getElementById("apiKeyCount");
+  const apiKeyCounter = document.querySelectorAll("#apiKeyListTable tbody tr").length;
+  if (countElem) {
+    countElem.textContent = apiKeyCounter;
+  }
+}
+
 // API actions
 function renewApiKey(apiKey) {
   console.log("Renewing API key:", apiKey);
@@ -1715,6 +1780,7 @@ function revokeApiKey(apiKey) {
   const row = document.getElementById(apiKey);
   if (row) {
     row.remove();
+    updateApiKeyCount();
   }
 
   // If table is empty after removal, show "no keys" message
@@ -1768,12 +1834,15 @@ function revokeApiKey(apiKey) {
     ensureIndicators(activeRow);
     dragging = true;
     activeRow.classList.add('swipe-dragging');
-    activeRow.style.transition = 'none';
-    activeRow.style.willChange = 'transform';
-    activeRow.style.zIndex = '1500';
-    activeRow.style.boxShadow = '0 12px 30px rgba(0,0,0,0.18)';
-    activeRow.style.transform = 'translateX(0) scale(1.01)';
-    activeRow.style.userSelect = 'none';
+    // guard everything that touches style with a check
+    if (activeRow) {
+      activeRow.style.transition = 'none';
+      activeRow.style.willChange = 'transform';
+      activeRow.style.zIndex = '1500';
+      activeRow.style.boxShadow = '0 12px 30px rgba(0,0,0,0.18)';
+      activeRow.style.transform = 'translateX(0) scale(1.01)';
+      activeRow.style.userSelect = 'none';
+    }
 
     // initialize indicators
     const left = activeRow.querySelector('.swipe-indicator.left');
@@ -1826,19 +1895,21 @@ function revokeApiKey(apiKey) {
     const dy = y - startY;
     dragging = false;
 
-    activeRow.style.transition = 'transform 220ms ease, box-shadow 180ms ease';
+    // use a localRef to avoid race if activeRow is cleared/removed later
+    const rowRef = activeRow;
 
-    const left = activeRow.querySelector('.swipe-indicator.left');
-    const right = activeRow.querySelector('.swipe-indicator.right');
+    if (rowRef) rowRef.style.transition = 'transform 220ms ease, box-shadow 180ms ease';
+
+    const left = rowRef ? rowRef.querySelector('.swipe-indicator.left') : null;
+    const right = rowRef ? rowRef.querySelector('.swipe-indicator.right') : null;
 
     if (Math.abs(dx) >= HORIZONTAL_THRESHOLD && Math.abs(dx) > Math.abs(dy)) {
-      const apiCell = activeRow.querySelector('.apiValue');
+      const apiCell = rowRef ? rowRef.querySelector('.apiValue') : null;
       const apiKey = apiCell ? apiCell.textContent.trim() : null;
-      if (apiKey) {
+      if (apiKey && rowRef) {
         const direction = dx > 0 ? 'right' : 'left';
         const finishTranslate = dx > 0 ? MAX_TRANSLATE : -MAX_TRANSLATE;
-        activeRow.style.transform = `translateX(${finishTranslate}px) scale(1.02)`;
-        // expand corresponding indicator fully for the action
+        rowRef.style.transform = `translateX(${finishTranslate}px) scale(1.02)`;
         if (direction === 'right' && left) { left.style.width = `${MAX_TRANSLATE}px`; left.style.opacity = '1'; }
         if (direction === 'left' && right) { right.style.width = `${MAX_TRANSLATE}px`; right.style.opacity = '1'; }
 
@@ -1848,39 +1919,42 @@ function revokeApiKey(apiKey) {
           } else {
             try { revokeApiKey(apiKey); } catch (err) { console.error(err); }
           }
-          // animate row back
-          activeRow.style.transform = 'translateX(0) scale(1)';
-          if (left) { left.style.width = '0px'; left.style.opacity = '0'; }
-          if (right) { right.style.width = '0px'; right.style.opacity = '0'; }
+          if (rowRef) {
+            rowRef.style.transform = 'translateX(0) scale(1)';
+            if (left) { left.style.width = '0px'; left.style.opacity = '0'; }
+            if (right) { right.style.width = '0px'; right.style.opacity = '0'; }
+          }
         }, 180);
-      } else {
-        activeRow.style.transform = 'translateX(0) scale(1)';
+      } else if (rowRef) {
+        rowRef.style.transform = 'translateX(0) scale(1)';
       }
     } else {
-      // snap back
-      activeRow.style.transform = 'translateX(0) scale(1)';
-      if (left) { left.style.width = '0px'; left.style.opacity = '0'; }
-      if (right) { right.style.width = '0px'; right.style.opacity = '0'; }
+      if (rowRef) {
+        rowRef.style.transform = 'translateX(0) scale(1)';
+        if (left) { left.style.width = '0px'; left.style.opacity = '0'; }
+        if (right) { right.style.width = '0px'; right.style.opacity = '0'; }
+      }
     }
 
     const cleanup = () => {
-      if (!activeRow) return;
-      activeRow.classList.remove('swipe-dragging');
-      activeRow.style.transition = '';
-      activeRow.style.transform = '';
-      activeRow.style.willChange = '';
-      activeRow.style.boxShadow = '';
-      activeRow.style.zIndex = '';
-      activeRow.style.userSelect = '';
-      // remove indicators to keep DOM clean
-      const l = activeRow.querySelector('.swipe-indicator.left');
-      const r = activeRow.querySelector('.swipe-indicator.right');
+      if (!rowRef) return;
+      rowRef.classList.remove('swipe-dragging');
+      // clear inline styles safely
+      rowRef.style.transition = '';
+      rowRef.style.transform = '';
+      rowRef.style.willChange = '';
+      rowRef.style.boxShadow = '';
+      rowRef.style.zIndex = '';
+      rowRef.style.userSelect = '';
+      const l = rowRef.querySelector('.swipe-indicator.left');
+      const r = rowRef.querySelector('.swipe-indicator.right');
       if (l) l.remove();
       if (r) r.remove();
-      activeRow.removeEventListener('transitionend', cleanup);
-      activeRow = null;
+      rowRef.removeEventListener('transitionend', cleanup);
+      // only null the shared activeRow after cleanup finishes
+      if (activeRow === rowRef) activeRow = null;
     };
-    activeRow.addEventListener('transitionend', cleanup);
+    if (rowRef) rowRef.addEventListener('transitionend', cleanup);
   }
 
   // Touch handlers

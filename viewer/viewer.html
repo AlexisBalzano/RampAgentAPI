@@ -56,7 +56,7 @@
           <a href="#log" onclick="closeNav()">Logs</a>
           <a href="#configs" onclick="closeNav()">Configs</a>
           <a href="#dashboard" onclick="closeNav()">Dashboard</a>
-          <p class="version">Version 1.0.4</p>
+          <p class="version">Version 1.0.5</p>
         </div>
       </div>
       <section id="status" data-page="status">
@@ -126,82 +126,113 @@
           </div>
         </div>
       </section>
-      <section id="dashboard" data-page="dashboard">
-        <h2>Dashboard</h2>
-        <div class="container">
-          <div class="subContainer" id="dashboardData">
-            <h3>Number of API keys</h3>
+      <section data-page="dashboard">
+        <section id="dashboardUser">
+          <div class="loginLayout">
+            <button id="loginButton">Login</button>
           </div>
-          <div class="subContainer" id="dashboardData">
-            <h3>Number of API keys</h3>
+          <div class="connectedLayout">
+            <h2>Welcome, <span id="username">User</span>!</h2>
+            <h3>Your API Key:</h3>
+            <span id="selfAPIKey"></span>
+            <button id="generateAPIKeyButton" onclick="generateApiKey()">Generate API Key</button>
           </div>
-          <div class="subContainer" id="dashboardData">
-            <h3>Number of API keys</h3>
-          </div>
-        </div>
-        <div class="container">
-          <div class="subContainer" id="apiKeyManagementContainer">
-            <h3>List of All API keys generated:</h3>
-            <div id="apiKeyListWrapper">
-              <table id="apiKeyListTable">
-                <thead>
-                  <tr>
-                    <th>CID</th>
-                    <th class="apiValue">API Key</th>
-                    <th class="createdValue">Created At</th>
-                    <th>Last Used</th>
-                    <th class="actionCell">Actions</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  <!-- API key rows will be populated here -->
-                  <tr id="abcd-efgh-ijkl-mnop">
-                    <td>123456</td>
-                    <td class="apiValue">abcd-efgh-ijkl-mnop</td>
-                    <td class="createdValue">2024-06-01</td>
-                    <td>2024-06-10</td>
-                    <td class="actionCell">
-                      <button class="renewButton" onclick="renewApiKey('abcd-efgh-ijkl-mnop')">
-                        Renew
-                      </button>
-                      <button class="revokeButton" onclick="revokeApiKey('abcd-efgh-ijkl-mnop')">
-                        Revoke
-                      </button>
-                    </td>
-                  </tr>
-                  <tr id="fkjp-2345-6789-qrst">
-                    <td>123456</td>
-                    <td class="apiValue">fkjp-2345-6789-qrst</td>
-                    <td class="createdValue">2024-06-01</td>
-                    <td>2024-06-10</td>
-                    <td class="actionCell">
-                      <button class="renewButton" onclick="renewApiKey('fkjp-2345-6789-qrst')">
-                        Renew
-                      </button>
-                      <button class="revokeButton" onclick="revokeApiKey('fkjp-2345-6789-qrst')">
-                        Revoke
-                      </button>
-                    </td>
-                  </tr>
-                  <tr id="ijkl-mnop-qrst-uvwx">
-                    <td>654321</td>
-                    <td class="apiValue">ijkl-mnop-qrst-uvwx</td>
-                    <td class="createdValue">2024-05-15</td>
-                    <td>2024-06-09</td>
-                    <td class="actionCell">
-                      <button class="renewButton" onclick="renewApiKey('ijkl-mnop-qrst-uvwx')">
-                        Renew
-                      </button>
-                      <button class="revokeButton" onclick="revokeApiKey('ijkl-mnop-qrst-uvwx')">
-                        Revoke
-                      </button>
-                    </td>
-                  </tr>
-                </tbody>
-              </table>
+        </section>
+        <section id="dashboardAdmin">
+          <h2>Dashboard</h2>
+          <div class="container">
+            <div class="subContainer" id="dashboardData">
+              <h3>Number of API keys: <span id="apiKeyCount">0</span></h3>
+            </div>
+            <div class="subContainer" id="dashboardData">
+              <h3>Connected ATCs: <span id="connectedAtcCount">0</span></h3>
+            </div>
+            <div class="subContainer" id="dashboardData">
+              <h3>Probably very important number: <span>0</span></h3>
             </div>
           </div>
-        </div>
+          <div class="container">
+            <div class="subContainer" id="apiKeyManagementContainer">
+              <h3>List of All API keys generated:</h3>
+              <div id="apiKeyListWrapper">
+                <table id="apiKeyListTable">
+                  <thead>
+                    <tr>
+                      <th>CID</th>
+                      <th class="apiValue">API Key</th>
+                      <th class="createdValue">Created At</th>
+                      <th>Last Used</th>
+                      <th class="actionCell">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <!-- API key rows will be populated here -->
+                    <tr id="abcd-efgh-ijkl-mnop">
+                      <td>123456</td>
+                      <td class="apiValue">abcd-efgh-ijkl-mnop</td>
+                      <td class="createdValue">2024-06-01</td>
+                      <td>2024-06-10</td>
+                      <td class="actionCell">
+                        <button
+                          class="renewButton"
+                          onclick="renewApiKey('abcd-efgh-ijkl-mnop')"
+                        >
+                          Renew
+                        </button>
+                        <button
+                          class="revokeButton"
+                          onclick="revokeApiKey('abcd-efgh-ijkl-mnop')"
+                        >
+                          Revoke
+                        </button>
+                      </td>
+                    </tr>
+                    <tr id="fkjp-2345-6789-qrst">
+                      <td>123456</td>
+                      <td class="apiValue">fkjp-2345-6789-qrst</td>
+                      <td class="createdValue">2024-06-01</td>
+                      <td>2024-06-10</td>
+                      <td class="actionCell">
+                        <button
+                          class="renewButton"
+                          onclick="renewApiKey('fkjp-2345-6789-qrst')"
+                        >
+                          Renew
+                        </button>
+                        <button
+                          class="revokeButton"
+                          onclick="revokeApiKey('fkjp-2345-6789-qrst')"
+                        >
+                          Revoke
+                        </button>
+                      </td>
+                    </tr>
+                    <tr id="ijkl-mnop-qrst-uvwx">
+                      <td>654321</td>
+                      <td class="apiValue">ijkl-mnop-qrst-uvwx</td>
+                      <td class="createdValue">2024-05-15</td>
+                      <td>2024-06-09</td>
+                      <td class="actionCell">
+                        <button
+                          class="renewButton"
+                          onclick="renewApiKey('ijkl-mnop-qrst-uvwx')"
+                        >
+                          Renew
+                        </button>
+                        <button
+                          class="revokeButton"
+                          onclick="revokeApiKey('ijkl-mnop-qrst-uvwx')"
+                        >
+                          Revoke
+                        </button>
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </section>
       </section>
     </main>
     <footer>
