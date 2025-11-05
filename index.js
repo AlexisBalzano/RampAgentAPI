@@ -1,9 +1,9 @@
 const express = require("express");
 const path = require("path");
 const crypto = require("crypto");
-const { exec } = require("child_process");
 require("dotenv").config();
 const logger = require("./utils/logger");
+const { spawn } = require("child_process");
 
 const env = process.env.NODE_ENV || "default";
 const config = require(`./config/${env}.js`);
@@ -16,6 +16,7 @@ const statRoutes = require("./routes/stats");
 const redisService = require("./services/redisService");
 const airportService = require("./services/airportService");
 const healthRoutes = require("./routes/health");
+const authRoutes = require("./routes/auth");
 
 const app = express();
 
@@ -93,6 +94,9 @@ app.use(express.json());
 app.get("/debug", (req, res) => {
   res.sendFile(path.join(__dirname, "viewer", "viewer.html"));
 });
+
+// Authentication routes
+app.use("/api/auth", authRoutes);
 
 // Health endpoint for load balancer
 app.use("/health", healthRoutes);

@@ -1,4 +1,4 @@
-const API_BASE_URL = "";
+const API_BASE_URL = ""; //FIXME: add API url + /rampagent/
 
 /* Set the width of the side navigation to 250px */
 function openNav() {
