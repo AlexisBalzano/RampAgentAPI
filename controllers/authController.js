@@ -1,6 +1,9 @@
 const { error, warn } = require('../utils/logger');
 const crypto = require('crypto');
 const path = require('path');
+const cookie = require('cookie');
+const { jwtVerify } = require('jose');
+
 
 // Verifying token from plugins for manual stand assignement
 exports.verifyToken = (token, client) => {
@@ -18,10 +21,21 @@ exports.verifyToken = (token, client) => {
 
 // Redirect to vACC FR core login
 exports.login = (req, res) => {
-  const origin = process.env.AUTH_ORIGIN || 'https://pintade.vatsim.fr/rampagent/';
-  const redirect = process.env.AUTH_REDIRECT || 'https://pintade.vatsim.fr/rampagent/api/auth/callback';
-  const loginUrl = 'https://api.core.vatsim.fr/v1/auth/vatsim/login?origin=' + encodeURIComponent(origin) + '&redirect=' + encodeURIComponent(redirect);
+  const params = new URLSearchParams()
+  params.set("origin", process.env.NEXT_PUBLIC_BASE_URL)
+  params.set("redirect", `${process.env.NEXT_PUBLIC_BASE_URL}/api/auth/callback`)
+  const loginUrl = `${process.env.NEXT_PUBLIC_CORE_URL_EXTERNAL}/${process.env.NEXT_PUBLIC_CORE_API_VERSION}/auth/vatsim/login?` + params.toString();
   return res.redirect(loginUrl);
+};
+
+exports.logout = async (req, res) => {
+  try {
+    await deleteSession();
+    return res.redirect(process.env.NEXT_PUBLIC_BASE_URL || '/debug/');
+  } catch (err) {
+    error('logout error: ' + (err.message || err), { category: 'Auth' });
+    return res.status(500).send('Error during logout');
+  }
 };
 
 // Middleware to require a valid session cookie and attach req.user
@@ -39,114 +53,125 @@ exports.requireAuth = async (req, res, next) => {
   }
 };
 
-// Simple helper endpoint for the frontend to get current user info
-exports.getMe = async (req, res) => {
-  const token = req.cookies && req.cookies.access_token;
-  if (!token) return res.status(401).json({ error: 'Not authenticated' });
-  try {
-    const payload = await verifyAndGetPayload(token);
-    return res.json({ user: payload });
-  } catch (err) {
-    return res.status(401).json({ error: 'Invalid token' });
-  }
-};
-
-// Single login callback that validates token (or exchanges code) and sets httpOnly cookie
 exports.loginCallback = async (req, res) => {
   try {
-    let accessToken = req.query.access_token;
+    const accessToken = req.query.access_token;
     const code = req.query.code;
-
-    // If an authorization code is provided and token endpoint is configured, exchange it
-    if (!accessToken && code && process.env.AUTH_TOKEN_URL && process.env.AUTH_CLIENT_ID && process.env.AUTH_CLIENT_SECRET) {
-      const body = new URLSearchParams({
-        grant_type: 'authorization_code',
-        code,
-        redirect_uri: process.env.AUTH_REDIRECT || 'https://pintade.vatsim.fr/rampagent/api/auth/callback',
-        client_id: process.env.AUTH_CLIENT_ID,
-        client_secret: process.env.AUTH_CLIENT_SECRET,
-      });
-      const resp = await fetch(process.env.AUTH_TOKEN_URL, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-        body: body.toString(),
-      });
-      if (!resp.ok) throw new Error('Token exchange failed');
-      const json = await resp.json();
-      accessToken = json.access_token;
-      if (!accessToken) throw new Error('No access_token returned from token endpoint');
-    }
 
     if (!accessToken) {
       return res.status(400).send('Access token (or code) missing');
     }
 
-    const payload = await verifyAndGetPayload(accessToken);
+    await createSession(res, accessToken);
+    const user = await exports.getSessionFromToken(accessToken);
 
-    // cookie options
-    const isProd = process.env.NODE_ENV === 'production';
-    const maxAgeMs = payload.exp ? (payload.exp - Math.floor(Date.now() / 1000)) * 1000 : 24 * 3600 * 1000;
-
-    res.cookie('access_token', accessToken, {
-      httpOnly: true,
-      secure: isProd,
-      sameSite: 'Strict',
-      maxAge: Math.max(0, maxAgeMs),
-      path: '/',
-    });
-
-    // redirect back to UI (prefer relative path)
-    return res.redirect(process.env.UI_REDIRECT || '/debug/#dashboard');
+    if (user && user.core) {
+      await updateSessionLocalUser(accessToken, user.core);
+    }
+    // redirect back to UI
+    return res.redirect(process.env.NEXT_PUBLIC_BASE_URL || '/debug/#dashboard');
   } catch (err) {
     error('loginCallback error: ' + (err.message || err), { category: 'Auth' });
     return res.status(401).send('Invalid access token');
   }
 };
 
-// Helper: verify token using configured strategy and return payload, or throw
-async function verifyAndGetPayload(accessToken) {
-  // 1) Prefer cryptographic verification with a public key (AUTH_PUBLIC_KEY PEM)
-  const pubKey = process.env.AUTH_PUBLIC_KEY;
-  if (pubKey) {
-    const jwt = require('jsonwebtoken');
-    // validate signature and standard claims
-    const opts = { algorithms: ['RS256'] };
-    if (process.env.AUTH_ISSUER) opts.issuer = process.env.AUTH_ISSUER;
-    if (process.env.AUTH_AUDIENCE) opts.audience = process.env.AUTH_AUDIENCE;
-    return jwt.verify(accessToken, pubKey, opts);
+exports.createSession = async function (res, _token) {
+  const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+  const cookieStr = cookie.serialize('session', _token, {
+    httpOnly: true,
+    secure: true,
+    expires: expiresAt,
+    sameSite: 'lax',
+    path: '/'
+  });
+  const prev = res.getHeader('Set-Cookie');
+  if (prev) {
+    const arr = Array.isArray(prev) ? prev : [String(prev)];
+    res.setHeader('Set-Cookie', arr.concat(cookieStr));
+  } else {
+    res.setHeader('Set-Cookie', cookieStr);
   }
+  return;
+}
 
-  // 2) Token introspection endpoint (for opaque tokens)
-  if (process.env.AUTH_INTROSPECT_URL) {
-    const resp = await fetch(process.env.AUTH_INTROSPECT_URL, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/x-www-form-urlencoded', Authorization: process.env.AUTH_INTROSPECT_AUTH ? `Basic ${process.env.AUTH_INTROSPECT_AUTH}` : undefined },
-      body: `token=${encodeURIComponent(accessToken)}`,
+// Helper: verify token
+async function decryptToken(accessToken) {
+  const encodedKey = new TextEncoder().encode(process.env.CORE_JWT_KEY);
+
+  try {
+    const { payload } = await jwtVerify(accessToken, encodedKey, {
+      algorithms: ["HS256"]
     });
-    if (!resp.ok) throw new Error('Token introspection failed');
-    const info = await resp.json();
-    if (!info.active) throw new Error('Token not active');
-    return info;
+    return {
+      token: accessToken,
+      tokenContent: payload
+    };
+  } catch (error) {
+    console.log("Failed to verify session", error);
+    return null;
   }
+}
 
-  // 3) userinfo endpoint if available
-  if (process.env.AUTH_USERINFO_URL) {
-    const resp = await fetch(process.env.AUTH_USERINFO_URL, {
-      headers: { Authorization: `Bearer ${accessToken}` },
-    });
-    if (!resp.ok) throw new Error('Userinfo lookup failed');
-    return await resp.json();
-  }
+exports.getSession = async function(){
+  const cookiesRaw = await cookies()
+  const sessionCookie = cookiesRaw.get("session")
+  if (!sessionCookie) return null;
+  const sessionData = await decryptToken(sessionCookie.value);
+  if (!sessionData) return null;
 
-  // 4) Fallback (NOT SECURE) — decode and check exp only
-  {
-    const parts = accessToken.split('.');
-    if (parts.length !== 3) throw new Error('Invalid token format (no verification available)');
-    const payload = JSON.parse(Buffer.from(parts[1], 'base64').toString('utf-8'));
-    const now = Math.floor(Date.now() / 1000);
-    if (payload.exp && payload.exp < now) throw new Error('Access token expired');
-    console.warn('verifyAndGetPayload: token was not cryptographically verified (no PUBLIC_KEY or introspection configured)');
-    warn('verifyAndGetPayload: token was not cryptographically verified (no PUBLIC_KEY or introspection configured)', { category: 'Auth' });
-    return payload;
+  const coreUserUrl = `${AppConfig.core.internal_url}/${AppConfig.core.api_version}/user/${sessionData.tokenContent.cid}`
+  const coreRes = await fetch(coreUserUrl, {
+    method: "GET",
+    headers: {
+      "Authorization": sessionData.token
+    }
+  })
+  if (coreRes.status !== 200) return null;
+  let coreUser = null
+  try {
+    coreUser = await coreRes.json()
+  } catch { }
+  if (!coreUser) return null;
+
+  const localUserUrl = `${AppConfig.api.internal_url}/${AppConfig.api.api_version}/localuser/${coreUser.cid}`
+  const localRes = await fetch(localUserUrl, {
+    method: "GET",
+    headers: {
+      Authorization: sessionData.token
+    }
+  })
+  if (localRes.status !== 200) return { core: coreUser, local: null, token: sessionData.token };
+  let localUser = null
+  try {
+    localUser = await localRes.json()
+  } catch { }
+
+  return { core: coreUser, local: localUser, token: sessionData.token }
+}
+
+exports.updateSessionLocalUser = async function (_token, _user) {
+  const updateLocalUserUrl = `${AppConfig.api.internal_url}/${AppConfig.api.api_version}/localuser/${_user.cid}/update`
+  const body = {
+    cid: _user.cid,
+    full_name: _user.fullName,
+    first_name: _user.firstName,
+    last_name: _user.lastName,
+    email: _user.email,
+    core_session_token: _token
   }
+  const res = await fetch(updateLocalUserUrl, {
+    method: "POST",
+    body: JSON.stringify(body),
+    headers: {
+      Authorization: _token,
+      "content-type": "application/json"
+    },
+  })
+  console.log(res.status)
+}
+
+exports.deleteSession = async function () {
+  const cookieStore = await cookies()
+  cookieStore.delete("session")
 }
