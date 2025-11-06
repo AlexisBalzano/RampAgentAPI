@@ -30,8 +30,8 @@ exports.login = (req, res) => {
 
 exports.logout = async (req, res) => {
   try {
-    await deleteSession();
-    return res.redirect(process.env.NEXT_PUBLIC_BASE_URL || '/debug/');
+    await deleteSession(res);
+    return res.redirect(process.env.NEXT_PUBLIC_BASE_URL + '/debug/');
   } catch (err) {
     error('logout error: ' + (err.message || err), { category: 'Auth' });
     return res.status(500).send('Error during logout');
@@ -171,7 +171,23 @@ exports.updateSessionLocalUser = async function (_token, _user) {
   console.log(res.status)
 }
 
-exports.deleteSession = async function () {
-  const cookieStore = await cookies()
-  cookieStore.delete("session")
+async function deleteSession(res) {
+  // delete session cookie by setting an expired Set-Cookie header
+  const expired = cookie.serialize('session', '', {
+    httpOnly: true,
+    secure: true,
+    expires: new Date(0),
+    sameSite: 'lax',
+    path: '/'
+  });
+
+  const prev = res.getHeader('Set-Cookie');
+  if (prev) {
+    const arr = Array.isArray(prev) ? prev : [String(prev)];
+    res.setHeader('Set-Cookie', arr.concat(expired));
+  } else {
+    res.setHeader('Set-Cookie', expired);
+  }
+
+  return;
 }
