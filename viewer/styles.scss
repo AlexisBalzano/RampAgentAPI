@@ -824,6 +824,30 @@ body.dark-mode #loginButton:hover {
   background-color: #4a4a4a;
 }
 
+#logoutButton {
+  display: block;
+  margin-top: 20px;
+  padding: 8px 20px;
+  border: 1px solid #ccc;
+  border-radius: 8px;
+  background-color: #dc3545;
+  cursor: pointer;
+  font-weight: bold;
+  color: white;
+}
+body.dark-mode #logoutButton {
+  background-color: #a94442;
+  border: 1px solid #666;
+  color: #e0e0e0;
+}
+
+#logoutButton:hover {
+  background-color: #c82333;
+}
+body.dark-mode #logoutButton:hover {
+  background-color: #b03a3a;
+}
+
 #selfAPIKey {
   font-family: 'Fira Code', monospace;
   letter-spacing: 1px;
