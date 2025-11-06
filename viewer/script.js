@@ -1,4 +1,5 @@
 const API_BASE_URL = ""; //FIXME: add API url + /rampagent/
+const DEV_FAKE_LOGIN_ENABLED = true; //FIXME: debug
 
 /* Set the width of the side navigation to 250px */
 function openNav() {
@@ -58,7 +59,8 @@ document.addEventListener("DOMContentLoaded", function () {
       window.switchMapLayer();
     }
   }, 100);
-
+  
+  checkAuthAndUpdateUI();
   updateApiKeyCount();
 });
 
@@ -1139,8 +1141,7 @@ document.addEventListener("DOMContentLoaded", () => {
       }
 
       if (page === "dashboard") {
-        displayDashboard();
-        renderLoginLayout();
+        checkAuthAndUpdateUI();
       }
 
       // optional: scroll to top of content area
@@ -1715,10 +1716,151 @@ if (document.readyState === "loading") {
 
 // Dashboard
 
+//FIXME: DEBUG: Enable fake login for development/testing
+document.addEventListener('DOMContentLoaded', () => {
+  const loginBtn = document.getElementById('loginButton');
+  if (!loginBtn) return;
+
+  loginBtn.addEventListener('click', async (e) => {
+    if (!DEV_FAKE_LOGIN_ENABLED) {
+      // default behavior: go to real login
+      window.location.href = '/api/auth/login';
+      return;
+    }
+
+    e.preventDefault();
+
+    const sample = {
+      core: { cid: "123456", name: "Dev User", is_admin: true },
+      local: { cid: "123456", roles: ["admin"], api_key: "dev-key-1" },
+      token: "dev-token"
+    };
+
+    const current = localStorage.getItem('devUser') || JSON.stringify(sample, null, 2);
+    const input = prompt("Paste fake session JSON (core/local/token):", current);
+    if (!input) return;
+
+    try {
+      const parsed = JSON.parse(input);
+      // minimal normalization (ensure structure exists)
+      parsed.core ||= null;
+      parsed.local ||= null;
+      parsed.token ||= "dev-token";
+      localStorage.setItem('devUser', JSON.stringify(parsed));
+      // update UI immediately
+      checkAuthAndUpdateUI();
+      alert('Dev session stored. Refresh or navigate to see effects.');
+    } catch (err) {
+      alert('Invalid JSON: ' + err.message);
+    }
+  });
+
+  const logoutBtns = document.querySelectorAll('button[onclick*="/api/auth/logout"]');
+  logoutBtns.forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      if (!DEV_FAKE_LOGIN_ENABLED) return;
+      // allow normal logout to proceed too
+      localStorage.removeItem('devUser');
+      // let server logout happen if configured, otherwise prevent and clear UI:
+      // if you want to stop server call uncomment next line:
+      // e.preventDefault();
+      // update UI to logged-out immediate
+      checkAuthAndUpdateUI();
+    });
+  });
+});
+
+async function fetchCurrentUser() {
+  //FIXME: dev fake stored JSON (if any)
+  const dev = localStorage.getItem('devUser');
+  if (DEV_FAKE_LOGIN_ENABLED && dev) {
+    try {
+      return JSON.parse(dev);
+    } catch (e) {
+      console.warn('Invalid devUser JSON in localStorage, clearing it');
+      localStorage.removeItem('devUser');
+    }
+  }
+
+  try {
+    const res = await fetch('/api/auth/session', { credentials: 'same-origin' });
+    if (!res.ok) return null;
+    return await res.json();
+  } catch (err) {
+    console.warn('fetchCurrentUser error', err);
+    return null;
+  }
+}
+
+function isUserConnected(user) {
+  return !!user && (!!user.core || !!user.local || !!user.token);
+}
+
+function isUserAdmin(user) {
+  if (!user) return false;
+  if (user.local && Array.isArray(user.local.roles) && user.local.roles.includes('admin')) return true;
+  return false;
+}
+
+async function checkAuthAndUpdateUI() {
+  const user = await fetchCurrentUser();
+  renderLoginLayout(user);
+  displayDashboard(user);
+}
+
+async function fetchLocalUsers() {
+  const res = await fetch('/api/auth/internal/localusers', { credentials: 'same-origin' });
+  if (!res.ok) throw new Error('Failed to fetch users');
+  return res.json();
+}
+
+async function toggleAdminRole(cid, add) {
+  const url = `/api/auth/internal/localuser/${encodeURIComponent(cid)}/roles`;
+  const method = add ? 'POST' : 'DELETE';
+  const res = await fetch(url, {
+    method,
+    credentials: 'same-origin',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ role: 'admin' })
+  });
+  if (!res.ok) throw new Error('Failed to update role');
+  return res.json();
+}
+
+//FIXME: need testing and better UI
+async function renderAdminList(containerId) {
+  const container = document.getElementById(containerId);
+  if (!container) return;
+  try {
+    const users = await fetchLocalUsers();
+    container.innerHTML = users.map(u => {
+      const isAdmin = Array.isArray(u.roles) && u.roles.includes('admin');
+      return `<div data-cid="${u.cid}">
+        <strong>${u.cid}</strong> ${u.full_name ? '- ' + u.full_name : ''}
+        <button class="role-btn" data-cid="${u.cid}" data-action="${isAdmin ? 'revoke' : 'grant'}">
+          ${isAdmin ? 'Revoke admin' : 'Grant admin'}
+        </button>
+      </div>`;
+    }).join('');
+    container.querySelectorAll('.role-btn').forEach(btn => {
+      btn.addEventListener('click', async (e) => {
+        const cid = btn.dataset.cid;
+        const add = btn.dataset.action === 'grant';
+        await toggleAdminRole(cid, add);
+        await renderAdminList(containerId);
+      });
+    });
+  } catch (err) {
+    container.textContent = 'Error loading users';
+    console.error(err);
+  }
+}
+
 // Select correct dashboard based on isAdmin or not
-function displayDashboard() {
-  const isAdmin = false; // Replace with actual admin check
+function displayDashboard(user) {
+  const isAdmin = isUserAdmin(user);
   if (isAdmin) {
+    renderAdminList('adminUserList');
     document.getElementById("dashboardAdmin").style.display = "block";
     document.getElementById("dashboardUser").style.display = "none";
   } else {
@@ -1727,9 +1869,9 @@ function displayDashboard() {
   }
 }
 
-function renderLoginLayout() {
+function renderLoginLayout(user) {
   // If not connected, show login button
-  const isConnected = true; //TODO: Replace with actual connection check
+  const isConnected = isUserConnected(user);
   if (!isConnected) {
     Array.from(document.getElementsByClassName("loginLayout")).forEach(el => el.style.display = "flex");
     Array.from(document.getElementsByClassName("connectedLayout")).forEach(el => el.style.display = "none");
@@ -1741,13 +1883,13 @@ function renderLoginLayout() {
     } else {
       Array.from(document.getElementsByClassName("connectedLayout")).forEach(el => el.style.display = "inline");
     }
-    document.getElementById("username").textContent = "Alexis"; //TODO: Replace with actual username
-    apiKeyDisplay();
+    document.getElementById("username").textContent = user ? user.core.name : "Guest";
+    apiKeyDisplay(user);
   }
 }
 
-function apiKeyDisplay() {
-  let apiKey = localStorage.getItem("apiKey");
+function apiKeyDisplay(user) {
+  let apiKey = user ? user.local.api_key : "";
   if (apiKey && apiKey.length > 0) {
     document.getElementById("selfAPIKey").style.display = "inline";
     document.getElementById("selfAPIKey").textContent = apiKey;
@@ -1758,11 +1900,8 @@ function apiKeyDisplay() {
 
 function generateApiKey() {
   console.log("Generating new API key...");
-  // generate random API key
-  const apiKey = "NEW-API-KEY-" + Math.random().toString(36).substring(2, 15);
-  //FIXME: do not store in localStorage, call backend to create and retrieve
-  localStorage.setItem("apiKey", apiKey);
-  apiKeyDisplay();
+  //FIXME: call API to create key
+  // apiKeyDisplay();
 }
 
 
@@ -1777,10 +1916,12 @@ function updateApiKeyCount() {
 // API actions
 function renewApiKey(apiKey) {
   console.log("Renewing API key:", apiKey);
+  //FIXME: call API to renew key
 }
 
 function revokeApiKey(apiKey) {
   console.log("Revoking API key:", apiKey);
+  //FIXME: call API to revoke key
   // Remove entire row from table
   const row = document.getElementById(apiKey);
   if (row) {
