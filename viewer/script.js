@@ -1115,6 +1115,17 @@ document.addEventListener("DOMContentLoaded", () => {
 
     function showPage(page) {
       sections.forEach((s) => {
+        if (page === "log" || page === "configs") {
+          // Block access to logs and configs if not authenticated
+          if (!isUserAdmin(fetchCurrentUser())) {
+            console.log("Access denied to page:", page);
+            s.style.display = "none";
+            // redirect to status page
+            if (location.hash !== "#status") {
+              location.hash = "#status";
+            }
+          }
+        }
         s.style.display = s.dataset.page === page ? "" : "none";
       });
       navLinks.forEach((a) => {
@@ -1732,7 +1743,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const sample = {
       core: { cid: "123456", name: "Dev User", is_admin: true },
-      local: { cid: "123456", roles: ["admin"], api_key: "dev-key-1" },
+      local: { cid: "123456", roles: ["user"], api_key: "dev-key-1" },
       token: "dev-token"
     };
 
@@ -1871,8 +1882,16 @@ function displayDashboard(user) {
 }
 
 function renderLoginLayout(user) {
-  // If not connected, show login button
   const isConnected = isUserConnected(user);
+  const isAdmin = isUserAdmin(user);
+
+  // Handle sidenav items visibility
+  const adminOnlyItems = document.querySelectorAll('.sidenav a[data-admin-only]');
+  adminOnlyItems.forEach(item => {
+    item.style.display = isConnected && isAdmin ? 'block' : 'none';
+  });
+
+  // Rest of existing login layout logic
   if (!isConnected) {
     Array.from(document.getElementsByClassName("loginLayout")).forEach(el => el.style.display = "flex");
     Array.from(document.getElementsByClassName("connectedLayout")).forEach(el => el.style.display = "none");

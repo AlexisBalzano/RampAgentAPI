@@ -53,8 +53,8 @@
           <a href="#status" onclick="closeNav()">Status</a>
           <a href="#statistics" onclick="closeNav()">Statistics</a>
           <a href="#standMap" onclick="closeNav()">Map</a>
-          <a href="#log" onclick="closeNav()">Logs</a>
-          <a href="#configs" onclick="closeNav()">Configs</a>
+          <a href="#log" onclick="closeNav()" data-admin-only>Logs</a>
+          <a href="#configs" onclick="closeNav()" data-admin-only>Configs</a>
           <a href="#dashboard" onclick="closeNav()">Dashboard</a>
           <p class="version">Version 1.0.5</p>
         </div>
@@ -129,7 +129,7 @@
       <section data-page="dashboard">
         <section id="dashboardUser">
           <div class="loginLayout">
-            <button id="loginButton" onclick="window.location.href='/api/auth/login'">Login</button>
+            <button id="loginButton">Login</button>
           </div>
           <div class="connectedLayout">
             <h2>Welcome, <span id="usernameUser">User</span>!</h2>
