@@ -827,6 +827,7 @@ body.dark-mode #loginButton:hover {
 #logoutButton {
   display: block;
   margin-top: 20px;
+  margin-bottom: 20px;
   padding: 8px 20px;
   border: 1px solid #ccc;
   border-radius: 8px;
@@ -896,7 +897,7 @@ body.dark-mode #generateAPIKeyButton:hover {
   margin-top: 20px;
   max-width: 100%;
   min-width: 330px;
-  height: calc(100vh - 350px);
+  height: calc(100vh - 400&px);
   min-height: 250px;
   overflow: hidden;
 }

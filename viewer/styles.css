@@ -1888,22 +1888,22 @@ body.dark-mode .letter::after {
     transform: rotateX(0deg);
   }
   20% {
-    content: "9";
+    content: "Q";
     transform: rotateX(360deg);
   }
   40% {
     color: #afafaf;
-    content: "0";
+    content: "O";
     transform: rotateX(0deg);
   }
   60% {
     color: #afafaf;
-    content: "0";
+    content: "1";
     transform: rotateX(360deg);
   }
   80% {
     color: #afafaf;
-    content: "3";
+    content: "V";
     transform: rotateX(0deg);
   }
   100% {
@@ -2029,6 +2029,7 @@ body.dark-mode #loginButton:hover {
 #logoutButton {
   display: block;
   margin-top: 20px;
+  margin-bottom: 20px;
   padding: 8px 20px;
   border: 1px solid #ccc;
   border-radius: 8px;
@@ -2103,7 +2104,7 @@ body.dark-mode #generateAPIKeyButton:hover {
   margin-top: 20px;
   max-width: 100%;
   min-width: 330px;
-  height: calc(100vh - 350px);
+  height: calc(100vh - 400px);
   min-height: 250px;
   overflow: hidden;
 }
