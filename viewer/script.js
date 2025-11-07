@@ -1863,6 +1863,7 @@ function displayDashboard(user) {
     renderAdminList('adminUserList');
     document.getElementById("dashboardAdmin").style.display = "block";
     document.getElementById("dashboardUser").style.display = "none";
+    updateControllerNumber();
   } else {
     document.getElementById("dashboardAdmin").style.display = "none";
     document.getElementById("dashboardUser").style.display = "block";
@@ -1883,7 +1884,8 @@ function renderLoginLayout(user) {
     } else {
       Array.from(document.getElementsByClassName("connectedLayout")).forEach(el => el.style.display = "inline");
     }
-    document.getElementById("username").textContent = user ? user.core.name : "Guest";
+    document.getElementById("usernameUser").textContent = user ? user.core.name : "Guest";
+    document.getElementById("usernameAdmin").textContent = user ? user.core.name : "Guest";
     apiKeyDisplay(user);
   }
 }
@@ -1941,6 +1943,29 @@ function revokeApiKey(apiKey) {
   }
 
 }
+
+// ATC controller number
+function updateControllerNumber() {
+  const span = document.getElementById("connectedAtcCount");
+  if (!span) return;
+  fetch(API_BASE_URL + "/api/occupancy/controllers", {
+    headers: { "X-Internal-Request": "1" },
+  })
+    .then((res) => {
+      if (!res.ok) throw new Error("Network response was not ok");
+      return res.json();
+    })
+    .then((data) => {
+      if (typeof data.count === "number") {
+        span.textContent = data.count;
+      }
+    })
+    .catch((err) => {
+      console.error("Failed to fetch connected ATC count", err);
+    });
+}
+
+setInterval(updateControllerNumber, 15000); // update every 15 seconds
 
 // Swipe buttons
 (function enableRowSwipeActions() {

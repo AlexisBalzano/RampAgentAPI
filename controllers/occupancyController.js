@@ -111,3 +111,14 @@ exports.getAllStandsStatus = (req, res) => {
     res.status(500).json({ error: "Failed to retrieve all stands status" });
   }
 };
+
+exports.getControllersNumber = (req, res) => {
+  try {
+    if (!req.headers["x-internal-request"]) {
+      stat.incrementRequestCount();
+    }
+    res.status(200).json({ count: callsignCache.size });
+  } catch (err) {
+    res.status(500).json({ error: "Failed to retrieve controllers number" });
+  }
+};
