@@ -2136,25 +2136,5 @@ function revokeApiKey(apiKey) {
     dragging = false;
   }, { passive: true });
 
-  // Optional: mouse support
-  let mouseDown = false;
-  tbody.addEventListener('mousedown', (e) => {
-    if (e.button !== 0) return;
-    mouseDown = true;
-    startDrag(e.clientX, e.clientY, e.target);
-    e.preventDefault();
-  });
-
-  window.addEventListener('mousemove', (e) => {
-    if (!mouseDown || !dragging) return;
-    moveDrag(e.clientX, e.clientY);
-  });
-
-  window.addEventListener('mouseup', (e) => {
-    if (!mouseDown) return;
-    mouseDown = false;
-    if (dragging && activeRow) {
-      endDrag(e.clientX, e.clientY);
-    }
-  });
+  
 })();
