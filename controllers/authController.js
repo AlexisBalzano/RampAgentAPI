@@ -3,142 +3,118 @@ const crypto = require('crypto');
 const path = require('path');
 const cookie = require('cookie');
 const { jwtVerify } = require('jose');
+const redisService = require('../services/redisService');
 
-// Local user DB
-let Low, JSONFile, db;
 
-// Local user DB (lowdb is ESM-only in recent versions -> dynamic import)
-const file = path.join(__dirname, '..', 'data', 'localUsers.json');
-
-(async function initDb() {
+exports.getLocalUser = async (req, res) => {
   try {
-    const lowdb = await import('lowdb');
-    Low = lowdb.Low;
-    JSONFile = lowdb.JSONFile;
-    const adapter = new JSONFile(file);
-    db = new Low(adapter);
-    await db.read();
-    db.data ||= { users: [] };
-
-    // seed initial admins from env (CSV of cids)
-    const seedAdmins = (process.env.INIT_ADMINS || process.env.ADMIN_CIDS || '')
-      .split(',')
-      .map(s => s.trim())
-      .filter(Boolean);
-    for (const cid of seedAdmins) {
-      let u = db.data.users.find(x => x.cid === cid);
-      if (!u) {
-        u = { cid, roles: ['admin'], created_at: new Date().toISOString() };
-        db.data.users.push(u);
-      } else {
-        u.roles ||= [];
-        if (!u.roles.includes('admin')) u.roles.push('admin');
-      }
-    }
-
-    await db.write();
+    const { cid } = req.user; // From requireAuth middleware
+    const localUser = await redisService.getLocalUser(cid);
+    res.json(localUser);
   } catch (err) {
-    error('Failed to init lowdb: ' + (err.message || err), { category: 'Auth' });
-    // fallback stub so other code doesn't blow up (requests should still handle missing data)
-    db = {
-      read: async () => { /* noop */ },
-      write: async () => { /* noop */ },
-      data: { users: [] }
-    };
+    error("Failed to get local user:", err);
+    res.status(500).json({ error: "Failed to get local user" });
   }
-})();
-
-exports.getLocalUser = async function (req, res) {
-  await db.read();
-  const cid = req.params.cid;
-  const user = db.data.users.find(u => u.cid === cid);
-  if (!user) return res.status(404).json({ error: 'Not found' });
-  res.json(user);
 };
 
-exports.getAllLocalUsers = async function (req, res) {
-  await db.read();
-  res.json(db.data.users || []);
-};
-
-exports.getAdmins = async function (req, res) {
-  await db.read();
-  const admins = (db.data.users || []).filter(u => Array.isArray(u.roles) && u.roles.includes('admin'));
-  res.json(admins);
-};
-
-exports.updateLocalUser = async function (req, res) {
-  await db.read();
-  const cid = req.params.cid;
-  const body = req.body || {};
-  let user = db.data.users.find(u => u.cid === cid);
-  if (!user) {
-    user = {
-      cid,
-      roles: [],
-      created_at: new Date().toISOString(),
-      ...body
-    };
-    db.data.users.push(user);
-  } else {
-    Object.assign(user, body, { updated_at: new Date().toISOString() });
+exports.getAllLocalUsers = async (req, res) => {
+  try {
+    const users = await redisService.getAllLocalUsers();
+    if (!users) {
+      return res.status(500).json({ error: "Failed to retrieve users" });
+    }
+    res.json(users);
+  } catch (err) {
+    error("Failed to get all local users:", err);
+    res.status(500).json({ error: "Failed to get users" });
   }
-  await db.write();
-  res.json({ ok: true, user });
+};
+
+exports.updateLocalUser = async (req, res) => {
+  try {
+    const { cid } = req.user;
+    const settings = req.body;
+    const updated = await redisService.updateLocalUser(cid, settings);
+    if (!updated) {
+      return res.status(500).json({ error: "Failed to update local user" });
+    }
+    res.json(updated);
+  } catch (err) {
+    error("Failed to update local user:", err);
+    res.status(500).json({ error: "Failed to update local user" });
+  }
 };
 
 exports.grantRole = async function (req, res) {
-  // body: { role: "admin" }
-  const cid = req.params.cid;
-  const role = (req.body && req.body.role) || null;
-  if (!role) return res.status(400).json({ error: 'role required' });
+  try {
+    const cid = req.params.cid;
+    const role = (req.body && req.body.role) || null;
+    if (!role) return res.status(400).json({ error: 'role required' });
 
-  await db.read();
-  let user = db.data.users.find(u => u.cid === cid);
-  if (!user) {
-    user = { cid, roles: [], created_at: new Date().toISOString() };
-    db.data.users.push(user);
+    const user = await redisService.getLocalUser(cid) || { 
+      cid, 
+      roles: [], 
+      created_at: new Date().toISOString() 
+    };
+
+    user.roles ||= [];
+    if (!user.roles.includes(role)) {
+      user.roles.push(role);
+      user.updated_at = new Date().toISOString();
+      const updated = await redisService.updateLocalUser(cid, user);
+      if (!updated) {
+        return res.status(500).json({ error: 'Failed to update user' });
+      }
+    }
+    res.json({ ok: true, user });
+  } catch (err) {
+    error('Failed to grant role:', err);
+    res.status(500).json({ error: 'Failed to grant role' });
   }
-  user.roles ||= [];
-  if (!user.roles.includes(role)) {
-    user.roles.push(role);
-    user.updated_at = new Date().toISOString();
-    await db.write();
-  }
-  res.json({ ok: true, user });
 };
 
 exports.revokeRole = async function (req, res) {
-  const cid = req.params.cid;
-  const role = (req.body && req.body.role) || null;
-  if (!role) return res.status(400).json({ error: 'role required' });
+  try {
+    const cid = req.params.cid;
+    const role = (req.body && req.body.role) || null;
+    if (!role) return res.status(400).json({ error: 'role required' });
 
-  await db.read();
-  const user = db.data.users.find(u => u.cid === cid);
-  if (!user) return res.status(404).json({ error: 'user not found' });
+    const user = await redisService.getLocalUser(cid);
+    if (!user) return res.status(404).json({ error: 'user not found' });
 
-  user.roles = (user.roles || []).filter(r => r !== role);
-  user.updated_at = new Date().toISOString();
-  await db.write();
-  res.json({ ok: true, user });
+    user.roles = (user.roles || []).filter(r => r !== role);
+    user.updated_at = new Date().toISOString();
+    
+    const updated = await redisService.updateLocalUser(cid, user);
+    if (!updated) {
+      return res.status(500).json({ error: 'Failed to update user' });
+    }
+    res.json({ ok: true, user });
+  } catch (err) {
+    error('Failed to revoke role:', err);
+    res.status(500).json({ error: 'Failed to revoke role' });
+  }
 };
 
-// middleware factory to require a role
-exports.requireRole = function (role) {
-  return async function (req, res, next) {
-    // requireAuth should have set req.user (token payload)
-    if (!req.user || !req.user.cid) return res.status(401).json({ error: 'Not authenticated' });
-
-    await db.read();
-    const local = db.data.users.find(u => u.cid === req.user.cid);
-    if (local && Array.isArray(local.roles) && local.roles.includes(role)) {
-      return next();
+exports.requireRoles = (roles) => {
+  return async (req, res, next) => {
+    if (!req.user || !req.user.cid) {
+      return res.status(401).json({ error: 'Not authenticated' });
     }
 
-    // optional fallback: check token payload for admin flag
-    if (req.user && (req.user.is_admin === true || req.user.admin === true)) return next();
+    try {
+      const userRoles = await redisService.getRoles(req.user.cid);
+      const hasRequiredRole = roles.some(role => userRoles.includes(role));
+      
+      if (hasRequiredRole) {
+        return next();
+      }
 
-    return res.status(403).json({ error: 'Forbidden' });
+      return res.status(403).json({ error: 'Insufficient permissions' });
+    } catch (err) {
+      error('Failed to check roles:', err);
+      return res.status(500).json({ error: 'Failed to check permissions' });
+    }
   };
 };
 
@@ -177,12 +153,22 @@ exports.logout = async (req, res) => {
 
 // Middleware to require a valid session cookie and attach req.user
 exports.requireAuth = async (req, res, next) => {
-  const token = req.cookies && req.cookies.access_token;
-  if (!token) return res.status(401).json({ error: 'Not authenticated' });
-  const sessionData = await decryptToken(token);
-  if (!sessionData) return res.status(401).json({ error: 'Invalid session' });
-  req.user = sessionData.tokenContent;
-  next();
+  try {
+    const authHeader = req.headers.authorization;
+    if (!authHeader?.startsWith('Bearer ')) {
+      return res.status(401).json({ error: 'Not authenticated' });
+    }
+
+    const token = authHeader.split(' ')[1];
+
+    const sessionData = await decryptToken(token);
+    if (!sessionData) return res.status(401).json({ error: 'Invalid session' });
+    req.user = sessionData.tokenContent;
+    next();
+  } catch (err) {
+    error('Auth error:', err);
+    return res.status(401).json({ error: 'Not authenticated' });
+  }
 };
 
 exports.loginCallback = async (req, res) => {

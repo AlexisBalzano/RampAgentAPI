@@ -197,6 +197,97 @@ class RedisService {
       logger.info('Redis Client Disconnected', { category: 'System' });
     }
   }
+
+  async getAllLocalUsers() {
+    if (!this.isConnected) return null;
+    try {
+      const keys = await this.client.keys('user:*:settings');
+      const users = [];
+      for (const key of keys) {
+        const cid = key.split(':')[1];
+        users.push({ cid });
+      }
+      return users;
+    } catch (err) {
+      logger.warn(`Failed to get all local users: ${err.message}`, { category: 'System' });
+      return null;
+    }
+  }
+
+  async getLocalUser(cid) {
+    if (!this.isConnected) return {};
+    
+    try {
+      const key = `user:${cid}:settings`;
+      const settings = await this.client.get(key);
+      return settings ? JSON.parse(settings) : {};
+    } catch (err) {
+      logger.warn(`Failed to get local user for ${cid}: ${err.message}`, { category: 'System' });
+      return {};
+    }
+  }
+
+  VALID_ROLES = ['admin', 'user'];
+
+  async validateRole(role) {
+    return VALID_ROLES.includes(role);
+  }
+
+  async updateLocalUser(cid, settings) {
+    if (!this.isConnected) return false;
+
+    try {
+      const key = `user:${cid}:settings`;
+      const existing = await this.getLocalUser(cid);
+      
+      // Validate roles if they're being updated
+      if (settings.roles) {
+        if (!Array.isArray(settings.roles)) {
+          logger.warn(`Invalid roles format for ${cid}`, { category: 'System' });
+          return false;
+        }
+        
+        // Filter out invalid roles
+        settings.roles = settings.roles.filter(role => VALID_ROLES.includes(role));
+      }
+
+      const updated = { ...existing, ...settings };
+      await this.client.set(key, JSON.stringify(updated));
+      return updated;
+    } catch (err) {
+      logger.warn(`Failed to update local user for ${cid}: ${err.message}`, { category: 'System' });
+      return false;
+    }
+  }
+
+  // Add these methods to RedisService class
+  async hasRole(cid, role) {
+    const user = await this.getLocalUser(cid);
+    return user.roles && Array.isArray(user.roles) && user.roles.includes(role);
+  }
+
+  async getRoles(cid) {
+    const user = await this.getLocalUser(cid);
+    return user.roles || [];
+  }
+
+  async addRole(cid, role) {
+    if (!VALID_ROLES.includes(role)) {
+      logger.warn(`Invalid role: ${role}`, { category: 'System' });
+      return false;
+    }
+
+    const user = await this.getLocalUser(cid);
+    user.roles = Array.from(new Set([...(user.roles || []), role]));
+    return await this.updateLocalUser(cid, user);
+  }
+
+  async removeRole(cid, role) {
+    const user = await this.getLocalUser(cid);
+    if (!user.roles) return true;
+    user.roles = user.roles.filter(r => r !== role);
+    return await this.updateLocalUser(cid, user);
+  }
 }
 
 // Singleton instance
