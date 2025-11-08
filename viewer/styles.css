@@ -1888,22 +1888,22 @@ body.dark-mode .letter::after {
     transform: rotateX(0deg);
   }
   20% {
-    content: "Q";
+    content: "D";
     transform: rotateX(360deg);
   }
   40% {
     color: #afafaf;
-    content: "O";
+    content: "G";
     transform: rotateX(0deg);
   }
   60% {
     color: #afafaf;
-    content: "1";
+    content: "5";
     transform: rotateX(360deg);
   }
   80% {
     color: #afafaf;
-    content: "V";
+    content: "Y";
     transform: rotateX(0deg);
   }
   100% {
