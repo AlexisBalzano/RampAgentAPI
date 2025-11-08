@@ -309,3 +309,68 @@ async function deleteSession(res) {
 
   return;
 }
+
+// API Key Management
+
+exports.getKeys = async (req, res) => {
+  try {
+    const keys = await redisService.getAllKeys();
+    return res.json(keys);
+  } catch (error) {
+    console.error('Error fetching keys:', error);
+    return res.status(500).json({ error: 'Internal Server Error' });
+  }
+};
+
+exports.getUserKey = async (req, res) => {
+  try {
+    const keyId = req.params.id;
+    const key = await redisService.getKeyById(keyId);
+    if (key) {
+      return res.json(key);
+    }
+    return res.status(404).json({ error: 'Key not found' });
+  } catch (error) {
+    console.error('Error fetching key:', error);
+    return res.status(500).json({ error: 'Internal Server Error' });
+  }
+};
+
+exports.createKey = async (req, res) => {
+  try {
+    const id = req.params.id;
+    const newKey = await redisService.createKey(id);
+    return res.status(201).json(newKey);
+  } catch (error) {
+    console.error('Error creating key:', error);
+    return res.status(500).json({ error: 'Internal Server Error' });
+  }
+};
+
+exports.renewKey = async (req, res) => {
+  try {
+    const keyId = req.params.id;
+    const renewed = await redisService.renewKey(keyId);
+    if (renewed) {
+      return res.status(200).json({ message: 'Key renewed successfully' });
+    }
+    return res.status(404).json({ error: 'Key not found' });
+  } catch (error) {
+    console.error('Error renewing key:', error);
+    return res.status(500).json({ error: 'Internal Server Error' });
+  }
+};
+
+exports.deleteKey = async (req, res) => {
+  try {
+    const keyId = req.params.id;
+    const deleted = await redisService.deleteKey(keyId);
+    if (deleted) {
+      return res.status(200).json({ message: 'Key deleted successfully' });
+    }
+    return res.status(404).json({ error: 'Key not found' });
+  } catch (error) {
+    console.error('Error deleting key:', error);
+    return res.status(500).json({ error: 'Internal Server Error' });
+  }
+};

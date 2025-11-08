@@ -1,5 +1,4 @@
-const API_BASE_URL = ""; //FIXME: add API url + /rampagent/
-const DEV_FAKE_LOGIN_ENABLED = true; //FIXME: debug
+const API_BASE_URL = "https://pintade.vatsim.fr/rampagent";
 
 /* Set the width of the side navigation to 250px */
 function openNav() {
@@ -1726,73 +1725,7 @@ if (document.readyState === "loading") {
 
 
 // Dashboard
-
-//FIXME: DEBUG: Enable fake login for development/testing
-document.addEventListener('DOMContentLoaded', () => {
-  const loginBtn = document.getElementById('loginButton');
-  if (!loginBtn) return;
-
-  loginBtn.addEventListener('click', async (e) => {
-    if (!DEV_FAKE_LOGIN_ENABLED) {
-      // default behavior: go to real login
-      window.location.href = '/api/auth/login';
-      return;
-    }
-
-    e.preventDefault();
-
-    const sample = {
-      core: { cid: "123456", name: "Dev User", is_admin: true },
-      local: { cid: "123456", roles: ["user"], api_key: "dev-key-1" },
-      token: "dev-token"
-    };
-
-    const current = localStorage.getItem('devUser') || JSON.stringify(sample, null, 2);
-    const input = prompt("Paste fake session JSON (core/local/token):", current);
-    if (!input) return;
-
-    try {
-      const parsed = JSON.parse(input);
-      // minimal normalization (ensure structure exists)
-      parsed.core ||= null;
-      parsed.local ||= null;
-      parsed.token ||= "dev-token";
-      localStorage.setItem('devUser', JSON.stringify(parsed));
-      // update UI immediately
-      checkAuthAndUpdateUI();
-      alert('Dev session stored. Refresh or navigate to see effects.');
-    } catch (err) {
-      alert('Invalid JSON: ' + err.message);
-    }
-  });
-
-  const logoutBtns = document.querySelectorAll('button[onclick*="/api/auth/logout"]');
-  logoutBtns.forEach(btn => {
-    btn.addEventListener('click', (e) => {
-      if (!DEV_FAKE_LOGIN_ENABLED) return;
-      // allow normal logout to proceed too
-      localStorage.removeItem('devUser');
-      // let server logout happen if configured, otherwise prevent and clear UI:
-      // if you want to stop server call uncomment next line:
-      // e.preventDefault();
-      // update UI to logged-out immediate
-      checkAuthAndUpdateUI();
-    });
-  });
-});
-
 async function fetchCurrentUser() {
-  //FIXME: dev fake stored JSON (if any)
-  const dev = localStorage.getItem('devUser');
-  if (DEV_FAKE_LOGIN_ENABLED && dev) {
-    try {
-      return JSON.parse(dev);
-    } catch (e) {
-      console.warn('Invalid devUser JSON in localStorage, clearing it');
-      localStorage.removeItem('devUser');
-    }
-  }
-
   try {
     const res = await fetch('/api/auth/session', { credentials: 'same-origin' });
     if (!res.ok) return null;
@@ -1875,6 +1808,7 @@ function displayDashboard(user) {
     document.getElementById("dashboardAdmin").style.display = "block";
     document.getElementById("dashboardUser").style.display = "none";
     updateControllerNumber();
+    updateApiKeyList();
   } else {
     document.getElementById("dashboardAdmin").style.display = "none";
     document.getElementById("dashboardUser").style.display = "block";
@@ -1921,10 +1855,63 @@ function apiKeyDisplay(user) {
 
 function generateApiKey() {
   console.log("Generating new API key...");
-  //FIXME: call API to create key
-  // apiKeyDisplay();
+  fetchLocalUsers().then(user => {
+    if (!user) {
+      console.error("Cannot generate API key: user not found");
+      return;
+    }
+    fetch(API_BASE_URL + `/api/auth/key/${user.cid}`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({ userId: user.cid })
+    });
+  });
+
+  // Refresh the dashboard to show new key
+  fetchLocalUsers().then(user => {
+    apiKeyDisplay(user);
+  });
 }
 
+function updateApiKeyList() {
+  const tbody = document.querySelector("#apiKeyListTable tbody");
+  if (!tbody) return;
+  fetch(API_BASE_URL + "/api/auth/keys", {
+    headers: {
+      "Content-Type": "application/json"
+    }
+  })
+    .then((res) => {
+      if (!res.ok) throw new Error("Network response was not ok");
+      return res.json();
+    })
+    .then((data) => {
+      // Clear existing rows
+      tbody.innerHTML = "";
+
+      // Populate table with API keys
+      data.keys.forEach(key => {
+        const row = document.createElement("tr");
+        row.id = key.cid;
+        row.innerHTML = `
+          <td>${key.cid}</td>
+          <td class="apiValue">${key.apiKey}</td>
+          <td class="createdValue">${key.createdAt}</td>
+          <td>${key.lastUsed}</td>
+          <td class="actionCell">
+            <button class="renewButton" onclick="renewApiKey('${key.cid}')">Renew</button>
+            <button class="revokeButton" onclick="revokeApiKey('${key.cid}')">Revoke</button>
+          </td>
+        `;
+        tbody.appendChild(row);
+      });
+    })
+    .catch((err) => {
+      console.error("Failed to fetch API key list", err);
+    });
+}
 
 function updateApiKeyCount() {
   const countElem = document.getElementById("apiKeyCount");
@@ -1935,16 +1922,30 @@ function updateApiKeyCount() {
 }
 
 // API actions
-function renewApiKey(apiKey) {
-  console.log("Renewing API key:", apiKey);
-  //FIXME: call API to renew key
+function renewApiKey(cid) {
+  console.log("Renewing API key of CID:", cid);
+  fetch(API_BASE_URL + `/api/auth/key/${cid}/renew`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify({ cid })
+  });
 }
 
-function revokeApiKey(apiKey) {
-  console.log("Revoking API key:", apiKey);
-  //FIXME: call API to revoke key
+function revokeApiKey(cid) {
+  console.log("Revoking API key of CID:", cid);
+
+  fetch(API_BASE_URL + `/api/auth/key/${cid}/revoke`, {
+    method: "DELETE",
+    headers: {
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify({ cid })
+  });
+
   // Remove entire row from table
-  const row = document.getElementById(apiKey);
+  const row = document.getElementById(cid);
   if (row) {
     row.remove();
     updateApiKeyCount();

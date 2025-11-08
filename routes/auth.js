@@ -12,10 +12,11 @@ router.post('/internal/localuser/:cid/update', express.json(), authController.up
 router.post('/internal/localuser/:cid/roles', authController.requireAuth, authController.requireRoles('admin'), express.json(), authController.grantRole);
 router.delete('/internal/localuser/:cid/roles', authController.requireAuth, authController.requireRoles('admin'), express.json(), authController.revokeRole);
 // router.post('/verify', authController.verify);
-// router.get('/keys', authController.getKeys);
-// router.post('/keys', authController.createKey);
-// router.post('/keys/:id/renew', authController.renewKey);
-// router.delete('/keys/:id', authController.deleteKey);
+router.get('/keys', authController.getKeys);
+router.get('/keys/:id', authController.getUserKey);
+router.post('/key/:id', authController.createKey);
+router.post('/keys/:id/renew', authController.renewKey);
+router.delete('/keys/:id', authController.deleteKey);
 
 
 module.exports = router;

@@ -2,8 +2,14 @@ const redis = require('redis');
 const fs = require('fs');
 const path = require('path');
 const logger = require('../utils/logger');
+const crypto = require('crypto');
+const ADMIN_CIDS = require('../config/admins');
 
 class RedisService {
+  // Default expiration times in seconds
+  static KEY_EXPIRATION = 24 * 60 * 60 * 30; // 30 days
+  static KEY_METADATA_EXPIRATION = 30 * 24 * 60 * 60 * 2; // 60 days
+
   constructor() {
     this.client = null;
     this.isConnected = false;
@@ -39,7 +45,7 @@ class RedisService {
       this.isConnected = true;
       logger.info('Successfully connected to Redis', { category: 'System' });
     } catch (err) {
-      logger.warn(`Failed to connect to Redis: ${err.message} - Application will run without caching`, { category: 'System' });
+      logger.warn(`Failed to connect to Redis: ${err.message}`, { category: 'System' });
       this.isConnected = false;
       this.client = null;
     }
@@ -233,13 +239,45 @@ class RedisService {
     return VALID_ROLES.includes(role);
   }
 
+  async ensureAdminRoles() {
+    if (!this.isConnected) return;
+
+    try {
+      // Ensure all admin CIDs have admin role
+      for (const cid of ADMIN_CIDS) {
+        const user = await this.getLocalUser(cid);
+        if (!user.roles || !user.roles.includes('admin')) {
+          await this.updateLocalUser(cid, {
+            roles: [...(user.roles || []), 'admin'],
+            is_admin: true,
+            updated_at: new Date().toISOString()
+          });
+          logger.info(`Admin role granted to CID: ${cid}`, { category: 'System' });
+        }
+      }
+    } catch (err) {
+      logger.error(`Failed to ensure admin roles: ${err.message}`, { category: 'System' });
+    }
+  }
+
   async updateLocalUser(cid, settings) {
     if (!this.isConnected) return false;
 
     try {
+      // Check if this is first login for an admin
+      if (ADMIN_CIDS.includes(cid) && !(await this.getLocalUser(cid)).roles) {
+        await this.ensureAdminRoles();
+      }
+
       const key = `user:${cid}:settings`;
       const existing = await this.getLocalUser(cid);
       
+      // Prevent removing admin role from ADMIN_CIDS
+      if (ADMIN_CIDS.includes(cid)) {
+        settings.roles = Array.from(new Set([...(settings.roles || []), 'admin']));
+        settings.is_admin = true;
+      }
+
       // Validate roles if they're being updated
       if (settings.roles) {
         if (!Array.isArray(settings.roles)) {
@@ -248,7 +286,7 @@ class RedisService {
         }
         
         // Filter out invalid roles
-        settings.roles = settings.roles.filter(role => VALID_ROLES.includes(role));
+        settings.roles = settings.roles.filter(role => this.VALID_ROLES.includes(role));
       }
 
       const updated = { ...existing, ...settings };
@@ -260,7 +298,6 @@ class RedisService {
     }
   }
 
-  // Add these methods to RedisService class
   async hasRole(cid, role) {
     const user = await this.getLocalUser(cid);
     return user.roles && Array.isArray(user.roles) && user.roles.includes(role);
@@ -287,6 +324,149 @@ class RedisService {
     if (!user.roles) return true;
     user.roles = user.roles.filter(r => r !== role);
     return await this.updateLocalUser(cid, user);
+  }
+
+  async getAllKeys() {
+    if (!this.isConnected) return [];
+
+    try {
+      // Get all keys except metadata keys
+      const keys = await this.client.keys('*');
+      const nonMetaKeys = keys.filter(key => !key.startsWith('meta:'));
+      
+      // Get metadata for each key
+      const keysWithMetadata = await Promise.all(
+        nonMetaKeys.map(async (key) => {
+          const metadata = await this.getKeyMetadata(key);
+          return {
+            key,
+            metadata
+          };
+        })
+      );
+      
+      return keysWithMetadata;
+    } catch (err) {
+      logger.warn(`Failed to get all keys: ${err.message}`, { category: 'System' });
+      return [];
+    }
+  }
+
+  async createKey(key, expireIn = RedisService.KEY_EXPIRATION) {
+    if (!this.isConnected) return false;
+    try {
+      const raw = crypto.randomBytes(bytes); // cryptographically secure
+      // base64url: replace +/ with -_ and remove trailing = padding
+      const value = raw.toString('base64').replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+      // Store the key value with expiration
+      await this.client.set(key, value, { EX: expireIn });
+      
+      // Store metadata about the key
+      const metadata = {
+        created_at: Date.now(),
+        last_used: Date.now(),
+        expires_at: Date.now() + (expireIn * 1000),
+        value_type: typeof value
+      };
+      
+      await this.client.set(`meta:${key}`, JSON.stringify(metadata), {
+        EX: RedisService.KEY_METADATA_EXPIRATION
+      });
+      
+      return true;
+    } catch (err) {
+      logger.warn(`Failed to create key ${key}: ${err.message}`, { category: 'System' });
+      return false;
+    }
+  }
+
+  async renewKey(key, value, expireIn = RedisService.KEY_EXPIRATION) {
+    if (!this.isConnected) return false;
+    try {
+      const exists = await this.client.exists(key);
+      if (exists) {
+        // Update the key value and reset expiration
+        await this.client.set(key, value, { EX: expireIn });
+        
+        // Update metadata
+        const metaKey = `meta:${key}`;
+        const existingMeta = await this.client.get(metaKey);
+        const metadata = existingMeta ? JSON.parse(existingMeta) : {};
+        
+        metadata.last_used = Date.now();
+        metadata.expires_at = Date.now() + (expireIn * 1000);
+        
+        await this.client.set(metaKey, JSON.stringify(metadata), {
+          EX: RedisService.KEY_METADATA_EXPIRATION
+        });
+        
+        return true;
+      }
+      return false;
+    } catch (err) {
+      logger.warn(`Failed to renew key ${key}: ${err.message}`, { category: 'System' });
+      return false;
+    }
+  }
+
+  async getKeyMetadata(key) {
+    if (!this.isConnected) return null;
+    try {
+      const metaKey = `meta:${key}`;
+      const metadata = await this.client.get(metaKey);
+      return metadata ? JSON.parse(metadata) : null;
+    } catch (err) {
+      logger.warn(`Failed to get metadata for key ${key}: ${err.message}`, { category: 'System' });
+      return null;
+    }
+  }
+
+  async deleteKey(key) {
+    if (!this.isConnected) return false;
+    try {
+      const exists = await this.client.exists(key);
+      if (exists) {
+        // Delete both the key and its metadata
+        await Promise.all([
+          this.client.del(key),
+          this.client.del(`meta:${key}`)
+        ]);
+        return true;
+      }
+      return false;
+    } catch (err) {
+      logger.warn(`Failed to delete key ${key}: ${err.message}`, { category: 'System' });
+      return false;
+    }
+  }
+
+  async getKeyById(id) {
+    if (!this.isConnected) return null;
+    try {
+      // Get key value
+      const value = await this.client.get(id);
+      if (!value) return null;
+
+      // Get metadata separately
+      const metadata = await this.getKeyMetadata(id);
+      
+      // Try to parse value if it's JSON, otherwise return as is
+      let parsedValue;
+      try {
+        parsedValue = JSON.parse(value);
+      } catch {
+        parsedValue = value;
+      }
+
+      return {
+        value: parsedValue,
+        expires_at: metadata?.expires_at || null,
+        metadata
+      };
+    } catch (err) {
+      logger.warn(`Failed to get key ${id}: ${err.message}`, { category: 'System' });
+      return null;
+    }
   }
 }
 
