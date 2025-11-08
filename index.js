@@ -4,6 +4,7 @@ const crypto = require("crypto");
 require("dotenv").config();
 const logger = require("./utils/logger");
 const { spawn } = require("child_process");
+const treeKill = require('tree-kill'); // Add this package
 
 const env = process.env.NODE_ENV || "default";
 const config = require(`./config/${env}.js`);
@@ -51,41 +52,102 @@ app.post("/api/config-webhook", async (req, res) => {
 
   logger.info("Config webhook received", { category: "System" });
 
-  // Update config from git repo (works with volumes)
-  const repoPath = path.join(__dirname, "data"); // adjust if your data dir is elsewhere
-  const git = spawn("git", ["pull", "origin", "main"], {
-    cwd: repoPath,
-    stdio: ["ignore", "pipe", "pipe"],
-  });
-  let out = "";
-  let errout = "";
-  git.stdout.on("data", (chunk) => {
-    out += chunk.toString();
-  });
-  git.stderr.on("data", (chunk) => {
-    errout += chunk.toString();
-  });
-  git.on("error", (error) => {
-    logger.error(`Config update process error: ${error.message}`, {
+  // Set a timeout to kill long-running processes
+  const TIMEOUT = 30000; // 30 seconds
+  let isProcessKilled = false;
+
+  let git = null;
+  const killProcess = () => {
+    if (git && !git.killed) {
+      // Kill entire process tree
+      treeKill(git.pid, 'SIGKILL', (err) => {
+        if (err) {
+          logger.error(`Failed to kill git process: ${err.message}`, { 
+            category: "System" 
+          });
+        }
+      });
+      git.killed = true;
+    }
+  };
+
+  try {
+    const repoPath = path.join(__dirname, "data");
+    git = spawn("git", ["pull", "origin", "main"], {
+      cwd: repoPath,
+      stdio: ["ignore", "pipe", "pipe"],
+      timeout: TIMEOUT,
+      detached: false // Ensure process isn't detached
+    });
+
+    let out = "";
+    let errout = "";
+
+    // Set process timeout
+    const timeoutId = setTimeout(() => {
+      if (!git.killed) {
+        isProcessKilled = true;
+        killProcess();
+        logger.error("Git process timed out after " + TIMEOUT + "ms", {
+          category: "System",
+        });
+        res.status(500).json({ error: "Process timed out" });
+      }
+    }, TIMEOUT);
+
+    git.stdout.on("data", (chunk) => {
+      out += chunk.toString();
+    });
+
+    git.stderr.on("data", (chunk) => {
+      errout += chunk.toString();
+    });
+
+    git.on("error", (error) => {
+      clearTimeout(timeoutId);
+      if (!isProcessKilled) {
+        killProcess();
+        logger.error(`Config update process error: ${error.message}`, {
+          category: "System",
+        });
+        res.status(500).json({ error: error.message });
+      }
+    });
+
+    git.on("close", (code, signal) => {
+      clearTimeout(timeoutId);
+      if (!isProcessKilled) {
+        killProcess(); // Ensure cleanup even on success
+        if (code !== 0) {
+          logger.error(`Config update failed (code ${code}): ${errout}`, {
+            category: "System",
+          });
+          res.status(500).json({ error: errout || `exit code ${code}` });
+        } else {
+          logger.info(`Config updated: ${out}`, { category: "System" });
+          res.json({
+            status: "success",
+            message: "Config updated successfully",
+            output: out,
+            timestamp: new Date().toISOString(),
+          });
+        }
+      }
+    });
+
+    // Clean up if request is aborted
+    req.on("close", () => {
+      clearTimeout(timeoutId);
+      killProcess();
+    });
+
+  } catch (err) {
+    killProcess();
+    logger.error(`Failed to start git process: ${err.message}`, {
       category: "System",
     });
-    return res.status(500).json({ error: error.message });
-  });
-  git.on("close", (code, signal) => {
-    if (code !== 0) {
-      logger.error(`Config update failed (code ${code}): ${errout}`, {
-        category: "System",
-      });
-      return res.status(500).json({ error: errout || `exit code ${code}` });
-    }
-    logger.info(`Config updated: ${out}`, { category: "System" });
-    res.json({
-      status: "success",
-      message: "Config updated successfully",
-      output: out,
-      timestamp: new Date().toISOString(),
-    });
-  });
+    res.status(500).json({ error: "Failed to start update process" });
+  }
 });
 
 app.use(express.json());
