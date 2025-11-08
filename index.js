@@ -4,7 +4,7 @@ const crypto = require("crypto");
 require("dotenv").config();
 const logger = require("./utils/logger");
 const { spawn } = require("child_process");
-const treeKill = require('tree-kill'); // Add this package
+const treeKill = require('tree-kill');
 
 const env = process.env.NODE_ENV || "default";
 const config = require(`./config/${env}.js`);
@@ -58,16 +58,28 @@ app.post("/api/config-webhook", async (req, res) => {
 
   let git = null;
   const killProcess = () => {
-    if (git && !git.killed) {
-      // Kill entire process tree
-      treeKill(git.pid, 'SIGKILL', (err) => {
-        if (err) {
-          logger.error(`Failed to kill git process: ${err.message}`, { 
-            category: "System" 
-          });
-        }
-      });
+    if (!git) return;
+
+    try {
+      // Force kill even if pid is not yet available
+      if (git.pid) {
+        treeKill(git.pid, 'SIGKILL', (err) => {
+          if (err) {
+            logger.error(`Failed to kill process tree: ${err.message}`, { 
+              category: "System" 
+            });
+          }
+        });
+      }
+      
+      // Force kill through Node's ChildProcess API
+      git.kill('SIGKILL');
       git.killed = true;
+
+    } catch (err) {
+      logger.error(`Failed to kill git process: ${err.message}`, { 
+        category: "System" 
+      });
     }
   };
 
@@ -77,7 +89,8 @@ app.post("/api/config-webhook", async (req, res) => {
       cwd: repoPath,
       stdio: ["ignore", "pipe", "pipe"],
       timeout: TIMEOUT,
-      detached: false // Ensure process isn't detached
+      detached: false,
+      shell: false
     });
 
     let out = "";
