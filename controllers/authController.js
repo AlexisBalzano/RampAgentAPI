@@ -135,16 +135,18 @@ exports.verifyToken = (token, client) => {
 // Redirect to vACC FR core login
 exports.login = (req, res) => {
   const params = new URLSearchParams()
-  params.set("origin", process.env.NEXT_PUBLIC_BASE_URL)
-  params.set("redirect", `${process.env.NEXT_PUBLIC_BASE_URL}/api/auth/callback`)
-  const loginUrl = `${process.env.NEXT_PUBLIC_CORE_URL_EXTERNAL}/${process.env.NEXT_PUBLIC_CORE_API_VERSION}/auth/vatsim/login?` + params.toString();
+  const baseURL = process.env.BASE_URL || 'https://pintade.vatsim.fr/rampagent'; //FIXME: remove fallback
+  params.set("origin", baseURL)
+  params.set("redirect", `${baseURL}/api/auth/callback`)
+  const loginUrl = `${process.env.CORE_URL_EXTERNAL}/v1/auth/vatsim/login?` + params.toString();
   return res.redirect(loginUrl);
 };
 
 exports.logout = async (req, res) => {
   try {
     await deleteSession(res);
-    return res.redirect(process.env.NEXT_PUBLIC_BASE_URL + '/debug/');
+    const baseURL = process.env.BASE_URL || 'https://pintade.vatsim.fr/rampagent'; //FIXME: remove fallback
+    return res.redirect(baseURL + '/debug/');
   } catch (err) {
     error('logout error: ' + (err.message || err), { category: 'Auth' });
     return res.status(500).send('Error during logout');
@@ -187,7 +189,8 @@ exports.loginCallback = async (req, res) => {
       await updateSessionLocalUser(accessToken, user.core);
     }
     // redirect back to UI
-    return res.redirect(process.env.NEXT_PUBLIC_BASE_URL || '/debug/#dashboard');
+    const baseURL = process.env.BASE_URL || 'https://pintade.vatsim.fr/rampagent'; //FIXME: remove fallback
+    return res.redirect(baseURL || '/debug/#dashboard');
   } catch (err) {
     error('loginCallback error: ' + (err.message || err), { category: 'Auth' });
     return res.status(401).send('Invalid access token');
