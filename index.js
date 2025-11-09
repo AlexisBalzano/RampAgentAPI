@@ -22,145 +22,46 @@ const authRoutes = require("./routes/auth");
 const app = express();
 
 // GitHub webhook for config updates
-app.use("/api/config-webhook", express.raw({ type: "application/json" }));
+app.use('/api/config-webhook', express.raw({ type: 'application/json' }));
 
-app.post("/api/config-webhook", async (req, res) => {
+
+app.post('/api/config-webhook', async (req, res) => {
   const SECRET = process.env.GH_SECRET;
   if (!SECRET) {
-    logger.warn("GH_SECRET not configured, skipping signature verification", {
-      category: "System",
-    });
+    logger.warn('GH_SECRET not configured, skipping signature verification', { category: 'System' });
   } else {
-    const sig = req.headers["x-hub-signature-256"];
+    const sig = req.headers['x-hub-signature-256'];
     if (sig) {
-      const expected =
-        "sha256=" +
-        crypto.createHmac("sha256", SECRET).update(req.body).digest("hex");
+      const expected = 'sha256=' + crypto.createHmac('sha256', SECRET).update(req.body).digest('hex');
       const sigBuf = Buffer.from(sig);
       const expBuf = Buffer.from(expected);
-      if (
-        sigBuf.length !== expBuf.length ||
-        !crypto.timingSafeEqual(sigBuf, expBuf)
-      ) {
-        logger.error("Invalid webhook signature", { category: "System" });
-        return res.status(403).send("Invalid signature");
+      if (sigBuf.length !== expBuf.length || !crypto.timingSafeEqual(sigBuf, expBuf)) {
+        logger.error('Invalid webhook signature', { category: 'System' });
+        return res.status(403).send('Invalid signature');
       }
     } else {
-      logger.warn("No signature provided", { category: "System" });
+      logger.warn('No signature provided', { category: 'System' });
     }
   }
 
-  logger.info("Config webhook received", { category: "System" });
+  logger.info('Config webhook received', { category: 'System' });
 
-  // Set a timeout to kill long-running processes
-  const TIMEOUT = 30000; // 30 seconds
-  let isProcessKilled = false;
-
-  let git = null;
-  const killProcess = () => {
-    if (!git) return;
-
-    try {
-      // Force kill even if pid is not yet available
-      if (git.pid) {
-        treeKill(git.pid, 'SIGKILL', (err) => {
-          if (err) {
-            logger.error(`Failed to kill process tree: ${err.message}`, { 
-              category: "System" 
-            });
-          }
-        });
-      }
-      
-      // Force kill through Node's ChildProcess API
-      git.kill('SIGKILL');
-      git.killed = true;
-
-    } catch (err) {
-      logger.error(`Failed to kill git process: ${err.message}`, { 
-        category: "System" 
-      });
+  // Update config from git repo (works with volumes)
+  exec('cd /app/data && git pull origin main', (err, stdout, stderr) => {
+    if (err) {
+      logger.error(`Config update failed: ${stderr}`, { category: 'System' });
+      return res.status(500).json({ error: stderr });
     }
-  };
 
-  try {
-    const repoPath = path.join(__dirname, "data");
-    git = spawn("git", ["pull", "origin", "main"], {
-      cwd: repoPath,
-      stdio: ["ignore", "pipe", "pipe"],
-      timeout: TIMEOUT,
-      detached: false,
-      shell: false
+    logger.info(`Config updated: ${stdout}`, { category: 'System' });
+
+    res.json({ 
+      status: 'success',
+      message: 'Config updated successfully',
+      output: stdout,
+      timestamp: new Date().toISOString()
     });
-
-    let out = "";
-    let errout = "";
-
-    // Set process timeout
-    const timeoutId = setTimeout(() => {
-      if (!git.killed) {
-        isProcessKilled = true;
-        killProcess();
-        logger.error("Git process timed out after " + TIMEOUT + "ms", {
-          category: "System",
-        });
-        res.status(500).json({ error: "Process timed out" });
-      }
-    }, TIMEOUT);
-
-    git.stdout.on("data", (chunk) => {
-      out += chunk.toString();
-    });
-
-    git.stderr.on("data", (chunk) => {
-      errout += chunk.toString();
-    });
-
-    git.on("error", (error) => {
-      clearTimeout(timeoutId);
-      if (!isProcessKilled) {
-        killProcess();
-        logger.error(`Config update process error: ${error.message}`, {
-          category: "System",
-        });
-        res.status(500).json({ error: error.message });
-      }
-    });
-
-    git.on("close", (code, signal) => {
-      clearTimeout(timeoutId);
-      if (!isProcessKilled) {
-        killProcess(); // Ensure cleanup even on success
-        if (code !== 0) {
-          logger.error(`Config update failed (code ${code}): ${errout}`, {
-            category: "System",
-          });
-          res.status(500).json({ error: errout || `exit code ${code}` });
-        } else {
-          logger.info(`Config updated: ${out}`, { category: "System" });
-          res.json({
-            status: "success",
-            message: "Config updated successfully",
-            output: out,
-            timestamp: new Date().toISOString(),
-          });
-        }
-      }
-    });
-
-    // Clean up if request is aborted
-    req.on("close", () => {
-      clearTimeout(timeoutId);
-      killProcess();
-    });
-
-  } catch (err) {
-    killProcess();
-    logger.error(`Failed to start git process: ${err.message}`, {
-      category: "System",
-    });
-    res.status(500).json({ error: "Failed to start update process" });
-  }
+  });
 });
 
 app.use(express.json());
