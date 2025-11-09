@@ -3,8 +3,8 @@ const path = require("path");
 const crypto = require("crypto");
 require("dotenv").config();
 const logger = require("./utils/logger");
-const { spawn } = require("child_process");
-const treeKill = require('tree-kill');
+const { execFile } = require("child_process");
+const { Mutex } = require("async-mutex");
 
 const env = process.env.NODE_ENV || "default";
 const config = require(`./config/${env}.js`);
@@ -22,46 +22,72 @@ const authRoutes = require("./routes/auth");
 const app = express();
 
 // GitHub webhook for config updates
-app.use('/api/config-webhook', express.raw({ type: 'application/json' }));
+app.use("/api/config-webhook", express.raw({ type: "application/json" }));
 
+const gitLock = new Mutex();
 
-app.post('/api/config-webhook', async (req, res) => {
+app.post("/api/config-webhook", async (req, res) => {
+  const release = await gitLock.acquire();
+
   const SECRET = process.env.GH_SECRET;
   if (!SECRET) {
-    logger.warn('GH_SECRET not configured, skipping signature verification', { category: 'System' });
+    logger.warn("GH_SECRET not configured, skipping signature verification", {
+      category: "System",
+    });
   } else {
-    const sig = req.headers['x-hub-signature-256'];
+    const sig = req.headers["x-hub-signature-256"];
     if (sig) {
-      const expected = 'sha256=' + crypto.createHmac('sha256', SECRET).update(req.body).digest('hex');
+      const expected =
+        "sha256=" +
+        crypto.createHmac("sha256", SECRET).update(req.body).digest("hex");
       const sigBuf = Buffer.from(sig);
       const expBuf = Buffer.from(expected);
-      if (sigBuf.length !== expBuf.length || !crypto.timingSafeEqual(sigBuf, expBuf)) {
-        logger.error('Invalid webhook signature', { category: 'System' });
-        return res.status(403).send('Invalid signature');
+      if (
+        sigBuf.length !== expBuf.length ||
+        !crypto.timingSafeEqual(sigBuf, expBuf)
+      ) {
+        logger.error("Invalid webhook signature", { category: "System" });
+        return res.status(403).send("Invalid signature");
       }
     } else {
-      logger.warn('No signature provided', { category: 'System' });
+      logger.warn("No signature provided", { category: "System" });
     }
   }
 
-  logger.info('Config webhook received', { category: 'System' });
+  logger.info("Config webhook received", { category: "System" });
 
-  // Update config from git repo (works with volumes)
-  exec('cd /app/data && git pull origin main', (err, stdout, stderr) => {
-    if (err) {
-      logger.error(`Config update failed: ${stderr}`, { category: 'System' });
-      return res.status(500).json({ error: stderr });
-    }
+  try {
+    const git = execFile(
+      "git",
+      ["pull", "origin", "main"],
+      { cwd: "/app/data" },
+      (err, stdout, stderr) => {
+        release(); // Release the lock
+        if (err) {
+          logger.error(`Config update failed: ${stderr}`, {
+            category: "System",
+          });
+          return res.status(500).json({ error: stderr });
+        }
 
-    logger.info(`Config updated: ${stdout}`, { category: 'System' });
+        logger.info(`Config updated: ${stdout}`, { category: "System" });
+        res.json({
+          status: "success",
+          message: "Config updated successfully",
+          output: stdout,
+          timestamp: new Date().toISOString(),
+        });
+      }
+    );
 
-    res.json({ 
-      status: 'success',
-      message: 'Config updated successfully',
-      output: stdout,
-      timestamp: new Date().toISOString()
-    });
-  });
+    git.on("close", (code) =>
+      logger.debug(`git pull exited with code ${code}`)
+    );
+  } catch (e) {
+    release(); // Release the lock
+    logger.error(`Webhook exec error: ${e}`, { category: "System" });
+    res.status(500).json({ error: e.toString() });
+  }
 });
 
 app.use(express.json());
