@@ -2,7 +2,7 @@ const { error, warn } = require('../utils/logger');
 const crypto = require('crypto');
 const path = require('path');
 const cookie = require('cookie');
-const { jwtVerify } = import('jose');
+const { jwtVerify } = require('jose');
 const redisService = require('../services/redisService');
 
 
