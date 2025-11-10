@@ -121,7 +121,7 @@ exports.requireRoles = (roles) => {
 exports.verifyToken = (token, client) => {
   // Return true if token is valid, false otherwise
   const secret = process.env.CORE_JWT_KEY;
-  
+
   if (!secret) {
     error("No secret found", { category: "Auth" });
     return false;
@@ -161,17 +161,33 @@ exports.logout = async (req, res) => {
 // Middleware to require a valid session cookie and attach req.user
 exports.requireAuth = async (req, res, next) => {
   try {
-    const authHeader = req.headers.authorization;
-    if (!authHeader?.startsWith("Bearer ")) {
+    // Try cookie first (browser), then Authorization header (API clients)
+    const cookieRaw = cookie.parse(req.headers.cookie || "");
+    let token = cookieRaw.session;
+
+    if (!token) {
+      const authHeader = req.headers.authorization;
+      if (authHeader?.startsWith("Bearer ")) {
+        token = authHeader.split(" ")[1];
+      }
+    }
+    if (!token) {
       return res.status(401).json({ error: "Not authenticated" });
     }
 
-    const token = authHeader.split(" ")[1];
-
     const sessionData = await decryptToken(token);
     if (!sessionData) return res.status(401).json({ error: "Invalid session" });
-    req.user = sessionData.tokenContent;
-    next();
+
+    // Enrich with roles from Redis
+    const localUser = await redisService.getLocalUser(
+      sessionData.tokenContent.cid
+    );
+    req.user = {
+      ...sessionData.tokenContent,
+      roles: localUser?.roles || [],
+    };
+
+    return next();
   } catch (err) {
     error("Auth error:", err);
     return res.status(401).json({ error: "Not authenticated" });
@@ -195,14 +211,14 @@ async function createSession(res, _token) {
     res.setHeader("Set-Cookie", cookieStr);
   }
   return;
-};
+}
 
 // Helper: verify token
 async function decryptToken(accessToken) {
   const secret = process.env.CORE_JWT_KEY;
 
   try {
-    const { payload } = await jwt.verify(accessToken, secret, {
+    const payload = jwt.verify(accessToken, secret, {
       algorithms: ["HS256"],
     });
     return {
@@ -227,7 +243,8 @@ exports.getSession = async (req) => {
   const sessionData = await decryptToken(token);
   if (!sessionData) return null;
 
-  const coreUserUrl = process.env.CORE_URL_INTERNAL + `/v1/user/${sessionData.tokenContent.cid}`; //FIXME: is correct ?
+  const coreUserUrl =
+    process.env.CORE_URL_INTERNAL + `/v1/user/${sessionData.tokenContent.cid}`; //FIXME: is correct ?
   const coreRes = await fetch(coreUserUrl, {
     method: "GET",
     headers: {
@@ -239,7 +256,7 @@ exports.getSession = async (req) => {
   try {
     coreUser = await coreRes.json();
   } catch {
-    error("Failed to parse core user response", { category: "Auth" });    
+    error("Failed to parse core user response", { category: "Auth" });
   }
   if (!coreUser) return null;
 
@@ -259,20 +276,20 @@ async function updateSessionLocalUser(_token, _user) {
     first_name: _user.firstName,
     last_name: _user.lastName,
     email: _user.email,
-    core_session_token: _token
-  }
+    core_session_token: _token,
+  };
 
   const updated = await redisService.updateLocalUser(_user.cid, localUserData);
-  
+
   if (!updated) {
     error(`Failed to update local user in session ${_user.cid}`, {
       category: "Auth",
     });
     return null;
   }
-  
+
   return updated;
-};
+}
 
 exports.loginCallback = async (req, res) => {
   try {
@@ -289,7 +306,9 @@ exports.loginCallback = async (req, res) => {
     }
 
     // Fetch core user info
-    const coreUserUrl = process.env.CORE_URL_INTERNAL + `/v1/user/${sessionData.tokenContent.cid}`;
+    const coreUserUrl =
+      process.env.CORE_URL_INTERNAL +
+      `/v1/user/${sessionData.tokenContent.cid}`;
     const coreRes = await fetch(coreUserUrl, {
       method: "GET",
       headers: {
@@ -327,7 +346,6 @@ exports.loginCallback = async (req, res) => {
     return res.status(401).send("Authentication failed, check logs");
   }
 };
-
 
 // API Key Management
 
