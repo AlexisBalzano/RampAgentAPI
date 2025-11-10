@@ -209,8 +209,8 @@ async function decryptToken(accessToken) {
       token: accessToken,
       tokenContent: payload,
     };
-  } catch (error) {
-    error("Failed to verify session", error, { category: "Auth" });
+  } catch (err) {
+    error("Failed to verify session", err, { category: "Auth" });
     return null;
   }
 }
@@ -299,8 +299,8 @@ exports.getKeys = async (req, res) => {
   try {
     const keys = await redisService.getAllKeys();
     return res.json(keys);
-  } catch (error) {
-    console.error("Error fetching keys:", error);
+  } catch (err) {
+    error("Error fetching keys:", err);
     return res.status(500).json({ error: "Internal Server Error" });
   }
 };
@@ -313,8 +313,8 @@ exports.getUserKey = async (req, res) => {
       return res.json(key);
     }
     return res.status(404).json({ error: "Key not found" });
-  } catch (error) {
-    console.error("Error fetching key:", error);
+  } catch (err) {
+    error("Error fetching key:", err);
     return res.status(500).json({ error: "Internal Server Error" });
   }
 };
@@ -324,8 +324,8 @@ exports.createKey = async (req, res) => {
     const id = req.params.id;
     const newKey = await redisService.createKey(id);
     return res.status(201).json(newKey);
-  } catch (error) {
-    console.error("Error creating key:", error);
+  } catch (err) {
+    error("Error creating key:", err);
     return res.status(500).json({ error: "Internal Server Error" });
   }
 };
@@ -338,8 +338,8 @@ exports.renewKey = async (req, res) => {
       return res.status(200).json({ message: "Key renewed successfully" });
     }
     return res.status(404).json({ error: "Key not found" });
-  } catch (error) {
-    console.error("Error renewing key:", error);
+  } catch (err) {
+    error("Error renewing key:", err);
     return res.status(500).json({ error: "Internal Server Error" });
   }
 };
@@ -352,8 +352,8 @@ exports.deleteKey = async (req, res) => {
       return res.status(200).json({ message: "Key deleted successfully" });
     }
     return res.status(404).json({ error: "Key not found" });
-  } catch (error) {
-    console.error("Error deleting key:", error);
+  } catch (err) {
+    error("Error deleting key:", err);
     return res.status(500).json({ error: "Internal Server Error" });
   }
 };
