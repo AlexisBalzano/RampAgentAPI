@@ -37,6 +37,7 @@ else
 fi
 
 echo "🚀 Starting application..."
-# ✅ FIX: Change back to app directory before starting Node.js
+# Change back to app directory before starting Node.js
 cd /app
-exec node index.js
+# FIXME: launch node index.js when not in dev mode
+exec nodemon index.js
