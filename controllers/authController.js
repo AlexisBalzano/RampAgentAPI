@@ -139,8 +139,7 @@ exports.login = (req, res) => {
   params.set("origin", baseURL)
   params.set("redirect", `${baseURL}/rampagent/api/auth/callback`)
   const loginUrl = `${process.env.CORE_URL_EXTERNAL}/v1/auth/vatsim/login?` + params.toString();
-
-  res.setHeader('Referer', 'https://pintade.vatsim.fr/');
+  
   return res.redirect(loginUrl);
 };
 
