@@ -178,30 +178,7 @@ exports.requireAuth = async (req, res, next) => {
   }
 };
 
-exports.loginCallback = async (req, res) => {
-  try {
-    const accessToken = req.query.access_token;
-
-    if (!accessToken) {
-      return res.status(400).send("Access token missing");
-    }
-
-    await createSession(res, accessToken);
-    const user = await getSession(accessToken);
-
-    if (user && user.core) {
-      await updateSessionLocalUser(accessToken, user.core);
-    }
-    // redirect back to UI
-    const baseURL = process.env.BASE_URL;
-    return res.redirect(baseURL || "/rampagent/debug/#dashboard");
-  } catch (err) {
-    error("loginCallback error: " + (err.message || err), { category: "Auth" });
-    return res.status(401).send("Authentication failed check logs");
-  }
-};
-
-exports.createSession = async function (res, _token) {
+async function createSession(res, _token) {
   const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
   const cookieStr = cookie.serialize("session", _token, {
     httpOnly: true,
@@ -238,7 +215,7 @@ async function decryptToken(accessToken) {
   }
 }
 
-exports.getSession = async function (token) {
+exports.getSession = async (token) => {
   if (!token) {
     error("No token provided", { category: "Auth" });
     return null;
@@ -270,7 +247,7 @@ exports.getSession = async function (token) {
   return { core: coreUser, local: localUser, token: sessionData.token };
 };
 
-exports.updateSessionLocalUser = async function (_token, _user) {
+async function updateSessionLocalUser(_token, _user) {
   const localUserData = {
     cid: _user.cid,
     full_name: _user.fullName,
@@ -291,6 +268,30 @@ exports.updateSessionLocalUser = async function (_token, _user) {
   
   return updated;
 };
+
+exports.loginCallback = async (req, res) => {
+  try {
+    const accessToken = req.query.access_token;
+
+    if (!accessToken) {
+      return res.status(400).send("Access token missing");
+    }
+
+    await createSession(res, accessToken);
+    const user = await exports.getSession(accessToken);
+
+    if (user && user.core) {
+      await updateSessionLocalUser(accessToken, user.core);
+    }
+    // redirect back to UI
+    const baseURL = process.env.BASE_URL;
+    return res.redirect(baseURL || "/rampagent/debug/#dashboard");
+  } catch (err) {
+    error("loginCallback error: " + (err.message || err), { category: "Auth" });
+    return res.status(401).send("Authentication failed check logs");
+  }
+};
+
 
 // API Key Management
 
