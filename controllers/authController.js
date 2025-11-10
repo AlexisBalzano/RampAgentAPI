@@ -2,7 +2,7 @@ const { error, warn } = require("../utils/logger");
 const crypto = require("crypto");
 const path = require("path");
 const cookie = require("cookie");
-const { jwtVerify } = import("jose");
+const jwt = require("jsonwebtoken");
 const redisService = require("../services/redisService");
 
 exports.getLocalUser = async (req, res) => {
@@ -199,15 +199,10 @@ async function createSession(res, _token) {
 
 // Helper: verify token
 async function decryptToken(accessToken) {
-  warn(`Verifying access token: ${accessToken}`, { category: "Auth" });
   const secret = process.env.CORE_JWT_KEY;
-  if (!secret) {
-    error("No secret found", { category: "Auth" });
-  }
-  const encodedKey = new TextEncoder().encode(process.env.CORE_JWT_KEY);
 
   try {
-    const { payload } = await jwtVerify(accessToken, encodedKey, {
+    const { payload } = await jwt.verify(accessToken, secret, {
       algorithms: ["HS256"],
     });
     return {
@@ -215,7 +210,7 @@ async function decryptToken(accessToken) {
       tokenContent: payload,
     };
   } catch (err) {
-    error("Failed to verify session", err, { category: "Auth" });
+    error("Failed to verify session: " + err, { category: "Auth" });
     return null;
   }
 }
