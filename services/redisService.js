@@ -263,6 +263,17 @@ class RedisService {
   async updateLocalUser(cid, settings) {
     if (!this.isConnected) return false;
 
+    // Local user settings : {
+    //   roles: [ 'admin', 'user' ],
+    //   cid: cid,
+    //   api_key: '',
+    //   full_name: '',
+    //   first_name: '',
+    //   last_name: '',
+    //   email: '',
+    //   core_session_token: '',
+    // }
+
     try {
       // Check if this is first login for an admin
       if (ADMIN_CIDS.includes(cid) && !(await this.getLocalUser(cid)).roles) {
