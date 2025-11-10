@@ -215,11 +215,15 @@ async function decryptToken(accessToken) {
   }
 }
 
-exports.getSession = async (token) => {
+exports.getSession = async (req) => {
+  const cookieRaw = cookie.parse(req.headers.cookie || "");
+  const token = cookieRaw.session;
+
   if (!token) {
     error("No token provided", { category: "Auth" });
     return null;
   }
+
   const sessionData = await decryptToken(token);
   if (!sessionData) return null;
 
@@ -231,6 +235,7 @@ exports.getSession = async (token) => {
     },
   });
   if (coreRes.status !== 200) return null;
+  let coreUser = null;
   try {
     coreUser = await coreRes.json();
   } catch {
@@ -277,18 +282,49 @@ exports.loginCallback = async (req, res) => {
       return res.status(400).send("Access token missing");
     }
 
-    await createSession(res, accessToken);
-    const user = await exports.getSession(accessToken);
-
-    if (user && user.core) {
-      await updateSessionLocalUser(accessToken, user.core);
+    // Verify and decode the token
+    const sessionData = await decryptToken(accessToken);
+    if (!sessionData) {
+      return res.status(401).send("Invalid access token");
     }
-    // redirect back to UI
+
+    // Fetch core user info
+    const coreUserUrl = process.env.CORE_URL_INTERNAL + `/v1/user/${sessionData.tokenContent.cid}`;
+    const coreRes = await fetch(coreUserUrl, {
+      method: "GET",
+      headers: {
+        Authorization: accessToken,
+      },
+    });
+
+    if (coreRes.status !== 200) {
+      return res.status(401).send("Failed to fetch user info from core");
+    }
+
+    let coreUser = null;
+    try {
+      coreUser = await coreRes.json();
+    } catch {
+      error("Failed to parse core user response", { category: "Auth" });
+      return res.status(500).send("Failed to parse user info");
+    }
+
+    if (!coreUser) {
+      return res.status(401).send("User not found");
+    }
+
+    // Update or create local user
+    await updateSessionLocalUser(accessToken, coreUser);
+
+    // Set session cookie
+    await createSession(res, accessToken);
+
+    // Redirect back to UI
     const baseURL = process.env.BASE_URL;
-    return res.redirect(baseURL || "/rampagent/debug/#dashboard");
+    return res.redirect(baseURL + "/rampagent/debug/#dashboard");
   } catch (err) {
     error("loginCallback error: " + (err.message || err), { category: "Auth" });
-    return res.status(401).send("Authentication failed check logs");
+    return res.status(401).send("Authentication failed, check logs");
   }
 };
 
