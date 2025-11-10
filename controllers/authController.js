@@ -199,6 +199,11 @@ async function createSession(res, _token) {
 
 // Helper: verify token
 async function decryptToken(accessToken) {
+  warn(`Verifying access token: ${accessToken}`, { category: "Auth" });
+  const secret = process.env.CORE_JWT_KEY;
+  if (!secret) {
+    error("No secret found", { category: "Auth" });
+  }
   const encodedKey = new TextEncoder().encode(process.env.CORE_JWT_KEY);
 
   try {
