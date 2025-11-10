@@ -161,17 +161,11 @@ exports.logout = async (req, res) => {
 // Middleware to require a valid session cookie and attach req.user
 exports.requireAuth = async (req, res, next) => {
   try {
-    // Try cookie first (browser), then Authorization header (API clients)
     const cookieRaw = cookie.parse(req.headers.cookie || "");
     let token = cookieRaw.session;
 
     if (!token) {
-      const authHeader = req.headers.authorization;
-      if (authHeader?.startsWith("Bearer ")) {
-        token = authHeader.split(" ")[1];
-      }
-    }
-    if (!token) {
+
       return res.status(401).json({ error: "Not authenticated" });
     }
 
@@ -231,17 +225,17 @@ async function decryptToken(accessToken) {
   }
 }
 
-exports.getSession = async (req) => {
+exports.getSession = async (req, res) => {
   const cookieRaw = cookie.parse(req.headers.cookie || "");
   const token = cookieRaw.session;
 
   if (!token) {
     error("No token provided", { category: "Auth" });
-    return null;
+    return res.status(401).json({ error: "Not authenticated" });
   }
 
   const sessionData = await decryptToken(token);
-  if (!sessionData) return null;
+  if (!sessionData) return res.status(401).json({ error: "Invalid session" });
 
   const coreUserUrl =
     process.env.CORE_URL_INTERNAL + `/v1/user/${sessionData.tokenContent.cid}`; //FIXME: is correct ?
@@ -251,22 +245,24 @@ exports.getSession = async (req) => {
       Authorization: sessionData.token,
     },
   });
-  if (coreRes.status !== 200) return null;
+  if (coreRes.status !== 200) return res.status(401).json({ error: "Failed to fetch user info from core" });
+  
   let coreUser = null;
   try {
     coreUser = await coreRes.json();
   } catch {
     error("Failed to parse core user response", { category: "Auth" });
+    return res.status(500).json({ error: "Failed to parse core user" });
   }
-  if (!coreUser) return null;
+  if (!coreUser) return res.status(401).json({ error: "Core user not found" });
 
   // Get local user from Redis
   const localUser = await redisService.getLocalUser(coreUser.cid);
   if (!localUser) {
-    error("No local user found", { category: "Auth" });
+    warn("No local user found for CID: " + coreUser.cid, { category: "Auth" });
   }
 
-  return { core: coreUser, local: localUser, token: sessionData.token };
+  return res.json({ core: coreUser, local: localUser, token: sessionData.token });
 };
 
 async function updateSessionLocalUser(_token, _user) {
