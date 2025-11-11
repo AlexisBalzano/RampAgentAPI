@@ -420,7 +420,7 @@ async function isConcernedArrival(ac, config, airportSet) {
     return false;
   }
   ac.remainingDistance = await calculateRemainingDistance(ac);
-  if (ac.remainingDistance / 1000 * 0.00053996 > config.max_distance) { // convert to nautical miles
+  if (ac.remainingDistance * 0.00053996 > config.max_distance) { // convert to nautical miles
     return false;
   }
   return true;
