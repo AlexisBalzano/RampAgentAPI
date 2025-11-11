@@ -69,7 +69,10 @@ let lastStandCount = 0;
 const HIGH_VOLUME_THRESHOLD = 50; // Number of stands that triggers performance mode
 
 function checkVolumeAndTogglePerformanceMode(standCount) {
-  const shouldBeInPerformanceMode = standCount >= HIGH_VOLUME_THRESHOLD;
+  let shouldBeInPerformanceMode = standCount >= HIGH_VOLUME_THRESHOLD;
+  if (window.innerWidth < 700) { // Mobiles always in performance mode since lower power
+    shouldBeInPerformanceMode = true;
+  }
 
   if (shouldBeInPerformanceMode && !performanceMode) {
     enablePerformanceMode();
@@ -153,8 +156,7 @@ function generateSpanforText(text) {
   const departureBoard = document.createElement("div");
   departureBoard.className = "departure-board";
   const chars = Array.from(text);
-  const blanksNeeded = 16 - chars.length;
-  chars.unshift(" ");
+  const blanksNeeded = 15 - chars.length;
   for (let i = 0; i < blanksNeeded; i++) {
     chars.push(" ");
   }
