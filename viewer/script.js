@@ -1838,8 +1838,8 @@ function renderLoginLayout(user) {
     } else {
       Array.from(document.getElementsByClassName("connectedLayout")).forEach(el => el.style.display = "inline");
     }
-    document.getElementById("usernameUser").textContent = user ? user.core.name : "Guest";
-    document.getElementById("usernameAdmin").textContent = user ? user.core.name : "Guest";
+    document.getElementById("usernameUser").textContent = user ? user.core.firstName : "Guest";
+    document.getElementById("usernameAdmin").textContent = user ? user.core.firstName : "Guest";
     apiKeyDisplay(user);
   }
 }
