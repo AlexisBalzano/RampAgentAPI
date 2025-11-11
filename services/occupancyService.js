@@ -609,9 +609,6 @@ function assignStand(airportConfig, config, ac) {
       if (registry.isBlocked(ac.destination, standName)) {
         continue;
       }
-    } else {
-      registry.addApron(new Stand(standName, ac.destination, ac.callsign));
-      continue;
     }
     availableStandList.push(standDef);
   }
@@ -637,10 +634,8 @@ function assignStand(airportConfig, config, ac) {
     let availableStandListShuffled = shuffleArray(availableStandList);
     let selectedStandDef = availableStandListShuffled[0];
     let bestMaxCode = "F";
-    let anyCode = false;
     for (const standDef of availableStandListShuffled) {
       if (standDef.Code) {
-        anyCode = true;
         const maxCode = standDef.Code.split("").reduce((a, b) =>
           a > b ? a : b
         );
@@ -660,8 +655,12 @@ function assignStand(airportConfig, config, ac) {
       callsign: ac.callsign,
       icao: airportConfig.ICAO,
     });
-    registry.addAssigned(stand);
-    blockStands(selectedStandDef, ac.destination, ac.callsign);
+    if (selectedStandDef.apron === undefined || selectedStandDef.apron === false) {
+      registry.addAssigned(stand);
+      blockStands(selectedStandDef, ac.destination, ac.callsign);
+    } else {
+      registry.addApron(stand);
+    }
     return;
   }
   warn(`No available stands found for ${ac.callsign} at ${ac.destination}`, {
