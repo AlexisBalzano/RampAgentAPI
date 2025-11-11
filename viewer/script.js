@@ -1728,7 +1728,7 @@ if (document.readyState === "loading") {
 // Dashboard
 async function fetchCurrentUser() {
   try {
-    const res = await fetch('/api/auth/session', { credentials: 'same-origin' });
+    const res = await fetch(API_BASE_URL + '/api/auth/session', { credentials: 'same-origin' });
     if (!res.ok) return null;
     return await res.json();
   } catch (err) {
@@ -1754,13 +1754,13 @@ async function checkAuthAndUpdateUI() {
 }
 
 async function fetchLocalUsers() {
-  const res = await fetch('/api/auth/internal/localusers', { credentials: 'same-origin' });
+  const res = await fetch(API_BASE_URL + '/api/auth/internal/localusers', { credentials: 'same-origin' });
   if (!res.ok) throw new Error('Failed to fetch users');
   return res.json();
 }
 
 async function toggleAdminRole(cid, add) {
-  const url = `/api/auth/internal/localuser/${encodeURIComponent(cid)}/roles`;
+  const url = API_BASE_URL + `/api/auth/internal/localuser/${encodeURIComponent(cid)}/roles`;
   const method = add ? 'POST' : 'DELETE';
   const res = await fetch(url, {
     method,
