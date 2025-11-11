@@ -272,7 +272,7 @@ async function updateSessionLocalUser(_token, _user) {
     first_name: _user.firstName,
     last_name: _user.lastName,
     email: _user.email,
-    core_session_token: _token,
+    updated_at: new Date().toISOString(),
   };
 
   const updated = await redisService.updateLocalUser(_user.cid, localUserData);
