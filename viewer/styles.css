@@ -1888,22 +1888,22 @@ body.dark-mode .letter::after {
     transform: rotateX(0deg);
   }
   20% {
-    content: "D";
+    content: "R";
     transform: rotateX(360deg);
   }
   40% {
     color: #afafaf;
-    content: "G";
+    content: "S";
     transform: rotateX(0deg);
   }
   60% {
     color: #afafaf;
-    content: "5";
+    content: "C";
     transform: rotateX(360deg);
   }
   80% {
     color: #afafaf;
-    content: "Y";
+    content: "U";
     transform: rotateX(0deg);
   }
   100% {
@@ -2322,6 +2322,16 @@ body.dark-mode #apiKeyListTable tbody tr .swipe-indicator.right {
   }
   header {
     min-height: 80px;
+  }
+  .status-container {
+    grid-template: none;
+  }
+  .airport-display {
+    max-width: 310px;
+    overflow-x: hidden;
+  }
+  .letter, .letter::before, .letter::after {
+    font-size: 16px;
   }
 }
 @media screen and (max-height: 450px) {
