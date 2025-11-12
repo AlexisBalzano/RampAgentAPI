@@ -102,7 +102,7 @@ exports.requireRoles = (roles) => {
     }
 
     try {
-      const userRoles = await redisService.getRoles(req.user.cid);
+      const userRoles = req.user.roles || [];
       const hasRequiredRole = roles.some((role) => userRoles.includes(role));
 
       if (hasRequiredRole) {
