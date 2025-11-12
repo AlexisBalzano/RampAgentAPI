@@ -1884,7 +1884,8 @@ function updateApiKeyList() {
   fetch(API_BASE_URL + "/api/auth/keys", {
     headers: {
       "Content-Type": "application/json"
-    }
+    },
+    credentials: "same-origin"
   })
     .then((res) => {
       if (!res.ok) throw new Error("Network response was not ok");
@@ -1893,6 +1894,9 @@ function updateApiKeyList() {
     .then((data) => {
       // Clear existing rows
       tbody.innerHTML = "";
+
+      // FIXME: Debug log
+      console.log("Fetched API keys:", data);
 
       // Populate table with API keys
       data.keys.forEach(key => {
@@ -1932,6 +1936,7 @@ function renewApiKey(cid) {
     headers: {
       "Content-Type": "application/json"
     },
+    credentials: "same-origin",
     body: JSON.stringify({ cid })
   });
 }
@@ -1944,6 +1949,7 @@ function revokeApiKey(cid) {
     headers: {
       "Content-Type": "application/json"
     },
+    credentials: "same-origin",
     body: JSON.stringify({ cid })
   });
 
