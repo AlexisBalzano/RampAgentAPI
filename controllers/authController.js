@@ -149,7 +149,7 @@ exports.login = (req, res) => {
 
 exports.logout = async (req, res) => {
   try {
-    await deleteSession(res);
+    deleteSession(res);
     const baseURL = process.env.BASE_URL;
     return res.redirect(baseURL + "/rampagent/debug/");
   } catch (err) {
@@ -157,6 +157,25 @@ exports.logout = async (req, res) => {
     return res.status(500).send("Error during logout");
   }
 };
+
+function deleteSession(res) {
+  const cookieStr = cookie.serialize("session", "", {
+    httpOnly: true,
+    secure: true,
+    expires: new Date(0),
+    sameSite: "lax",
+    path: "/",
+  });
+  const prev = res.getHeader("Set-Cookie");
+  if (prev) {
+    const arr = Array.isArray(prev) ? prev : [String(prev)];
+    res.setHeader("Set-Cookie", arr.concat(cookieStr));
+  } else {
+    res.setHeader("Set-Cookie", cookieStr);
+  }
+  return;
+}
+
 
 // Middleware to require a valid session cookie and attach req.user
 exports.requireAuth = async (req, res, next) => {
