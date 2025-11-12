@@ -8,6 +8,11 @@ const coordinateCache = new Map(); // key: "lat:lon:alt" -> { lat, lon, radius }
 // Cache to avoid log flooding when unknown aircraft types are encountered
 const aircraftTypeCache = new Set();
 
+setInterval(() => {
+  coordinateCache.clear();
+  aircraftTypeCache.clear();
+}, 60 * 60 * 1000); // Clear every hour
+
 // Helper to parse and cache coordinates
 function parseCoordinates(coordString, defaultRadius = 30) {
   if (!coordString) return null;
@@ -377,7 +382,7 @@ const blockStands = (standDef, icao, callsign) => {
 async function getAirportCoordinates(icao) {
   const airport = await airportService.getAirportConfig(icao);
   if (!airport || !airport.Coordinates) {
-    info(`Cannot retrieve coordinates for airport ${icao}`, {
+    error(`Cannot retrieve coordinates for airport ${icao}`, {
       category: "Assignation",
       icao: icao,
     });
@@ -387,11 +392,11 @@ async function getAirportCoordinates(icao) {
   return coordinates;
 }
 
-function calculateRemainingDistance(ac) {
+async function calculateRemainingDistance(ac) {
   if (!ac.flight_plan || !ac.flight_plan.arrival || !ac.latitude || !ac.longitude) {
     return Number.MAX_SAFE_INTEGER;
   }
-  const destCoords = getAirportCoordinates(ac.flight_plan.arrival);
+  const destCoords = await getAirportCoordinates(ac.flight_plan.arrival);
   if (!destCoords) {
     return Number.MAX_SAFE_INTEGER;
   }
@@ -404,7 +409,7 @@ function calculateRemainingDistance(ac) {
   return dist; // distance in meters
 }
 
-function isConcernedArrival(ac, config, airportSet) {
+async function isConcernedArrival(ac, config, airportSet) {
   if (!ac || !ac.destination || !ac.longitude || !ac.latitude) {
     return false;
   }
@@ -414,13 +419,8 @@ function isConcernedArrival(ac, config, airportSet) {
   if (!airportSet.has(ac.destination)) {
     return false;
   }
-  ac.remainingDistance = calculateRemainingDistance(ac);
-  if (ac.remainingDistance / 1000 * 0.00053996 > config.max_distance) { // convert to nautical miles
-    info(`Aircraft ${ac.callsign} is not concerned for arrival at ${ac.destination} since distance ${ac.remainingDistance * 0.00053996} > ${config.max_distance}`, {
-      category: "Arrival",
-      callsign: ac.callsign,
-      icao: ac.destination,
-    });
+  ac.remainingDistance = await calculateRemainingDistance(ac);
+  if (ac.remainingDistance * 0.00053996 > config.max_distance) { // convert to nautical miles
     return false;
   }
   return true;
@@ -609,9 +609,6 @@ function assignStand(airportConfig, config, ac) {
       if (registry.isBlocked(ac.destination, standName)) {
         continue;
       }
-    } else {
-      registry.addApron(new Stand(standName, ac.destination, ac.callsign));
-      continue;
     }
     availableStandList.push(standDef);
   }
@@ -637,10 +634,8 @@ function assignStand(airportConfig, config, ac) {
     let availableStandListShuffled = shuffleArray(availableStandList);
     let selectedStandDef = availableStandListShuffled[0];
     let bestMaxCode = "F";
-    let anyCode = false;
     for (const standDef of availableStandListShuffled) {
       if (standDef.Code) {
-        anyCode = true;
         const maxCode = standDef.Code.split("").reduce((a, b) =>
           a > b ? a : b
         );
@@ -660,8 +655,12 @@ function assignStand(airportConfig, config, ac) {
       callsign: ac.callsign,
       icao: airportConfig.ICAO,
     });
-    registry.addAssigned(stand);
-    blockStands(selectedStandDef, ac.destination, ac.callsign);
+    if (selectedStandDef.apron === undefined || selectedStandDef.apron === false) {
+      registry.addAssigned(stand);
+      blockStands(selectedStandDef, ac.destination, ac.callsign);
+    } else {
+      registry.addApron(stand);
+    }
     return;
   }
   warn(`No available stands found for ${ac.callsign} at ${ac.destination}`, {
@@ -800,7 +799,7 @@ processDatafeed = async (aircrafts) => {
     ac.origin = ac.flight_plan.departure;
     ac.destination = ac.flight_plan.arrival;
     // Check Assignement conditions
-    if (!isConcernedArrival(ac, config, airportSet)) {
+    if (!await isConcernedArrival(ac, config, airportSet)) {
       continue;
     }
     

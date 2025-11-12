@@ -1,21 +1,67 @@
-const API_BASE_URL = 'https://pintade.vatsim.fr/rampagent';
+const API_BASE_URL = "https://pintade.vatsim.fr/rampagent";
 
 /* Set the width of the side navigation to 250px */
 function openNav() {
-  document.getElementById("mySidenav").style.width = "200px";
+  const nav = document.getElementById("mySidenav");
+  if (!nav) return; // guard
+  nav.style.width = "200px";
 }
 
 /* Set the width of the side navigation to 0 */
 function closeNav() {
-  document.getElementById("mySidenav").style.width = "0";
+  const nav = document.getElementById("mySidenav");
+  if (!nav) return; // guard
+  nav.style.width = "0";
 }
+
+document.addEventListener("click", function (event) {
+  if (event.x <= 200) return; 
+  const sidenav = document.getElementById("mySidenav");
+  if (sidenav && sidenav.style.width !== "0") {
+    if (!sidenav.contains(event.target)) {
+      closeNav();
+    }
+  }
+});
 
 // Dark mode toggle
 function toggleDarkMode() {
   document.body.classList.toggle("dark-mode");
   const isDarkMode = document.body.classList.contains("dark-mode");
   localStorage.setItem("darkMode", isDarkMode ? "enabled" : "disabled");
+
+  // Switch map layer
+  if (typeof window.switchMapLayer === "function") {
+    window.switchMapLayer();
+  }
+  updateChartColors(isDarkMode);
 }
+
+document.addEventListener("DOMContentLoaded", function () {
+  // Check localStorage for dark mode preference
+  const darkMode = localStorage.getItem("darkMode");
+  
+  // Restore manual performance-mode preference from previous session
+  const performanceModeStored = localStorage.getItem("performanceModeManual");
+  manualToggle = performanceModeStored === "true";
+  if (manualToggle) {
+    enablePerformanceMode();
+  }
+
+  if (darkMode === "enabled") {
+    document.body.classList.add("dark-mode");
+  }
+
+  // Switch map layer after map is initialized
+  setTimeout(() => {
+    if (typeof window.switchMapLayer === "function") {
+      window.switchMapLayer();
+    }
+  }, 100);
+  
+  checkAuthAndUpdateUI();
+  updateApiKeyCount();
+});
 
 // High volume detection and performance mode
 let performanceMode = false;
@@ -23,14 +69,17 @@ let lastStandCount = 0;
 const HIGH_VOLUME_THRESHOLD = 50; // Number of stands that triggers performance mode
 
 function checkVolumeAndTogglePerformanceMode(standCount) {
-  const shouldBeInPerformanceMode = standCount >= HIGH_VOLUME_THRESHOLD;
-  
+  let shouldBeInPerformanceMode = standCount >= HIGH_VOLUME_THRESHOLD;
+  if (window.innerWidth < 700) { // Mobiles always in performance mode since lower power
+    shouldBeInPerformanceMode = true;
+  }
+
   if (shouldBeInPerformanceMode && !performanceMode) {
     enablePerformanceMode();
   } else if (!shouldBeInPerformanceMode && performanceMode && !manualToggle) {
     disablePerformanceMode();
   }
-  
+
   lastStandCount = standCount;
 }
 
@@ -38,7 +87,7 @@ function enablePerformanceMode() {
   performanceMode = true;
   document.body.classList.add("performance-mode");
   updatePerformanceToggleButton();
-  
+
   // Show notification to user
   showPerformanceModeNotification(true);
 }
@@ -47,50 +96,56 @@ function disablePerformanceMode() {
   performanceMode = false;
   document.body.classList.remove("performance-mode");
   updatePerformanceToggleButton();
-  
+
   // Show notification to user
   showPerformanceModeNotification(false);
 }
 
 function showPerformanceModeNotification(enabled) {
-  const existingNotification = document.querySelector('.performance-notification');
+  const existingNotification = document.querySelector(
+    ".performance-notification"
+  );
   if (existingNotification) {
     existingNotification.remove();
   }
-  
-  const notification = document.createElement('div');
-  notification.className = 'performance-notification';
-  notification.textContent = enabled 
-    ? "⚡ Performance Mode: Animations disabled (" + lastStandCount + " stands)" 
+
+  const notification = document.createElement("div");
+  notification.className = "performance-notification";
+  notification.textContent = enabled
+    ? "⚡ Performance Mode: Animations disabled (" + lastStandCount + " stands)"
     : "✓ Performance Mode: Animations re-enabled";
   document.body.appendChild(notification);
-  
+
   setTimeout(() => {
-    notification.style.opacity = '0';
+    notification.style.opacity = "0";
     setTimeout(() => notification.remove(), 500);
   }, 3000);
 }
 
 let manualToggle = false;
+
 function togglePerformanceModeManual() {
   if (performanceMode) {
     disablePerformanceMode();
+    localStorage.setItem("performanceModeManual", "false");
+    manualToggle = false;
   } else {
     enablePerformanceMode();
+    localStorage.setItem("performanceModeManual", "true");
     manualToggle = true;
   }
   updatePerformanceToggleButton();
 }
 
 function updatePerformanceToggleButton() {
-  const button = document.getElementById('performanceModeToggle');
+  const button = document.getElementById("performanceModeToggle");
   if (button) {
     if (performanceMode) {
-      button.classList.add('active');
-      button.title = 'Performance Mode: ON (Click to disable)';
+      button.classList.add("active");
+      button.title = "Performance Mode: ON (Click to disable)";
     } else {
-      button.classList.remove('active');
-      button.title = 'Performance Mode: OFF (Click to enable)';
+      button.classList.remove("active");
+      button.title = "Performance Mode: OFF (Click to enable)";
     }
   }
 }
@@ -101,8 +156,7 @@ function generateSpanforText(text) {
   const departureBoard = document.createElement("div");
   departureBoard.className = "departure-board";
   const chars = Array.from(text);
-  const blanksNeeded = 16 - chars.length;
-  chars.unshift(" ");
+  const blanksNeeded = 15 - chars.length;
   for (let i = 0; i < blanksNeeded; i++) {
     chars.push(" ");
   }
@@ -141,20 +195,30 @@ async function renderAirportsStatus() {
       .catch(() => []);
 
     // Fetch stands
-    const allOccupiedStands = await fetch(API_BASE_URL + "/api/occupancy/occupied", {
-      headers: { "X-Internal-Request": "1" },
-    }).then((res) => res.json());
-    const getAllAssignedStands = await fetch(API_BASE_URL + "/api/occupancy/assigned", {
-      headers: { "X-Internal-Request": "1" },
-    }).then((res) => res.json());
-    const getAllBlockedStands = await fetch(API_BASE_URL + "/api/occupancy/blocked", {
-      headers: { "X-Internal-Request": "1" },
-    }).then((res) => res.json());
-    
-
+    const allOccupiedStands = await fetch(
+      API_BASE_URL + "/api/occupancy/occupied",
+      {
+        headers: { "X-Internal-Request": "1" },
+      }
+    ).then((res) => res.json());
+    const getAllAssignedStands = await fetch(
+      API_BASE_URL + "/api/occupancy/assigned",
+      {
+        headers: { "X-Internal-Request": "1" },
+      }
+    ).then((res) => res.json());
+    const getAllBlockedStands = await fetch(
+      API_BASE_URL + "/api/occupancy/blocked",
+      {
+        headers: { "X-Internal-Request": "1" },
+      }
+    ).then((res) => res.json());
 
     // Check volume and toggle performance mode
-    const totalStands = allOccupiedStands.length + getAllBlockedStands.length + getAllAssignedStands.length;
+    const totalStands =
+      allOccupiedStands.length +
+      getAllBlockedStands.length +
+      getAllAssignedStands.length;
     checkVolumeAndTogglePerformanceMode(totalStands);
 
     const statusContainer = document.getElementById("status-container");
@@ -164,77 +228,90 @@ async function renderAirportsStatus() {
     }
     statusContainer.innerHTML = "";
 
-  // Build airport map
-  const airports = {};
-  airportList.forEach((airport) => {
-    airports[airport.name] = { name: airport.name, occupied: [], assigned: [], blocked: [] };
-  });
-  // Assign stands
-  allOccupiedStands.forEach((stand) => {
-    const airportIcao = stand.icao;
-    if (airportIcao && airports[airportIcao]) {
-      airports[airportIcao].occupied.push(stand);
-    }
-  });
-  getAllAssignedStands.forEach((stand) => {
-    const airportIcao = stand.icao;
-    if (airportIcao && airports[airportIcao]) {
-      airports[airportIcao].assigned.push(stand);
-    }
-  });
-  getAllBlockedStands.forEach((stand) => {
-    const airportIcao = stand.icao;
-    if (airportIcao && airports[airportIcao]) {
-      airports[airportIcao].blocked.push(stand);
-    }
-  });
+    // Build airport map
+    const airports = {};
+    airportList.forEach((airport) => {
+      airports[airport.name] = {
+        name: airport.name,
+        occupied: [],
+        assigned: [],
+        blocked: [],
+      };
+    });
+    // Assign stands
+    allOccupiedStands.forEach((stand) => {
+      const airportIcao = stand.icao;
+      if (airportIcao && airports[airportIcao]) {
+        airports[airportIcao].occupied.push(stand);
+      }
+    });
+    getAllAssignedStands.forEach((stand) => {
+      const airportIcao = stand.icao;
+      if (airportIcao && airports[airportIcao]) {
+        airports[airportIcao].assigned.push(stand);
+      }
+    });
+    getAllBlockedStands.forEach((stand) => {
+      const airportIcao = stand.icao;
+      if (airportIcao && airports[airportIcao]) {
+        airports[airportIcao].blocked.push(stand);
+      }
+    });
 
-  renderAirportChart(airports);
+    renderAirportChart(airports);
 
-  // Render all airports
-  for (const [airportIcao, stands] of Object.entries(airports)) {
-    const subContainer = document.createElement("div");
-    subContainer.className = "airport-display subContainer";
-    subContainer.id = "airport-" + airportIcao;
-    subContainer.appendChild(generateSpanforText(padAirportIcao(airportIcao)));
-    subContainer.appendChild(generateSeparator());
-    subContainer.appendChild(generateSpanforText("Occupied Stands"));
-    subContainer.appendChild(generateSeparator());
-    if (stands.occupied.length === 0) {
-      subContainer.appendChild(generateSpanforText("None"));
-    } else {
-      stands.occupied.forEach((stand) => {
-        subContainer.appendChild(
-          generateSpanforText(padStandName(stand.name) + "  " + stand.callsign)
-        );
-      });
+    // Render all airports
+    for (const [airportIcao, stands] of Object.entries(airports)) {
+      const subContainer = document.createElement("div");
+      subContainer.className = "airport-display subContainer";
+      subContainer.id = "airport-" + airportIcao;
+      subContainer.appendChild(
+        generateSpanforText(padAirportIcao(airportIcao))
+      );
+      subContainer.appendChild(generateSeparator());
+      subContainer.appendChild(generateSpanforText("Occupied Stands"));
+      subContainer.appendChild(generateSeparator());
+      if (stands.occupied.length === 0) {
+        subContainer.appendChild(generateSpanforText("None"));
+      } else {
+        stands.occupied.forEach((stand) => {
+          subContainer.appendChild(
+            generateSpanforText(
+              padStandName(stand.name) + "  " + stand.callsign
+            )
+          );
+        });
+      }
+      subContainer.appendChild(generateSeparator());
+      subContainer.appendChild(generateSpanforText("Assigned Stands"));
+      subContainer.appendChild(generateSeparator());
+      if (stands.assigned.length === 0) {
+        subContainer.appendChild(generateSpanforText("None"));
+      } else {
+        stands.assigned.forEach((stand) => {
+          subContainer.appendChild(
+            generateSpanforText(
+              padStandName(stand.name) + "  " + stand.callsign
+            )
+          );
+        });
+      }
+      subContainer.appendChild(generateSeparator());
+      subContainer.appendChild(generateSpanforText("Blocked Stands"));
+      subContainer.appendChild(generateSeparator());
+      if (stands.blocked.length === 0) {
+        subContainer.appendChild(generateSpanforText("None"));
+      } else {
+        stands.blocked.forEach((stand) => {
+          subContainer.appendChild(
+            generateSpanforText(
+              padStandName(stand.name) + "  " + stand.callsign
+            )
+          );
+        });
+      }
+      statusContainer.appendChild(subContainer);
     }
-    subContainer.appendChild(generateSeparator());
-    subContainer.appendChild(generateSpanforText("Assigned Stands"));
-    subContainer.appendChild(generateSeparator());
-    if (stands.assigned.length === 0) {
-      subContainer.appendChild(generateSpanforText("None"));
-    } else {
-      stands.assigned.forEach((stand) => {
-        subContainer.appendChild(
-          generateSpanforText(padStandName(stand.name) + "  " + stand.callsign)
-        );
-      });
-    }
-    subContainer.appendChild(generateSeparator());
-    subContainer.appendChild(generateSpanforText("Blocked Stands"));
-    subContainer.appendChild(generateSeparator());
-    if (stands.blocked.length === 0) {
-      subContainer.appendChild(generateSpanforText("None"));
-    } else {
-      stands.blocked.forEach((stand) => {
-        subContainer.appendChild(
-          generateSpanforText(padStandName(stand.name) + "  " + stand.callsign)
-        );
-      });
-    }
-    statusContainer.appendChild(subContainer);
-  }
   } catch (error) {
     console.error("renderAirportsStatus: Error", error);
   }
@@ -248,10 +325,14 @@ let airportChart = null;
 
 async function fetchReportsPerHour() {
   const res = await fetch(API_BASE_URL + "/api/stats/reports-per-hour", {
-    headers: { "X-Internal-Request": "1" }
+    headers: { "X-Internal-Request": "1" },
   });
   if (!res.ok) {
-    console.warn("fetchReportsPerHour -> network not ok", res.status, await res.text());
+    console.warn(
+      "fetchReportsPerHour -> network not ok",
+      res.status,
+      await res.text()
+    );
     throw new Error("Failed to fetch stats");
   }
   const json = await res.json();
@@ -260,10 +341,14 @@ async function fetchReportsPerHour() {
 
 async function fetchRequestsPerHour() {
   const res = await fetch(API_BASE_URL + "/api/stats/requests-per-hour", {
-    headers: { "X-Internal-Request": "1" }
+    headers: { "X-Internal-Request": "1" },
   });
   if (!res.ok) {
-    console.warn("fetchRequestsPerHour -> network not ok", res.status, await res.text());
+    console.warn(
+      "fetchRequestsPerHour -> network not ok",
+      res.status,
+      await res.text()
+    );
     throw new Error("Failed to fetch stats");
   }
   const json = await res.json();
@@ -292,6 +377,34 @@ function generateTimeWindow(hours = 24) {
   return timeLabels;
 }
 
+function updateChartColors(isDarkMode) {
+  const gridColor = isDarkMode ? "#ccc" : "#595959";
+  const axisTextColor = isDarkMode ? "#ccc" : "#333";
+  const legendTextColor = isDarkMode ? "#ccc" : "#333";
+
+  // Update reports chart if it exists
+  if (reportsChart) {
+    // Update grid colors
+    reportsChart.options.scales.x.grid.color = gridColor;
+    reportsChart.options.scales.y.grid.color = gridColor;
+    
+    // Update tick colors
+    reportsChart.options.scales.x.ticks.color = axisTextColor;
+    reportsChart.options.scales.y.ticks.color = axisTextColor;
+    
+    // Update legend color
+    reportsChart.options.plugins.legend.labels.color = legendTextColor;
+    
+    reportsChart.update('active');
+  }
+
+  // Update airport chart if it exists
+  if (airportChart) {
+    airportChart.options.plugins.legend.labels.color = legendTextColor;
+    airportChart.update('active');
+  }
+}
+
 function renderReportsChart(reportsData, requestsData = []) {
   if (!Array.isArray(reportsData)) {
     console.warn("renderReportsChart -> invalid data", reportsData);
@@ -299,9 +412,9 @@ function renderReportsChart(reportsData, requestsData = []) {
   }
 
   const isDarkMode = document.body.classList.contains("dark-mode");
-  const gridColor = isDarkMode ? "#444" : "#b0b0b0";
-  const axisTextColor = isDarkMode ? "#444" : "#b0b0b0";
-  const legendTextColor = isDarkMode ? "#444" : "#b0b0b0";
+  const gridColor = isDarkMode ? "#666" : "#ddd";
+  const axisTextColor = isDarkMode ? "#ccc" : "#333";
+  const legendTextColor = isDarkMode ? "#ccc" : "#333";
 
   const timeWindow = generateTimeWindow(24);
   const reportsMap = new Map(
@@ -336,8 +449,8 @@ function renderReportsChart(reportsData, requestsData = []) {
           {
             label: "Reports / hour",
             data: reportsCounts,
-            backgroundColor: "rgba(104, 139, 239,0.7)",
-            borderColor: "rgba(54,162,235,1)",
+            backgroundColor: "#30a9d8",
+            borderColor: "#3997bdff",
             borderWidth: 1,
             borderRadius: 3,
             maxBarThickness: 40,
@@ -415,7 +528,18 @@ function renderAirportChart(airports) {
   // Convert airports object to array
   const airportArr = Object.values(airports);
 
-  const chartColors = ["#4a90e2", "#e94e77", "#50b848", "#f5a623", "#9013fe", "#f8e71c", "#7ed321", "#d0021b"];
+  const chartColors = [
+    "#36e695",
+    "#2fdba9",
+    "#2bccbc",
+    "#2cbbcc",
+    "#30a9d8",
+    "#3896dc",
+    "#4382df",
+    "#4f70d9",
+    "#5c60cc",
+    "#6650bc",
+  ];
   const canvas = document.getElementById("airportChart");
   if (!canvas) {
     console.warn("renderAirportChart -> canvas#airportChart not found");
@@ -437,8 +561,8 @@ function renderAirportChart(airports) {
           {
             data: airportArr.map((a) => a.occupied.length),
             backgroundColor: chartColors,
-            borderColor: "#222",
-            borderWidth: 0,
+            borderColor: "#5f5f5f",
+            borderWidth: 1,
           },
         ],
       },
@@ -449,7 +573,7 @@ function renderAirportChart(airports) {
           legend: {
             position: "top",
             labels: {
-              color: "#888888",
+              color: "#b1b1b1ff",
             },
           },
           tooltip: {
@@ -486,14 +610,14 @@ async function refreshStatsChart() {
 
     const requestTotal = document.querySelector("#RequestTotal");
     const reportTotal = document.querySelector("#ReportTotal");
-    
+
     if (requestTotal && reportTotal) {
       requestTotal.textContent = totalRequests.toLocaleString();
       reportTotal.textContent = totalReports.toLocaleString();
     } else {
       console.error("refreshStatsChart: Total elements not found", {
         requestTotal: !!requestTotal,
-        reportTotal: !!reportTotal
+        reportTotal: !!reportTotal,
       });
     }
   } catch (err) {
@@ -516,48 +640,54 @@ let autoScroll = true;
 let cachedFilters = {
   categories: new Set(),
   icaos: new Set(),
-  callsigns: new Set()
+  callsigns: new Set(),
 };
 
 // Populate dropdowns
 async function populateLogFilters() {
   try {
     const [categoriesRes, icaosRes, callsignsRes] = await Promise.all([
-      fetch(API_BASE_URL + "/api/logs/categories", { headers: { "X-Internal-Request": "1" } }),
-      fetch(API_BASE_URL + "/api/logs/icaos", { headers: { "X-Internal-Request": "1" } }),
-      fetch(API_BASE_URL + "/api/logs/callsigns", { headers: { "X-Internal-Request": "1" } })
+      fetch(API_BASE_URL + "/api/logs/categories", {
+        headers: { "X-Internal-Request": "1" },
+      }),
+      fetch(API_BASE_URL + "/api/logs/icaos", {
+        headers: { "X-Internal-Request": "1" },
+      }),
+      fetch(API_BASE_URL + "/api/logs/callsigns", {
+        headers: { "X-Internal-Request": "1" },
+      }),
     ]);
 
     // Check responses
     if (!categoriesRes.ok || !icaosRes.ok || !callsignsRes.ok) {
-      console.error('Failed to fetch log filters:', {
+      console.error("Failed to fetch log filters:", {
         categories: categoriesRes.status,
         icaos: icaosRes.status,
-        callsigns: callsignsRes.status
+        callsigns: callsignsRes.status,
       });
       return;
     }
 
     let categories, icaos, callsigns;
-    
+
     try {
       categories = await categoriesRes.json();
     } catch (e) {
-      console.error('Failed to parse categories JSON:', e);
+      console.error("Failed to parse categories JSON:", e);
       categories = [];
     }
-    
+
     try {
       icaos = await icaosRes.json();
     } catch (e) {
-      console.error('Failed to parse icaos JSON:', e);
+      console.error("Failed to parse icaos JSON:", e);
       icaos = [];
     }
-    
+
     try {
       callsigns = await callsignsRes.json();
     } catch (e) {
-      console.error('Failed to parse callsigns JSON:', e);
+      console.error("Failed to parse callsigns JSON:", e);
       callsigns = [];
     }
 
@@ -567,14 +697,28 @@ async function populateLogFilters() {
     const callsignsArray = Array.isArray(callsigns) ? callsigns : [];
 
     // Update categories if changed
-    updateDropdownIfChanged('category-select', categoriesArray, cachedFilters.categories, 'All Categories');
-    
-    // Update ICAOs if changed
-    updateDropdownIfChanged('airport-select', icaosArray, cachedFilters.icaos, 'All Airports');
-    
-    // Update callsigns if changed
-    updateDropdownIfChanged('callsign-select', callsignsArray, cachedFilters.callsigns, 'All Callsigns');
+    updateDropdownIfChanged(
+      "category-select",
+      categoriesArray,
+      cachedFilters.categories,
+      "All Categories"
+    );
 
+    // Update ICAOs if changed
+    updateDropdownIfChanged(
+      "airport-select",
+      icaosArray,
+      cachedFilters.icaos,
+      "All Airports"
+    );
+
+    // Update callsigns if changed
+    updateDropdownIfChanged(
+      "callsign-select",
+      callsignsArray,
+      cachedFilters.callsigns,
+      "All Callsigns"
+    );
   } catch (err) {
     console.error("Failed to load log filters", err);
   }
@@ -584,20 +728,30 @@ async function populateLogFilters() {
 function updateDropdownIfChanged(selectId, newValues, cachedSet, defaultLabel) {
   const select = document.getElementById(selectId);
   if (!select) {
-    console.warn('updateDropdownIfChanged: select element not found -', selectId);
+    console.warn(
+      "updateDropdownIfChanged: select element not found -",
+      selectId
+    );
     return;
   }
 
   // Ensure newValues is an array
   if (!Array.isArray(newValues)) {
-    console.warn('updateDropdownIfChanged: newValues is not an array for', selectId, newValues);
+    console.warn(
+      "updateDropdownIfChanged: newValues is not an array for",
+      selectId,
+      newValues
+    );
     newValues = [];
   }
 
   // Check if there are new values
   const newSet = new Set(newValues);
-  const hasChanges = newSet.size !== cachedSet.size || 
-                     [...newSet].some(function(v) { return !cachedSet.has(v); }); // ✅ Use function instead of arrow
+  const hasChanges =
+    newSet.size !== cachedSet.size ||
+    [...newSet].some(function (v) {
+      return !cachedSet.has(v);
+    }); // ✅ Use function instead of arrow
 
   // Always update if cache is empty (first load)
   if (!hasChanges && cachedSet.size > 0) return; // No changes, skip update
@@ -606,9 +760,10 @@ function updateDropdownIfChanged(selectId, newValues, cachedSet, defaultLabel) {
   const currentValue = select.value;
 
   // Clear and rebuild dropdown
-  select.innerHTML = '<option value="">' + defaultLabel + '</option>';
+  select.innerHTML = '<option value="">' + defaultLabel + "</option>";
 
-  newValues.forEach(function(value) { // ✅ Use function instead of arrow
+  newValues.forEach(function (value) {
+    // ✅ Use function instead of arrow
     const option = document.createElement("option");
     option.value = value;
     option.textContent = value;
@@ -622,7 +777,9 @@ function updateDropdownIfChanged(selectId, newValues, cachedSet, defaultLabel) {
 
   // Update cache
   cachedSet.clear();
-  newSet.forEach(function(v) { cachedSet.add(v); }); // ✅ Use function instead of arrow
+  newSet.forEach(function (v) {
+    cachedSet.add(v);
+  }); // ✅ Use function instead of arrow
 }
 
 // Fetch logs from server and render into the log area
@@ -639,9 +796,9 @@ async function fetchFilteredLogs(reset = false) {
   if (reset) {
     currentPage = 1;
     hasMore = true;
-    const logContent = document.getElementById('logContent');
+    const logContent = document.getElementById("logContent");
     if (logContent) {
-      logContent.innerHTML = '';
+      logContent.innerHTML = "";
     } else {
       console.error("fetchFilteredLogs: logContent element not found");
     }
@@ -649,52 +806,52 @@ async function fetchFilteredLogs(reset = false) {
 
   isLoading = true;
 
-  const levelSelect = document.getElementById('level-select');
-  const categorySelect = document.getElementById('category-select');
-  const icaoSelect = document.getElementById('airport-select');
-  const callsignSelect = document.getElementById('callsign-select');
-  
+  const levelSelect = document.getElementById("level-select");
+  const categorySelect = document.getElementById("category-select");
+  const icaoSelect = document.getElementById("airport-select");
+  const callsignSelect = document.getElementById("callsign-select");
+
   if (!levelSelect || !categorySelect || !icaoSelect || !callsignSelect) {
     console.error("fetchFilteredLogs: Filter elements not found", {
       levelSelect: !!levelSelect,
       categorySelect: !!categorySelect,
       icaoSelect: !!icaoSelect,
-      callsignSelect: !!callsignSelect
+      callsignSelect: !!callsignSelect,
     });
     isLoading = false;
     return;
   }
-  
-  const level = levelSelect.value || '';
-  const category = categorySelect.value || '';
-  const icao = icaoSelect.value || '';
-  const callsign = callsignSelect.value || '';
-  
+
+  const level = levelSelect.value || "";
+  const category = categorySelect.value || "";
+  const icao = icaoSelect.value || "";
+  const callsign = callsignSelect.value || "";
+
   const params = new URLSearchParams();
-  if (level) params.append('level', String(level));
-  if (category) params.append('category', String(category));
-  if (icao) params.append('icao', String(icao));
-  if (callsign) params.append('callsign', String(callsign));
-  params.append('page', String(currentPage));
-  params.append('pageSize', '100');
+  if (level) params.append("level", String(level));
+  if (category) params.append("category", String(category));
+  if (icao) params.append("icao", String(icao));
+  if (callsign) params.append("callsign", String(callsign));
+  params.append("page", String(currentPage));
+  params.append("pageSize", "100");
 
   try {
     const url = API_BASE_URL + "/api/logs/filter?" + params.toString();
-    
+
     const response = await fetch(url, {
-      headers: { "X-Internal-Request": "1" }
+      headers: { "X-Internal-Request": "1" },
     });
-    
+
     if (!response.ok) {
       throw new Error("HTTP " + response.status + ": " + response.statusText);
     }
-    
+
     const data = await response.json();
 
     if (data.logs && Array.isArray(data.logs)) {
       // Reverse logs so newest is at bottom
       const reversedLogs = [...data.logs].reverse();
-      
+
       if (reset || currentPage === 1) {
         // Replace all logs on reset or first page
         replaceLogs(reversedLogs);
@@ -703,7 +860,7 @@ async function fetchFilteredLogs(reset = false) {
         prependLogs(reversedLogs);
       }
     } else {
-      console.warn('No logs in response or logs is not an array:', data);
+      console.warn("No logs in response or logs is not an array:", data);
     }
 
     if (data.pagination) {
@@ -713,42 +870,48 @@ async function fetchFilteredLogs(reset = false) {
       hasMore = false;
     }
   } catch (err) {
-    console.error('Failed to fetch logs:', err);
+    console.error("Failed to fetch logs:", err);
   } finally {
     isLoading = false;
   }
 }
 
 function createLogElement(log) {
-  const logEntry = document.createElement('div');
+  const logEntry = document.createElement("div");
   const levelLower = String(log.level).toLowerCase();
   logEntry.className = "log-entry log-" + levelLower;
-  
+
   const timestamp = new Date(log.timestamp).toLocaleString();
   const level = String(log.level);
   const message = String(log.message);
-  
-  logEntry.innerHTML = 
-    '<span class="log-timestamp">' + timestamp + '</span>' +
-    '<span class="log-level">[' + level + ']</span>' +
-    '<span class="log-message">' + message + '</span>';
-  
+
+  logEntry.innerHTML =
+    '<span class="log-timestamp">' +
+    timestamp +
+    "</span>" +
+    '<span class="log-level">[' +
+    level +
+    "]</span>" +
+    '<span class="log-message">' +
+    message +
+    "</span>";
+
   logEntry.dataset.timestamp = log.timestamp; // Track uniqueness
   return logEntry;
 }
 
 function replaceLogs(logs) {
-  const logContent = document.getElementById('logContent');
+  const logContent = document.getElementById("logContent");
   if (!logContent) return;
 
   if (!Array.isArray(logs)) {
-    console.warn('replaceLogs: logs is not an array', logs);
+    console.warn("replaceLogs: logs is not an array", logs);
     return;
   }
 
-  logContent.innerHTML = '';
-  
-  logs.forEach(log => {
+  logContent.innerHTML = "";
+
+  logs.forEach((log) => {
     logContent.appendChild(createLogElement(log));
   });
 
@@ -758,12 +921,12 @@ function replaceLogs(logs) {
 }
 
 function prependLogs(logs) {
-  const logContent = document.getElementById('logContent');
-  const logContainer = document.getElementById('logContainer');
+  const logContent = document.getElementById("logContent");
+  const logContainer = document.getElementById("logContainer");
   if (!logContent || !logContainer) return;
 
   if (!Array.isArray(logs)) {
-    console.warn('prependLogs: logs is not an array', logs);
+    console.warn("prependLogs: logs is not an array", logs);
     return;
   }
 
@@ -772,7 +935,7 @@ function prependLogs(logs) {
   const previousScrollTop = logContainer.scrollTop;
 
   const fragment = document.createDocumentFragment();
-  logs.forEach(log => {
+  logs.forEach((log) => {
     fragment.appendChild(createLogElement(log));
   });
 
@@ -780,24 +943,25 @@ function prependLogs(logs) {
 
   // Restore scroll position to maintain user's view
   const newScrollHeight = logContainer.scrollHeight;
-  logContainer.scrollTop = previousScrollTop + (newScrollHeight - previousScrollHeight);
+  logContainer.scrollTop =
+    previousScrollTop + (newScrollHeight - previousScrollHeight);
 }
 
 function appendLogs(logs) {
-  const logContent = document.getElementById('logContent');
+  const logContent = document.getElementById("logContent");
   if (!logContent) return;
 
   if (!Array.isArray(logs)) {
-    console.warn('appendLogs: logs is not an array', logs);
+    console.warn("appendLogs: logs is not an array", logs);
     return;
   }
 
   // Get existing timestamps to avoid duplicates
   const existingTimestamps = new Set(
-    Array.from(logContent.children).map(el => el.dataset.timestamp)
+    Array.from(logContent.children).map((el) => el.dataset.timestamp)
   );
 
-  logs.forEach(log => {
+  logs.forEach((log) => {
     // Only add if not already present
     if (!existingTimestamps.has(log.timestamp)) {
       logContent.appendChild(createLogElement(log));
@@ -826,15 +990,21 @@ function updateLogDisplay(logs) {
     const logDiv = document.createElement("div");
     const levelLower = String(level).toLowerCase();
     logDiv.className = "log-entry log-" + levelLower;
-    
+
     const timestamp = new Date(entry.timestamp).toLocaleTimeString();
     const message = String(entry.message);
-    
-    logDiv.innerHTML = 
-      '<span class="log-timestamp">' + timestamp + '</span>' +
-      '<span class="log-level">[' + level + ']</span>' +
-      '<span class="log-message">' + message + '</span>';
-    
+
+    logDiv.innerHTML =
+      '<span class="log-timestamp">' +
+      timestamp +
+      "</span>" +
+      '<span class="log-level">[' +
+      level +
+      "]</span>" +
+      '<span class="log-message">' +
+      message +
+      "</span>";
+
     logContent.appendChild(logDiv);
   });
 
@@ -865,57 +1035,62 @@ function scrollToBottom() {
 document.addEventListener("DOMContentLoaded", () => {
   renderAirportsStatus();
   renderConfigButtons();
-  
+
   // Initial log setup
   populateLogFilters();
   fetchFilteredLogs();
-  
+
   // Set up infinite scroll on logContainer
-  const logContainer = document.getElementById('logContainer');
+  const logContainer = document.getElementById("logContainer");
   if (logContainer) {
-    logContainer.addEventListener('scroll', (e) => {
+    logContainer.addEventListener("scroll", (e) => {
       const element = e.target;
-      
+
       // Check if user is at the bottom
-      const isAtBottom = element.scrollHeight - element.scrollTop <= element.clientHeight + 50;
-      
+      const isAtBottom =
+        element.scrollHeight - element.scrollTop <= element.clientHeight + 50;
+
       if (isAtBottom) {
         // Re-enable auto-scroll when at bottom
         if (!autoScroll) {
           autoScroll = true;
           const button = document.getElementById("toggleAutoScroll");
-          if (button) button.textContent = 'Auto-scroll: ON';
+          if (button) button.textContent = "Auto-scroll: ON";
         }
       } else {
         // Disable auto-scroll when scrolling up
         if (autoScroll) {
           autoScroll = false;
           const button = document.getElementById("toggleAutoScroll");
-          if (button) button.textContent = 'Auto-scroll: OFF';
+          if (button) button.textContent = "Auto-scroll: OFF";
         }
       }
-      
+
       // Load older logs when scrolling near the top
       if (element.scrollTop <= 100 && hasMore && !isLoading) {
         fetchFilteredLogs();
       }
     });
   }
-  
+
   // Set up filter change listeners
-  const levelSelect = document.getElementById('level-select');
-  const airportSelect = document.getElementById('airport-select');
-  const callsignSelect = document.getElementById('callsign-select');
-  const categorySelect = document.getElementById('category-select');
-  
-  if (levelSelect) levelSelect.addEventListener('change', () => fetchFilteredLogs(true));
-  if (airportSelect) airportSelect.addEventListener('change', () => fetchFilteredLogs(true));
-  if (callsignSelect) callsignSelect.addEventListener('change', () => fetchFilteredLogs(true));
-  if (categorySelect) categorySelect.addEventListener('change', () => fetchFilteredLogs(true));
-  
+  const levelSelect = document.getElementById("level-select");
+  const airportSelect = document.getElementById("airport-select");
+  const callsignSelect = document.getElementById("callsign-select");
+  const categorySelect = document.getElementById("category-select");
+
+  if (levelSelect)
+    levelSelect.addEventListener("change", () => fetchFilteredLogs(true));
+  if (airportSelect)
+    airportSelect.addEventListener("change", () => fetchFilteredLogs(true));
+  if (callsignSelect)
+    callsignSelect.addEventListener("change", () => fetchFilteredLogs(true));
+  if (categorySelect)
+    categorySelect.addEventListener("change", () => fetchFilteredLogs(true));
+
   setInterval(renderAirportsStatus, 10000);
   setInterval(populateLogFilters, 5000);
-  
+
   // Fetch new logs periodically - only if auto-scroll is enabled
   setInterval(() => {
     if (!isLoading && autoScroll) {
@@ -932,13 +1107,26 @@ document.addEventListener("DOMContentLoaded", () => {
 // Navigation routing - wrapped to execute after DOM is ready
 (function () {
   function initNavigation() {
-    const sections = Array.from(document.querySelectorAll("section[data-page]"));
+    const sections = Array.from(
+      document.querySelectorAll("section[data-page]")
+    );
     const navLinks = Array.from(
       document.querySelectorAll('.sidenav a[href^="#"]')
     );
 
     function showPage(page) {
       sections.forEach((s) => {
+        if (page === "log" || page === "configs") {
+          // Block access to logs and configs if not authenticated
+          if (!isUserAdmin(fetchCurrentUser())) {
+            console.log("Access denied to page:", page);
+            s.style.display = "none";
+            // redirect to status page
+            if (location.hash !== "#status") {
+              location.hash = "#status";
+            }
+          }
+        }
         s.style.display = s.dataset.page === page ? "" : "none";
       });
       navLinks.forEach((a) => {
@@ -964,6 +1152,10 @@ document.addEventListener("DOMContentLoaded", () => {
         }, 150);
       }
 
+      if (page === "dashboard") {
+        checkAuthAndUpdateUI();
+      }
+
       // optional: scroll to top of content area
       window.scrollTo(0, 0);
     }
@@ -979,7 +1171,7 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   // Wait for DOM to be ready before initializing navigation
-  if (document.readyState === 'loading') {
+  if (document.readyState === "loading") {
     document.addEventListener("DOMContentLoaded", initNavigation);
   } else {
     initNavigation();
@@ -997,7 +1189,9 @@ let assignedStands = [];
 let blockedStands = [];
 
 function fetchOccupiedStands() {
-  fetch(API_BASE_URL + "/api/occupancy/occupied", { headers: { "X-Internal-Request": "1" } })
+  fetch(API_BASE_URL + "/api/occupancy/occupied", {
+    headers: { "X-Internal-Request": "1" },
+  })
     .then((res) => {
       if (!res.ok) throw new Error("Network response was not ok");
       return res.json();
@@ -1005,7 +1199,10 @@ function fetchOccupiedStands() {
     .then((stands) => {
       if (Array.isArray(stands)) {
         // Store as ICAO-StandName format instead of just name
-        occupiedStands = stands.map((s) => s.icao + "-" + s.name);
+        occupiedStands = stands.map((s) => ({
+          id: s.icao + "-" + s.name,
+          callsign: s.callsign,
+        }));
       }
     })
     .catch((err) => {
@@ -1014,7 +1211,9 @@ function fetchOccupiedStands() {
 }
 
 function fetchAssignedStands() {
-  fetch(API_BASE_URL + "/api/occupancy/assigned", { headers: { "X-Internal-Request": "1" } })
+  fetch(API_BASE_URL + "/api/occupancy/assigned", {
+    headers: { "X-Internal-Request": "1" },
+  })
     .then((res) => {
       if (!res.ok) throw new Error("Network response was not ok");
       return res.json();
@@ -1022,7 +1221,10 @@ function fetchAssignedStands() {
     .then((stands) => {
       if (Array.isArray(stands)) {
         // Store as ICAO-StandName format instead of just name
-        assignedStands = stands.map((s) => s.icao + "-" + s.name);
+        assignedStands = stands.map((s) => ({
+          id: s.icao + "-" + s.name,
+          callsign: s.callsign,
+        }));
       }
     })
     .catch((err) => {
@@ -1031,7 +1233,9 @@ function fetchAssignedStands() {
 }
 
 function fetchBlockedStands() {
-  fetch(API_BASE_URL + "/api/occupancy/blocked", { headers: { "X-Internal-Request": "1" } })
+  fetch(API_BASE_URL + "/api/occupancy/blocked", {
+    headers: { "X-Internal-Request": "1" },
+  })
     .then((res) => {
       if (!res.ok) throw new Error("Network response was not ok");
       return res.json();
@@ -1039,7 +1243,10 @@ function fetchBlockedStands() {
     .then((stands) => {
       if (Array.isArray(stands)) {
         // Store as ICAO-StandName format instead of just name
-        blockedStands = stands.map((s) => s.icao + "-" + s.name);
+        blockedStands = stands.map((s) => ({
+          id: s.icao + "-" + s.name,
+          callsign: s.callsign,
+        }));
       }
     })
     .catch((err) => {
@@ -1049,15 +1256,15 @@ function fetchBlockedStands() {
 
 function getStandColor(standName, apron) {
   // Now both standName and the arrays are in ICAO-StandName format
-  if (occupiedStands.includes(standName)) {
+  if (occupiedStands.some((s) => s.id === standName)) {
     return ["#B22222", "#FF6B6B"]; // dark red border, light red fill (occupied)
   }
 
-  if (assignedStands.includes(standName)) {
+  if (assignedStands.some((s) => s.id === standName)) {
     return ["#005864ff", "#3a91acff"]; // dark blue border, light blue fill (assigned)
   }
 
-  if (blockedStands.includes(standName)) {
+  if (blockedStands.some((s) => s.id === standName)) {
     return ["#9c7c22ff", "#cdc54eff"]; // dark teal border, light teal fill (blocked)
   }
 
@@ -1125,7 +1332,9 @@ function renderConfigButtons() {
   const container = document.getElementById("configButtonContainer");
   if (!container) return;
   container.innerHTML = "<p>Loading presets...</p>";
-  fetch(API_BASE_URL + "/api/airports", { headers: { "X-Internal-Request": "1" } })
+  fetch(API_BASE_URL + "/api/airports", {
+    headers: { "X-Internal-Request": "1" },
+  })
     .then((res) => {
       if (!res.ok) throw new Error("Network response was not ok");
       return res.json();
@@ -1174,17 +1383,20 @@ function syntaxHighlight(json) {
       } else if (/null/.test(match)) {
         cls = "json-null";
       }
-      return '<span class="' + cls + '">' + match + '</span>';
+      return '<span class="' + cls + '">' + match + "</span>";
     }
   );
 }
 
 function loadConfig(presetName) {
   if (!presetName) return;
-  fetch(API_BASE_URL + "/api/airports/config/" + encodeURIComponent(presetName), {
-    method: "GET",
-    headers: { "X-Internal-Request": "1" },
-  })
+  fetch(
+    API_BASE_URL + "/api/airports/config/" + encodeURIComponent(presetName),
+    {
+      method: "GET",
+      headers: { "X-Internal-Request": "1" },
+    }
+  )
     .then((res) => {
       if (!res.ok) throw new Error("Network response was not ok");
       return res.json();
@@ -1204,15 +1416,19 @@ function loadConfig(presetName) {
 // Initialize map after DOM is ready
 function initializeMap() {
   // Check if Leaflet is loaded
-  if (typeof L === 'undefined') {
-    console.error("initializeMap: Leaflet (L) is not loaded. Make sure leaflet.js is included before this script.");
+  if (typeof L === "undefined") {
+    console.error(
+      "initializeMap: Leaflet (L) is not loaded. Make sure leaflet.js is included before this script."
+    );
     return;
   }
 
   // Check if map element exists
   const mapElement = document.getElementById("map");
   if (!mapElement) {
-    console.error("initializeMap: Map element not found, skipping map initialization");
+    console.error(
+      "initializeMap: Map element not found, skipping map initialization"
+    );
     return;
   }
 
@@ -1222,79 +1438,108 @@ function initializeMap() {
       maxZoom: 19,
     }).setView([47.009279, 3.765732], 6);
 
-  // Add satellite tile layer
-  L.tileLayer(
-    "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
-    {
-      attribution:
-        "Tiles &copy; Esri &mdash; Source: Esri, i-cubed, USDA, USGS, AEX, GeoEye, Getmapping, Aerogrid, IGN, IGP, UPR-EGP, and the GIS User Community",
-      maxZoom: 19,
-    }
-  ).addTo(map);
+    // Define multiple tile layers
+    const satelliteLayer = L.tileLayer(
+      "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
+      {
+        attribution: "Tiles &copy; Esri",
+        maxZoom: 19,
+        className: "map-layer",
+      }
+    );
 
-  // Add legend
-  var legend = L.control({ position: "topright" });
-  legend.onAdd = function (map) {
-    var div = L.DomUtil.create("div", "legend");
-    div.innerHTML =
-      "<h4>Stands Legend</h4>" +
-      '<i style="background:#FFFFFF; width:18px; height:18px; display:inline-block; margin-right:8px; opacity:0.7; border-radius:50%; border: 1px solid #CCCCCC;"></i> Airport<br>' +
-      '<i style="background:#96CEB4; width:18px; height:18px; display:inline-block; margin-right:8px; opacity:0.7; border-radius:50%; border: 1px solid #CCCCCC;"></i> Free<br>' +
-      '<i style="background:#cdc54eff; width:18px; height:18px; display:inline-block; margin-right:8px; opacity:0.7; border-radius:50%; border: 1px solid #CCCCCC;"></i> Blocked<br>' +
-      '<i style="background:#3a91acff; width:18px; height:18px; display:inline-block; margin-right:8px; opacity:0.7; border-radius:50%; border: 1px solid #CCCCCC;"></i> Assigned<br>' +
-      '<i style="background:#FF6B6B; width:18px; height:18px; display:inline-block; margin-right:8px; opacity:0.7; border-radius:50%; border: 1px solid #CCCCCC;"></i> Occupied<br><br>';
-    L.DomEvent.disableClickPropagation(div);
-    return div;
-  };
-  legend.addTo(map);
+    const darkLayer = L.tileLayer(
+      "https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png",
+      {
+        attribution:
+          '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>',
+        subdomains: "abcd",
+        maxZoom: 20,
+        className: "map-layer",
+      }
+    );
 
-  // Initial fetch and periodic refresh for stand status
-  fetchOccupiedStands();
-  fetchAssignedStands();
-  fetchBlockedStands();
-  setInterval(fetchOccupiedStands, 10000);
-  setInterval(fetchAssignedStands, 10000);
-  setInterval(fetchBlockedStands, 10000);
+    window.mapLayers = {
+      light: satelliteLayer,
+      dark: darkLayer,
+      current: null,
+    };
 
-  // Add map event handlers
-  map.on("zoomend", updateMarkerSizes);
+    window.switchMapLayer = function () {
+      const isDarkMode = document.body.classList.contains("dark-mode");
+      const newLayer = isDarkMode ? darkLayer : satelliteLayer;
 
-  // Store initial bounds when ready
-  map.whenReady(function () {
-    initialBounds = map.getBounds();
-  });
+      if (window.mapLayers.current && map.hasLayer(window.mapLayers.current)) {
+        map.removeLayer(window.mapLayers.current);
+      }
 
-  // Add home control
-  var HomeControl = L.Control.extend({
-    onAdd: function (map) {
-      var container = L.DomUtil.create(
-        "div",
-        "leaflet-bar leaflet-control leaflet-control-custom"
-      );
+      newLayer.addTo(map);
+      window.mapLayers.current = newLayer;
+    };
 
-      container.style.backgroundColor = "white";
-      container.style.backgroundImage =
-        "url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyNCIgaGVpZ2h0PSIyNCIgdmlld0JveD0iMCAwIDI0IDI0IiBmaWxsPSJub25lIiBzdHJva2U9ImN1cnJlbnRDb2xvciIgc3Ryb2tlLXdpZHRoPSIyIiBzdHJva2UtbGluZWNhcD0icm91bmQiIHN0cm9rZS1saW5lam9pbj0icm91bmQiPjxwYXRoIGQ9Im0zIDkgOS03IDkgN3YxMWgtNnYtNGgtNnY0aC02eiIvPjwvc3ZnPg==')";
-      container.style.backgroundSize = "16px 16px";
-      container.style.backgroundPosition = "center";
-      container.style.backgroundRepeat = "no-repeat";
-      container.style.width = "30px";
-      container.style.height = "30px";
-      container.style.cursor = "pointer";
-      container.title = "Return to initial view";
+    switchMapLayer();
 
-      container.onclick = function () {
+    // Add legend
+    var legend = L.control({ position: "topright" });
+    legend.onAdd = function (map) {
+      var div = L.DomUtil.create("div", "legend");
+      div.innerHTML =
+        "<h4>Stands Legend</h4>" +
+        '<i style="background:#FFFFFF; width:18px; height:18px; display:inline-block; margin-right:8px; opacity:0.7; border-radius:50%; border: 1px solid #CCCCCC;"></i> Airport<br>' +
+        '<i style="background:#96CEB4; width:18px; height:18px; display:inline-block; margin-right:8px; opacity:0.7; border-radius:50%; border: 1px solid #CCCCCC;"></i> Free<br>' +
+        '<i style="background:#cdc54eff; width:18px; height:18px; display:inline-block; margin-right:8px; opacity:0.7; border-radius:50%; border: 1px solid #CCCCCC;"></i> Blocked<br>' +
+        '<i style="background:#3a91acff; width:18px; height:18px; display:inline-block; margin-right:8px; opacity:0.7; border-radius:50%; border: 1px solid #CCCCCC;"></i> Assigned<br>' +
+        '<i style="background:#FF6B6B; width:18px; height:18px; display:inline-block; margin-right:8px; opacity:0.7; border-radius:50%; border: 1px solid #CCCCCC;"></i> Occupied<br><br>';
+      L.DomEvent.disableClickPropagation(div);
+      return div;
+    };
+    legend.addTo(map);
+
+    // Initial fetch and periodic refresh for stand status
+    fetchOccupiedStands();
+    fetchAssignedStands();
+    fetchBlockedStands();
+    setInterval(fetchOccupiedStands, 10000);
+    setInterval(fetchAssignedStands, 10000);
+    setInterval(fetchBlockedStands, 10000);
+
+    // Add map event handlers
+    map.on("zoomend", updateMarkerSizes);
+
+    // Store initial bounds when ready
+    map.whenReady(function () {
+      initialBounds = map.getBounds();
+    });
+
+    // Add home control
+    var HomeControl = L.Control.extend({
+      onAdd: function (map) {
+        var container = L.DomUtil.create(
+          "div",
+          "leaflet-bar leaflet-control leaflet-control-custom"
+        );
+        container.innerHTML = "<i class='bx  bx-home'></i>";
+
+        container.style.backgroundSize = "16px 16px";
+        container.style.backgroundPosition = "center";
+        container.style.backgroundRepeat = "no-repeat";
+        container.style.width = "30px";
+        container.style.height = "30px";
+        container.style.cursor = "pointer";
+        container.title = "Return to initial view";
+
+        container.onclick = function () {
           map.setView([47.009279, 3.765732], 6, { animate: true });
-      };
+        };
 
-      L.DomEvent.disableClickPropagation(container);
-      return container;
-    },
-    onRemove: function (map) {}
-  });
+        L.DomEvent.disableClickPropagation(container);
+        return container;
+      },
+      onRemove: function (map) {},
+    });
 
-  var homeControl = new HomeControl({ position: "topleft" });
-  homeControl.addTo(map);
+    var homeControl = new HomeControl({ position: "topleft" });
+    homeControl.addTo(map);
 
     // Load stands and airports data
     loadMapData();
@@ -1303,9 +1548,32 @@ function initializeMap() {
   }
 }
 
+function createStandPopupContent(standId) {
+  const div = document.createElement("div");
+  div.className = "stand-popup-content";
+  div.innerHTML = "<h1>" + standId + "</h1>";
+
+  // Check occupied/assigned/blocked arrays for callsign
+  const occupied = occupiedStands.find((s) => s.id === standId);
+  const assigned = assignedStands.find((s) => s.id === standId);
+  const blocked = blockedStands.find((s) => s.id === standId);
+  if (occupied) {
+    div.innerHTML += `<p>Occupied by <strong>${occupied.callsign}</strong></p>`;
+  } else if (assigned) {
+    div.innerHTML += `<p>Assigned to <strong>${assigned.callsign}</strong></p>`;
+  } else if (blocked) {
+    div.innerHTML += `<p>Blocked by <strong>${blocked.callsign}</strong></p>`;
+  } else {
+    div.innerHTML += `<p>Free</p>`;
+  }
+  return div;
+}
+
 function loadMapData() {
   // Draw stands on map
-  fetch(API_BASE_URL + "/api/airports/stands", { headers: { "X-Internal-Request": "1" } })
+  fetch(API_BASE_URL + "/api/airports/stands", {
+    headers: { "X-Internal-Request": "1" },
+  })
     .then((res) => {
       if (!res.ok) throw new Error("Network response was not ok");
       return res.json();
@@ -1313,7 +1581,7 @@ function loadMapData() {
     .then((data) => {
       if (!Array.isArray(data))
         throw new Error("Stands response is not an array");
-      
+
       stands = data.filter((s) => {
         return (
           Array.isArray(s.coords) &&
@@ -1337,7 +1605,9 @@ function loadMapData() {
             fillOpacity: 0.8,
             radius: stand.radius,
             weight: 3,
-          }).bindPopup("<strong>" + stand.name + "</strong>");
+          }).bindPopup(() => {
+            return createStandPopupContent(stand.name);
+          });
 
           stand.label = L.marker(stand.coords, {
             interactive: false,
@@ -1377,7 +1647,7 @@ function loadMapData() {
     .then((data) => {
       if (!Array.isArray(data))
         throw new Error("Airports response is not an array");
-      
+
       airports = data.filter((a) => {
         return (
           Array.isArray(a.coords) &&
@@ -1447,9 +1717,484 @@ function loadMapData() {
 }
 
 // Call map initialization when DOM is ready
-if (document.readyState === 'loading') {
-  document.addEventListener('DOMContentLoaded', initializeMap);
+if (document.readyState === "loading") {
+  document.addEventListener("DOMContentLoaded", initializeMap);
 } else {
   // DOM already loaded
   initializeMap();
 }
+
+
+
+// Dashboard
+async function fetchCurrentUser() {
+  try {
+    const res = await fetch(API_BASE_URL + '/api/auth/session', { credentials: 'same-origin' });
+    if (!res.ok) return null;
+    return await res.json();
+  } catch (err) {
+    console.warn('fetchCurrentUser error', err);
+    return null;
+  }
+}
+
+function isUserConnected(user) {
+  return !!user && (!!user.core || !!user.local || !!user.token);
+}
+
+function isUserAdmin(user) {
+  if (!user) return false;
+  if (user.local && Array.isArray(user.local.roles) && user.local.roles.includes('admin')) return true;
+  return false;
+}
+
+async function checkAuthAndUpdateUI() {
+  const user = await fetchCurrentUser();
+  renderLoginLayout(user);
+  displayDashboard(user);
+}
+
+async function fetchLocalUsers() {
+  const res = await fetch(API_BASE_URL + '/api/auth/internal/localusers', { credentials: 'same-origin' });
+  if (!res.ok) throw new Error('Failed to fetch users');
+  return res.json();
+}
+
+async function toggleAdminRole(cid, add) {
+  const url = API_BASE_URL + `/api/auth/internal/localuser/${encodeURIComponent(cid)}/roles`;
+  const method = add ? 'POST' : 'DELETE';
+  const res = await fetch(url, {
+    method,
+    credentials: 'same-origin',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ role: 'admin' })
+  });
+  if (!res.ok) throw new Error('Failed to update role');
+  return res.json();
+}
+
+//FIXME: need testing and better UI
+async function renderAdminList(containerId) {
+  const container = document.getElementById(containerId);
+  if (!container) return;
+  try {
+    const users = await fetchLocalUsers();
+    container.innerHTML = users.map(u => {
+      const isAdmin = Array.isArray(u.roles) && u.roles.includes('admin');
+      return `<div data-cid="${u.cid}">
+        <strong>${u.cid}</strong> ${u.full_name ? '- ' + u.full_name : ''}
+        <button class="role-btn" data-cid="${u.cid}" data-action="${isAdmin ? 'revoke' : 'grant'}">
+          ${isAdmin ? 'Revoke admin' : 'Grant admin'}
+        </button>
+      </div>`;
+    }).join('');
+    container.querySelectorAll('.role-btn').forEach(btn => {
+      btn.addEventListener('click', async (e) => {
+        const cid = btn.dataset.cid;
+        const add = btn.dataset.action === 'grant';
+        await toggleAdminRole(cid, add);
+        await renderAdminList(containerId);
+      });
+    });
+  } catch (err) {
+    container.textContent = 'Error loading users';
+    console.error(err);
+  }
+}
+
+// Select correct dashboard based on isAdmin or not
+function displayDashboard(user) {
+  const isAdmin = isUserAdmin(user);
+  if (isAdmin) {
+    renderAdminList('adminUserList');
+    document.getElementById("dashboardAdmin").style.display = "block";
+    document.getElementById("dashboardUser").style.display = "block";
+    updateControllerNumber();
+    updateApiKeyList();
+  } else {
+    document.getElementById("dashboardAdmin").style.display = "none";
+    document.getElementById("dashboardUser").style.display = "block";
+  }
+}
+
+function renderLoginLayout(user) {
+  const isConnected = isUserConnected(user);
+  const isAdmin = isUserAdmin(user);
+
+  // Handle sidenav items visibility
+  const adminOnlyItems = document.querySelectorAll('.sidenav a[data-admin-only]');
+  adminOnlyItems.forEach(item => {
+    item.style.display = isConnected && isAdmin ? 'block' : 'none';
+  });
+
+  // Rest of existing login layout logic
+  if (!isConnected) {
+    Array.from(document.getElementsByClassName("loginLayout")).forEach(el => el.style.display = "flex");
+    Array.from(document.getElementsByClassName("connectedLayout")).forEach(el => el.style.display = "none");
+  } else {
+    Array.from(document.getElementsByClassName("loginLayout")).forEach(el => el.style.display = "none");
+    // Check maxwidth to adjust layout
+    if (window.innerWidth <= 600) {
+      Array.from(document.getElementsByClassName("connectedLayout")).forEach(el => el.style.display = "flex");
+    } else {
+      Array.from(document.getElementsByClassName("connectedLayout")).forEach(el => el.style.display = "inline");
+    }
+    document.getElementById("usernameUser").textContent = user ? user.core.firstName : "Guest";
+    document.getElementById("usernameAdmin").textContent = user ? user.core.firstName : "Guest";
+    apiKeyDisplay(user);
+  }
+}
+
+function apiKeyDisplay(user) {
+  let apiKey = user ? user.local.api_key : "";
+  if (apiKey && apiKey.length > 0) {
+    document.getElementById("selfAPIKey").style.display = "inline";
+    document.getElementById("selfAPIKey").textContent = apiKey;
+  } else {
+    document.getElementById("selfAPIKey").style.display = "none";
+  }
+}
+
+function generateApiKey() {
+  console.log("Generating new API key...");
+  fetchLocalUsers().then(user => {
+    if (!user) {
+      console.error("Cannot generate API key: user not found");
+      return;
+    }
+    fetch(API_BASE_URL + `/api/auth/key/${user.cid}`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({ userId: user.cid })
+    });
+  });
+
+  // Refresh the dashboard to show new key
+  fetchLocalUsers().then(user => {
+    apiKeyDisplay(user);
+  });
+}
+
+function updateApiKeyList() {
+  const tbody = document.querySelector("#apiKeyListTable tbody");
+  if (!tbody) return;
+  fetch(API_BASE_URL + "/api/auth/keys", {
+    headers: {
+      "Content-Type": "application/json"
+    },
+    credentials: "same-origin"
+  })
+    .then((res) => {
+      if (!res.ok) throw new Error("Network response was not ok");
+      // Display no API keys message if empty
+      showNoApiKeysMessageIfEmpty();
+      return res.json();
+    })
+    .then((data) => {
+      // Clear existing rows
+      tbody.innerHTML = "";
+
+      // FIXME: Debug log
+      console.log("Fetched API keys:", data);
+
+      // Populate table with API keys
+      data.keys.forEach(key => {
+        const row = document.createElement("tr");
+        row.id = key.cid;
+        row.innerHTML = `
+          <td>${key.cid}</td>
+          <td class="apiValue">${key.apiKey}</td>
+          <td class="createdValue">${key.createdAt}</td>
+          <td>${key.lastUsed}</td>
+          <td class="actionCell">
+            <button class="renewButton" onclick="renewApiKey('${key.cid}')">Renew</button>
+            <button class="revokeButton" onclick="revokeApiKey('${key.cid}')">Revoke</button>
+          </td>
+        `;
+        tbody.appendChild(row);
+      });
+      updateApiKeyCount();
+      showNoApiKeysMessageIfEmpty();
+    })
+    .catch((err) => {
+      console.error("Failed to fetch API key list", err);
+    });
+}
+
+function updateApiKeyCount() {
+  const countElem = document.getElementById("apiKeyCount");
+  const apiKeyCounter = document.querySelectorAll("#apiKeyListTable tbody tr").length;
+  if (countElem) {
+    countElem.textContent = apiKeyCounter;
+  }
+}
+
+// API actions
+function renewApiKey(cid) {
+  console.log("Renewing API key of CID:", cid);
+  fetch(API_BASE_URL + `/api/auth/key/${cid}/renew`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json"
+    },
+    credentials: "same-origin",
+    body: JSON.stringify({ cid })
+  });
+}
+
+function revokeApiKey(cid) {
+  console.log("Revoking API key of CID:", cid);
+
+  fetch(API_BASE_URL + `/api/auth/key/${cid}/revoke`, {
+    method: "DELETE",
+    headers: {
+      "Content-Type": "application/json"
+    },
+    credentials: "same-origin",
+    body: JSON.stringify({ cid })
+  });
+
+  // Remove entire row from table
+  const row = document.getElementById(cid);
+  if (row) {
+    row.remove();
+    updateApiKeyCount();
+  }
+
+  // If table is empty after removal, show "no keys" message
+  showNoApiKeysMessageIfEmpty();
+}
+
+function showNoApiKeysMessageIfEmpty() {
+  const tbody = document.querySelector('#apiKeyListTable tbody');
+  if (tbody && tbody.children.length === 0) {
+    const noKeysRow = document.createElement('tr');
+    const noKeysCell = document.createElement('td');
+    noKeysCell.colSpan = 5;
+    noKeysCell.textContent = "No API keys found";
+    noKeysRow.appendChild(noKeysCell);
+    tbody.appendChild(noKeysRow);
+  }
+}
+
+// ATC controller number
+function updateControllerNumber() {
+  const span = document.getElementById("connectedAtcCount");
+  if (!span) return;
+  fetch(API_BASE_URL + "/api/occupancy/controllers", {
+    headers: { "X-Internal-Request": "1" },
+  })
+    .then((res) => {
+      if (!res.ok) throw new Error("Network response was not ok");
+      return res.json();
+    })
+    .then((data) => {
+      if (typeof data.count === "number") {
+        span.textContent = data.count;
+      }
+    })
+    .catch((err) => {
+      console.error("Failed to fetch connected ATC count", err);
+    });
+}
+
+setInterval(updateControllerNumber, 15000); // update every 15 seconds
+
+// Swipe buttons
+(function enableRowSwipeActions() {
+  const tbody = document.querySelector('#apiKeyListTable tbody');
+  if (!tbody) return;
+
+  let startX = 0, startY = 0, activeRow = null;
+  let dragging = false;
+  const HORIZONTAL_THRESHOLD = 50; // px needed to count as swipe
+  const MAX_TRANSLATE = 120; // px maximum visual translation
+
+  function getRow(el) {
+    while (el && el !== tbody && el.tagName !== 'TR') el = el.parentElement;
+    return (el && el.tagName === 'TR') ? el : null;
+  }
+
+  function ensureIndicators(row) {
+    if (!row) return;
+    if (!row.querySelector('.swipe-indicator.left')) {
+      const left = document.createElement('div');
+      left.className = 'swipe-indicator left';
+      left.innerHTML = '<span>Renew</span>';
+      row.appendChild(left);
+    }
+    if (!row.querySelector('.swipe-indicator.right')) {
+      const right = document.createElement('div');
+      right.className = 'swipe-indicator right';
+      right.innerHTML = '<span>Revoke</span>';
+      row.appendChild(right);
+    }
+  }
+
+  function startDrag(x, y, target) {
+    startX = x; startY = y;
+    activeRow = getRow(target);
+    if (!activeRow) return;
+    ensureIndicators(activeRow);
+    dragging = true;
+    activeRow.classList.add('swipe-dragging');
+    // guard everything that touches style with a check
+    if (activeRow) {
+      activeRow.style.transition = 'none';
+      activeRow.style.willChange = 'transform';
+      activeRow.style.zIndex = '1500';
+      activeRow.style.boxShadow = '0 12px 30px rgba(0,0,0,0.18)';
+      activeRow.style.transform = 'translateX(0) scale(1.01)';
+      activeRow.style.userSelect = 'none';
+    }
+
+    // initialize indicators
+    const left = activeRow.querySelector('.swipe-indicator.left');
+    const right = activeRow.querySelector('.swipe-indicator.right');
+    if (left) { left.style.width = '0px'; left.style.opacity = '0'; }
+    if (right) { right.style.width = '0px'; right.style.opacity = '0'; }
+  }
+
+  function moveDrag(x, y) {
+    if (!dragging || !activeRow) return;
+    const dx = x - startX;
+    const dy = y - startY;
+    if (Math.abs(dy) > Math.abs(dx)) return;
+    const limited = Math.max(-MAX_TRANSLATE, Math.min(MAX_TRANSLATE, dx));
+    const scale = 1 + Math.min(Math.abs(limited) / 800, 0.03);
+    activeRow.style.transform = `translateX(${limited}px) scale(${scale})`;
+
+    const left = activeRow.querySelector('.swipe-indicator.left');
+    const right = activeRow.querySelector('.swipe-indicator.right');
+    if (limited > 0) {
+      // reveal left indicator proportionally
+      if (left) {
+        left.style.width = `${Math.min(limited, MAX_TRANSLATE)}px`;
+        left.style.opacity = String(Math.min(1, Math.abs(limited) / 20));
+      }
+      if (right) {
+        right.style.width = '0px';
+        right.style.opacity = '0';
+      }
+    } else if (limited < 0) {
+      // reveal right indicator proportionally
+      const w = Math.min(-limited, MAX_TRANSLATE);
+      if (right) {
+        right.style.width = `${w}px`;
+        right.style.opacity = String(Math.min(1, Math.abs(limited) / 20));
+      }
+      if (left) {
+        left.style.width = '0px';
+        left.style.opacity = '0';
+      }
+    } else {
+      if (left) { left.style.width = '0px'; left.style.opacity = '0'; }
+      if (right) { right.style.width = '0px'; right.style.opacity = '0'; }
+    }
+  }
+
+  function endDrag(x, y) {
+    if (!activeRow) { dragging = false; return; }
+    const dx = x - startX;
+    const dy = y - startY;
+    dragging = false;
+
+    // use a localRef to avoid race if activeRow is cleared/removed later
+    const rowRef = activeRow;
+
+    if (rowRef) rowRef.style.transition = 'transform 220ms ease, box-shadow 180ms ease';
+
+    const left = rowRef ? rowRef.querySelector('.swipe-indicator.left') : null;
+    const right = rowRef ? rowRef.querySelector('.swipe-indicator.right') : null;
+
+    if (Math.abs(dx) >= HORIZONTAL_THRESHOLD && Math.abs(dx) > Math.abs(dy)) {
+      const apiCell = rowRef ? rowRef.querySelector('.apiValue') : null;
+      const apiKey = apiCell ? apiCell.textContent.trim() : null;
+      if (apiKey && rowRef) {
+        const direction = dx > 0 ? 'right' : 'left';
+        const finishTranslate = dx > 0 ? MAX_TRANSLATE : -MAX_TRANSLATE;
+        rowRef.style.transform = `translateX(${finishTranslate}px) scale(1.02)`;
+        if (direction === 'right' && left) { left.style.width = `${MAX_TRANSLATE}px`; left.style.opacity = '1'; }
+        if (direction === 'left' && right) { right.style.width = `${MAX_TRANSLATE}px`; right.style.opacity = '1'; }
+
+        setTimeout(() => {
+          if (direction === 'right') {
+            try { renewApiKey(apiKey); } catch (err) { console.error(err); }
+          } else {
+            try { revokeApiKey(apiKey); } catch (err) { console.error(err); }
+          }
+          if (rowRef) {
+            rowRef.style.transform = 'translateX(0) scale(1)';
+            if (left) { left.style.width = '0px'; left.style.opacity = '0'; }
+            if (right) { right.style.width = '0px'; right.style.opacity = '0'; }
+          }
+        }, 180);
+      } else if (rowRef) {
+        rowRef.style.transform = 'translateX(0) scale(1)';
+      }
+    } else {
+      if (rowRef) {
+        rowRef.style.transform = 'translateX(0) scale(1)';
+        if (left) { left.style.width = '0px'; left.style.opacity = '0'; }
+        if (right) { right.style.width = '0px'; right.style.opacity = '0'; }
+      }
+    }
+
+    const cleanup = () => {
+      if (!rowRef) return;
+      rowRef.classList.remove('swipe-dragging');
+      // clear inline styles safely
+      rowRef.style.transition = '';
+      rowRef.style.transform = '';
+      rowRef.style.willChange = '';
+      rowRef.style.boxShadow = '';
+      rowRef.style.zIndex = '';
+      rowRef.style.userSelect = '';
+      const l = rowRef.querySelector('.swipe-indicator.left');
+      const r = rowRef.querySelector('.swipe-indicator.right');
+      if (l) l.remove();
+      if (r) r.remove();
+      rowRef.removeEventListener('transitionend', cleanup);
+      // only null the shared activeRow after cleanup finishes
+      if (activeRow === rowRef) activeRow = null;
+    };
+    if (rowRef) rowRef.addEventListener('transitionend', cleanup);
+  }
+
+  // Touch handlers
+  tbody.addEventListener('touchstart', (e) => {
+    const t = e.changedTouches[0];
+    startDrag(t.clientX, t.clientY, e.target);
+  }, { passive: true });
+
+  tbody.addEventListener('touchmove', (e) => {
+    if (!dragging) return;
+    const t = e.changedTouches[0];
+    moveDrag(t.clientX, t.clientY);
+  }, { passive: true });
+
+  tbody.addEventListener('touchend', (e) => {
+    const t = e.changedTouches[0];
+    endDrag(t.clientX, t.clientY);
+  }, { passive: true });
+
+  tbody.addEventListener('touchcancel', () => {
+    if (activeRow) {
+      activeRow.style.transition = 'transform 150ms ease';
+      activeRow.style.transform = 'translateX(0) scale(1)';
+      activeRow.addEventListener('transitionend', () => {
+        if (activeRow) {
+          activeRow.classList.remove('swipe-dragging');
+          activeRow.style.transition = '';
+          activeRow.style.transform = '';
+          activeRow = null;
+        }
+      }, { once: true });
+    }
+    dragging = false;
+  }, { passive: true });
+
+  
+})();

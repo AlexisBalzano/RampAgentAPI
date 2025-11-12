@@ -1,110 +1,183 @@
 <!DOCTYPE html>
 <html lang="en">
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Ramp Agent API</title>
-  <meta name="mobile-web-app-capable" content="yes">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="referrer" content="origin" />
+    <title>Ramp Agent API</title>
+    <meta name="mobile-web-app-capable" content="yes" />
 
-  <!-- Leaflet CSS (needed for controls/legend positioning) -->
-  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <!-- Leaflet CSS (needed for controls/legend positioning) -->
+    <link
+      rel="stylesheet"
+      href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+    />
 
-  <link rel="stylesheet" href="styles.css" />
-  <!-- Leaflet JS before your script, both deferred so order is preserved -->
-  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" defer></script>
-  <script src="https://cdn.jsdelivr.net/npm/chart.js@4/dist/chart.umd.min.js" defer></script>
-  <script src="script.js" defer></script>
+    <link rel="stylesheet" href="styles.css" />
+    <!-- Leaflet JS before your script, both deferred so order is preserved -->
+    <script
+      src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+      defer
+    ></script>
+    <script
+      src="https://cdn.jsdelivr.net/npm/chart.js@4/dist/chart.umd.min.js"
+      defer
+    ></script>
+    <script src="script.js" defer></script>
 
-  <!-- Boxicons -->
-  <link href="https://cdn.boxicons.com/fonts/basic/boxicons.min.css" rel="stylesheet" />
-</head>
+    <!-- Boxicons -->
+    <link
+      href="https://cdn.boxicons.com/fonts/basic/boxicons.min.css"
+      rel="stylesheet"
+    />
+  </head>
 
-<body>
-  <header>
-    <i class="bx bx-menu" onclick="openNav()"></i>
-    <h1>Ramp Agent API</h1>
-    <button id="performanceModeToggle" class="performance-toggle" onclick="togglePerformanceModeManual()" title="Toggle Performance Mode">
-      ⚡
-    </button>
-    <i id="darkModeMoon" class="bx bxs-moon" onclick="toggleDarkMode()"></i>
-    <i id="darkModeSun" class="bx bxs-sun" onclick="toggleDarkMode()"></i>
-  </header>
-  <main>
-    <div id="mySidenav" class="sidenav">
-      <div class="sidenav-content">
-        <i class="closebtn bx bx-menu" onclick="closeNav()"></i>
-        <a href="#status" onclick="closeNav()">Status</a>
-        <a href="#statistics" onclick="closeNav()">Statistics</a>
-        <a href="#standMap" onclick="closeNav()">Map</a>
-        <a href="#log" onclick="closeNav()">Logs</a>
-        <a href="#configs" onclick="closeNav()">Configs</a>
-        <p class="version">Version 1.0.2</p>
-      </div>
-    </div>
-    <section id="status" data-page="status">
-      <h2>Status</h2>
-      <div id="status-container" class="status-container container">
-      </div>
-    </section>
-    <section id="statistics" data-page="statistics">
-      <h2>Statistics</h2>
-      <div class="container">
-        <div class="reports-chart-wrap subContainer">
-          <h3>Reports per hour (last 24h): <span id="ReportTotal">0</span> Reports, <span id="RequestTotal">0</span>
-            Requests</h3>
-          <canvas id="reportsChart"></canvas>
-        </div>
-        <div class="per-airport-chart-wrap subContainer">
-          <h3>Occupied Stands per airport:</h3>
-          <canvas id="airportChart"></canvas>
-        </div>
-        <div class="time-chart-wrap subContainer">
-          <h3>Time chart whatever:</h3>
+  <body>
+    <header>
+      <i class="bx bx-menu" onclick="openNav()"></i>
+      <h1>Ramp Agent API</h1>
+      <button
+        id="performanceModeToggle"
+        class="performance-toggle"
+        onclick="togglePerformanceModeManual()"
+        title="Toggle Performance Mode"
+      >
+        ⚡
+      </button>
+      <i id="darkModeMoon" class="bx bxs-moon" onclick="toggleDarkMode()"></i>
+      <i id="darkModeSun" class="bx bxs-sun" onclick="toggleDarkMode()"></i>
+    </header>
+    <main>
+      <div id="mySidenav" class="sidenav">
+        <div class="sidenav-content">
+          <i class="closebtn bx bx-menu" onclick="closeNav()"></i>
+          <a href="#status" onclick="closeNav()">Status</a>
+          <a href="#statistics" onclick="closeNav()">Statistics</a>
+          <a href="#standMap" onclick="closeNav()">Map</a>
+          <a href="#log" onclick="closeNav()" data-admin-only>Logs</a>
+          <a href="#configs" onclick="closeNav()" data-admin-only>Configs</a>
+          <a href="#dashboard" onclick="closeNav()">Dashboard</a>
+          <p class="version">Version 1.0.6</p>
         </div>
       </div>
-    </section>
-    <section id="standMap" data-page="standMap">
-      <h2>Stand Map</h2>
-      <div id="map"></div>
-    </section>
-    <section id="log" data-page="log">
-      <h2>Logs</h2>
-      <div class="log-controls">
-        <button id="toggleAutoScroll" onclick="toggleAutoScroll()" type="button">Auto-scroll: ON</button>
-        <select id="level-select" title="Filter by Level">
-          <option value="">All Levels</option>
-          <option value="INFO">INFO</option>
-          <option value="WARN">WARN</option>
-          <option value="ERROR">ERROR</option>
-        </select>
-        <select id="category-select" title="Filter by Category">
-          <option value="">All Categories</option>
-        </select>
-        <select id="airport-select" title="Filter by Airport">
-          <option value="">All Airports</option>
-        </select>
-        <select id="callsign-select" title="Filter by Callsign">
-          <option value="">All Callsigns</option>
-        </select>
-      </div>
-      <div id="logContainer" class="log-container">
-        <div id="logContent"></div>
-      </div>
-    </section>
-    <section id="configs" data-page="configs">
-      <h2>Configs</h2>
-      <div id="configButtonContainer">
-      </div>
-      <div id="configContainer">
-        <div id="configContent">
-          <pre><code id="configCode"></code></pre>
+      <section id="status" data-page="status">
+        <h2>Status</h2>
+        <div id="status-container" class="status-container container"></div>
+      </section>
+      <section id="statistics" data-page="statistics">
+        <h2>Statistics</h2>
+        <div class="container">
+          <div class="reports-chart-wrap subContainer">
+            <h3>
+              Reports per hour (last 24h):
+              <span id="ReportTotal">0</span> Reports |
+              <span id="RequestTotal">0</span> Requests
+            </h3>
+            <canvas id="reportsChart"></canvas>
+          </div>
+          <div class="per-airport-chart-wrap subContainer">
+            <h3>Occupied Stands per airport:</h3>
+            <canvas id="airportChart"></canvas>
+          </div>
+          <div class="time-chart-wrap subContainer">
+            <h3>Time chart whatever:</h3>
+          </div>
         </div>
-      </div>
-    </section>
-  </main>
-  <footer>
-    <p>&copy; French vACC Gate Assigner.</p>
-  </footer>
-</body>
-
+      </section>
+      <section id="standMap" data-page="standMap">
+        <h2>Stand Map</h2>
+        <div id="map"></div>
+      </section>
+      <section id="log" data-page="log">
+        <h2>Logs</h2>
+        <div class="log-controls">
+          <button
+            id="toggleAutoScroll"
+            onclick="toggleAutoScroll()"
+            type="button"
+          >
+            Auto-scroll: ON
+          </button>
+          <select id="level-select" title="Filter by Level">
+            <option value="">All Levels</option>
+            <option value="INFO">INFO</option>
+            <option value="WARN">WARN</option>
+            <option value="ERROR">ERROR</option>
+          </select>
+          <select id="category-select" title="Filter by Category">
+            <option value="">All Categories</option>
+          </select>
+          <select id="airport-select" title="Filter by Airport">
+            <option value="">All Airports</option>
+          </select>
+          <select id="callsign-select" title="Filter by Callsign">
+            <option value="">All Callsigns</option>
+          </select>
+        </div>
+        <div id="logContainer" class="log-container">
+          <div id="logContent"></div>
+        </div>
+      </section>
+      <section id="configs" data-page="configs">
+        <h2>Configs</h2>
+        <div id="configButtonContainer"></div>
+        <div id="configContainer">
+          <div id="configContent">
+            <pre><code id="configCode"></code></pre>
+          </div>
+        </div>
+      </section>
+      <section data-page="dashboard">
+        <section id="dashboardUser">
+          <div class="loginLayout">
+            <button id="loginButton" onclick="window.location.href='/rampagent/api/auth/login'">Login</button>
+          </div>
+          <div class="connectedLayout">
+            <h2>Welcome back, <span id="usernameUser">User</span>!</h2>
+            <h3>Your API Key:</h3>
+            <span id="selfAPIKey"></span>
+            <button id="generateAPIKeyButton" onclick="generateApiKey()">Generate API Key</button>
+            <button id="logoutButton" onclick="window.location.href='/rampagent/api/auth/logout'">Logout</button>
+          </div>
+        </section>
+        <section id="dashboardAdmin">
+          <div class="container">
+            <div class="subContainer" id="dashboardData">
+              <h3>Number of API keys: <span id="apiKeyCount">0</span></h3>
+            </div>
+            <div class="subContainer" id="dashboardData">
+              <h3>Connected ATCs: <span id="connectedAtcCount">0</span></h3>
+            </div>
+            <div class="subContainer" id="dashboardData">
+              <h3>Probably very important number: <span>0</span></h3>
+            </div>
+          </div>
+          <div class="container">
+            <div class="subContainer" id="apiKeyManagementContainer">
+              <h3>List of All API keys generated:</h3>
+              <div id="apiKeyListWrapper">
+                <table id="apiKeyListTable">
+                  <thead>
+                    <tr>
+                      <th>CID</th>
+                      <th class="apiValue">API Key</th>
+                      <th class="createdValue">Created At</th>
+                      <th>Last Used</th>
+                      <th class="actionCell">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <!-- API key rows will be populated here -->
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </section>
+      </section>
+    </main>
+    <footer>
+      <p>© 2024 Ramp Agent API Viewer</p>
+    </footer>
+  </body>
 </html>
