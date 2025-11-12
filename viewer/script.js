@@ -1276,7 +1276,7 @@ function getStandColor(standName, apron) {
 }
 
 // Map variables and constants
-var zoomThreshold = 5; // <= show meter circle, > show screen-sized marker
+var zoomThreshold = 6; // <= show meter circle, > show screen-sized marker
 var zoomHideThreshold = 13; // > hide marker entirely
 var meterRadius = 50000; // meters for the L.Circle when zoomed out
 var labelZoomThreshold = 17; // show stand labels at this zoom level and above
@@ -1322,9 +1322,6 @@ function updateMarkerSizes() {
     });
   }
 }
-// map.on("zoomend", updateMarkerSizes); // Moved to initializeMap()
-
-// Home button control and map.whenReady moved to initializeMap()
 
 // Configs page
 // generate buttons for available config presets
@@ -1666,7 +1663,7 @@ function loadMapData() {
 
       const zoomThreshold = 5;
       const zoomHideThreshold = 13;
-      const meterRadius = 50000;
+      const meterRadius = 25000;
 
       airports.forEach(function (airport) {
         airport.circle = L.circle(airport.coords, {
