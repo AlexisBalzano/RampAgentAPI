@@ -142,7 +142,7 @@ class StandRegistry {
     for (const [key, stand] of this.occupied) {
       if (predicateFn(stand)) {
         this.occupied.delete(key);
-        warn(
+        info(
           `Clearing expired occupied stand ${stand.name} at ${stand.icao} for ${stand.callsign}`,
           {
             category: "Stand Management",
