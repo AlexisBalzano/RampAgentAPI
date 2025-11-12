@@ -1808,7 +1808,7 @@ function displayDashboard(user) {
   if (isAdmin) {
     renderAdminList('adminUserList');
     document.getElementById("dashboardAdmin").style.display = "block";
-    document.getElementById("dashboardUser").style.display = "none";
+    document.getElementById("dashboardUser").style.display = "block";
     updateControllerNumber();
     updateApiKeyList();
   } else {
@@ -1888,6 +1888,8 @@ function updateApiKeyList() {
   })
     .then((res) => {
       if (!res.ok) throw new Error("Network response was not ok");
+      // Display no API keys message if empty
+      showNoApiKeysMessageIfEmpty();
       return res.json();
     })
     .then((data) => {
@@ -1913,6 +1915,8 @@ function updateApiKeyList() {
         `;
         tbody.appendChild(row);
       });
+      updateApiKeyCount();
+      showNoApiKeysMessageIfEmpty();
     })
     .catch((err) => {
       console.error("Failed to fetch API key list", err);
@@ -1960,6 +1964,10 @@ function revokeApiKey(cid) {
   }
 
   // If table is empty after removal, show "no keys" message
+  showNoApiKeysMessageIfEmpty();
+}
+
+function showNoApiKeysMessageIfEmpty() {
   const tbody = document.querySelector('#apiKeyListTable tbody');
   if (tbody && tbody.children.length === 0) {
     const noKeysRow = document.createElement('tr');
@@ -1969,7 +1977,6 @@ function revokeApiKey(cid) {
     noKeysRow.appendChild(noKeysCell);
     tbody.appendChild(noKeysRow);
   }
-
 }
 
 // ATC controller number
