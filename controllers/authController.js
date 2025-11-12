@@ -11,7 +11,7 @@ exports.getLocalUser = async (req, res) => {
     const localUser = await redisService.getLocalUser(cid);
     res.json(localUser);
   } catch (err) {
-    error("Failed to get local user:", err);
+    error(`Failed to get local user: ${err}`, { category: "Auth" });
     res.status(500).json({ error: "Failed to get local user" });
   }
 };
@@ -24,7 +24,7 @@ exports.getAllLocalUsers = async (req, res) => {
     }
     res.json(users);
   } catch (err) {
-    error("Failed to get all local users:", err);
+    error(`Failed to get all local users: ${err}`, { category: "Auth" });
     res.status(500).json({ error: "Failed to get users" });
   }
 };
@@ -39,7 +39,7 @@ exports.updateLocalUser = async (req, res) => {
     }
     res.json(updated);
   } catch (err) {
-    error("Failed to update local user:", err);
+    error(`Failed to update local user: ${err}`, { category: "Auth" });
     res.status(500).json({ error: "Failed to update local user" });
   }
 };
@@ -67,7 +67,7 @@ exports.grantRole = async function (req, res) {
     }
     res.json({ ok: true, user });
   } catch (err) {
-    error("Failed to grant role:", err);
+    error(`Failed to grant role: ${err}`, { category: "Auth" });
     res.status(500).json({ error: "Failed to grant role" });
   }
 };
@@ -90,7 +90,7 @@ exports.revokeRole = async function (req, res) {
     }
     res.json({ ok: true, user });
   } catch (err) {
-    error("Failed to revoke role:", err);
+    error(`Failed to revoke role: ${err}`, { category: "Auth" });
     res.status(500).json({ error: "Failed to revoke role" });
   }
 };
@@ -111,7 +111,7 @@ exports.requireRoles = (roles) => {
 
       return res.status(403).json({ error: "Insufficient permissions" });
     } catch (err) {
-      error("Failed to check roles:", err);
+      error(`Failed to check roles: ${err}`, { category: "Auth" });
       return res.status(500).json({ error: "Failed to check permissions" });
     }
   };
@@ -202,7 +202,7 @@ exports.requireAuth = async (req, res, next) => {
 
     return next();
   } catch (err) {
-    error("Auth error:", err);
+    error(`Auth error: ${err.message || err}`, { category: "Auth" });
     return res.status(401).json({ error: "Not authenticated" });
   }
 };
@@ -371,7 +371,7 @@ exports.getKeys = async (req, res) => {
     const keys = await redisService.getAllKeys();
     return res.json(keys);
   } catch (err) {
-    error("Error fetching keys:", err);
+    error(`Error fetching keys: ${err}`, { category: "Auth" });
     return res.status(500).json({ error: "Internal Server Error" });
   }
 };
@@ -385,7 +385,7 @@ exports.getUserKey = async (req, res) => {
     }
     return res.status(404).json({ error: "Key not found" });
   } catch (err) {
-    error("Error fetching key:", err);
+    error(`Error fetching key: ${err}`, { category: "Auth" });
     return res.status(500).json({ error: "Internal Server Error" });
   }
 };
@@ -396,7 +396,7 @@ exports.createKey = async (req, res) => {
     const newKey = await redisService.createKey(id);
     return res.status(201).json(newKey);
   } catch (err) {
-    error("Error creating key:", err);
+    error(`Error creating key: ${err}`, { category: "Auth" });
     return res.status(500).json({ error: "Internal Server Error" });
   }
 };
@@ -410,7 +410,7 @@ exports.renewKey = async (req, res) => {
     }
     return res.status(404).json({ error: "Key not found" });
   } catch (err) {
-    error("Error renewing key:", err);
+    error(`Error renewing key: ${err}`, { category: "Auth" });
     return res.status(500).json({ error: "Internal Server Error" });
   }
 };
@@ -424,7 +424,7 @@ exports.deleteKey = async (req, res) => {
     }
     return res.status(404).json({ error: "Key not found" });
   } catch (err) {
-    error("Error deleting key:", err);
+    error(`Error deleting key: ${err}`, { category: "Auth" });
     return res.status(500).json({ error: "Internal Server Error" });
   }
 };
