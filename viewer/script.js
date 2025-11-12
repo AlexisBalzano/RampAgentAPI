@@ -1118,15 +1118,14 @@ document.addEventListener("DOMContentLoaded", () => {
       sections.forEach((s) => {
         if (page === "log" || page === "configs") {
           // Block access to logs and configs if not authenticated
-          //FIXME: deactivated during testing
-          // if (!isUserAdmin(fetchCurrentUser())) {
-          //   console.log("Access denied to page:", page);
-          //   s.style.display = "none";
-          //   // redirect to status page
-          //   if (location.hash !== "#status") {
-          //     location.hash = "#status";
-          //   }
-          // }
+          if (!isUserAdmin(fetchCurrentUser())) {
+            console.log("Access denied to page:", page);
+            s.style.display = "none";
+            // redirect to status page
+            if (location.hash !== "#status") {
+              location.hash = "#status";
+            }
+          }
         }
         s.style.display = s.dataset.page === page ? "" : "none";
       });
