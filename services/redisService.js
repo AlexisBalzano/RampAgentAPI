@@ -282,7 +282,7 @@ class RedisService {
     }
   }
 
-  VALID_ROLES = ["admin", "user"];
+  VALID_ROLES = ["admin"];
 
   async validateRole(role) {
     return VALID_ROLES.includes(role);
