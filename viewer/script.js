@@ -2,13 +2,27 @@ const API_BASE_URL = "https://pintade.vatsim.fr/rampagent";
 
 /* Set the width of the side navigation to 250px */
 function openNav() {
-  document.getElementById("mySidenav").style.width = "200px";
+  const nav = document.getElementById("mySidenav");
+  if (!nav) return; // guard
+  nav.style.width = "200px";
 }
 
 /* Set the width of the side navigation to 0 */
 function closeNav() {
-  document.getElementById("mySidenav").style.width = "0";
+  const nav = document.getElementById("mySidenav");
+  if (!nav) return; // guard
+  nav.style.width = "0";
 }
+
+document.addEventListener("click", function (event) {
+  if (event.x <= 200) return; 
+  const sidenav = document.getElementById("mySidenav");
+  if (sidenav && sidenav.style.width !== "0") {
+    if (!sidenav.contains(event.target)) {
+      closeNav();
+    }
+  }
+});
 
 // Dark mode toggle
 function toggleDarkMode() {
@@ -44,6 +58,9 @@ document.addEventListener("DOMContentLoaded", function () {
       window.switchMapLayer();
     }
   }, 100);
+  
+  checkAuthAndUpdateUI();
+  updateApiKeyCount();
 });
 
 // High volume detection and performance mode
@@ -52,7 +69,10 @@ let lastStandCount = 0;
 const HIGH_VOLUME_THRESHOLD = 50; // Number of stands that triggers performance mode
 
 function checkVolumeAndTogglePerformanceMode(standCount) {
-  const shouldBeInPerformanceMode = standCount >= HIGH_VOLUME_THRESHOLD;
+  let shouldBeInPerformanceMode = standCount >= HIGH_VOLUME_THRESHOLD;
+  if (window.innerWidth < 700) { // Mobiles always in performance mode since lower power
+    shouldBeInPerformanceMode = true;
+  }
 
   if (shouldBeInPerformanceMode && !performanceMode) {
     enablePerformanceMode();
@@ -136,8 +156,7 @@ function generateSpanforText(text) {
   const departureBoard = document.createElement("div");
   departureBoard.className = "departure-board";
   const chars = Array.from(text);
-  const blanksNeeded = 16 - chars.length;
-  chars.unshift(" ");
+  const blanksNeeded = 15 - chars.length;
   for (let i = 0; i < blanksNeeded; i++) {
     chars.push(" ");
   }
@@ -1097,6 +1116,17 @@ document.addEventListener("DOMContentLoaded", () => {
 
     function showPage(page) {
       sections.forEach((s) => {
+        if (page === "log" || page === "configs") {
+          // Block access to logs and configs if not authenticated
+          if (!isUserAdmin(fetchCurrentUser())) {
+            console.log("Access denied to page:", page);
+            s.style.display = "none";
+            // redirect to status page
+            if (location.hash !== "#status") {
+              location.hash = "#status";
+            }
+          }
+        }
         s.style.display = s.dataset.page === page ? "" : "none";
       });
       navLinks.forEach((a) => {
@@ -1120,6 +1150,10 @@ document.addEventListener("DOMContentLoaded", () => {
         setTimeout(() => {
           if (typeof refreshStatsChart === "function") refreshStatsChart();
         }, 150);
+      }
+
+      if (page === "dashboard") {
+        checkAuthAndUpdateUI();
       }
 
       // optional: scroll to top of content area
@@ -1689,3 +1723,478 @@ if (document.readyState === "loading") {
   // DOM already loaded
   initializeMap();
 }
+
+
+
+// Dashboard
+async function fetchCurrentUser() {
+  try {
+    const res = await fetch(API_BASE_URL + '/api/auth/session', { credentials: 'same-origin' });
+    if (!res.ok) return null;
+    return await res.json();
+  } catch (err) {
+    console.warn('fetchCurrentUser error', err);
+    return null;
+  }
+}
+
+function isUserConnected(user) {
+  return !!user && (!!user.core || !!user.local || !!user.token);
+}
+
+function isUserAdmin(user) {
+  if (!user) return false;
+  if (user.local && Array.isArray(user.local.roles) && user.local.roles.includes('admin')) return true;
+  return false;
+}
+
+async function checkAuthAndUpdateUI() {
+  const user = await fetchCurrentUser();
+  renderLoginLayout(user);
+  displayDashboard(user);
+}
+
+async function fetchLocalUsers() {
+  const res = await fetch(API_BASE_URL + '/api/auth/internal/localusers', { credentials: 'same-origin' });
+  if (!res.ok) throw new Error('Failed to fetch users');
+  return res.json();
+}
+
+async function toggleAdminRole(cid, add) {
+  const url = API_BASE_URL + `/api/auth/internal/localuser/${encodeURIComponent(cid)}/roles`;
+  const method = add ? 'POST' : 'DELETE';
+  const res = await fetch(url, {
+    method,
+    credentials: 'same-origin',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ role: 'admin' })
+  });
+  if (!res.ok) throw new Error('Failed to update role');
+  return res.json();
+}
+
+//FIXME: need testing and better UI
+async function renderAdminList(containerId) {
+  const container = document.getElementById(containerId);
+  if (!container) return;
+  try {
+    const users = await fetchLocalUsers();
+    container.innerHTML = users.map(u => {
+      const isAdmin = Array.isArray(u.roles) && u.roles.includes('admin');
+      return `<div data-cid="${u.cid}">
+        <strong>${u.cid}</strong> ${u.full_name ? '- ' + u.full_name : ''}
+        <button class="role-btn" data-cid="${u.cid}" data-action="${isAdmin ? 'revoke' : 'grant'}">
+          ${isAdmin ? 'Revoke admin' : 'Grant admin'}
+        </button>
+      </div>`;
+    }).join('');
+    container.querySelectorAll('.role-btn').forEach(btn => {
+      btn.addEventListener('click', async (e) => {
+        const cid = btn.dataset.cid;
+        const add = btn.dataset.action === 'grant';
+        await toggleAdminRole(cid, add);
+        await renderAdminList(containerId);
+      });
+    });
+  } catch (err) {
+    container.textContent = 'Error loading users';
+    console.error(err);
+  }
+}
+
+// Select correct dashboard based on isAdmin or not
+function displayDashboard(user) {
+  const isAdmin = isUserAdmin(user);
+  if (isAdmin) {
+    renderAdminList('adminUserList');
+    document.getElementById("dashboardAdmin").style.display = "block";
+    document.getElementById("dashboardUser").style.display = "block";
+    updateControllerNumber();
+    updateApiKeyList();
+  } else {
+    document.getElementById("dashboardAdmin").style.display = "none";
+    document.getElementById("dashboardUser").style.display = "block";
+  }
+}
+
+function renderLoginLayout(user) {
+  const isConnected = isUserConnected(user);
+  const isAdmin = isUserAdmin(user);
+
+  // Handle sidenav items visibility
+  const adminOnlyItems = document.querySelectorAll('.sidenav a[data-admin-only]');
+  adminOnlyItems.forEach(item => {
+    item.style.display = isConnected && isAdmin ? 'block' : 'none';
+  });
+
+  // Rest of existing login layout logic
+  if (!isConnected) {
+    Array.from(document.getElementsByClassName("loginLayout")).forEach(el => el.style.display = "flex");
+    Array.from(document.getElementsByClassName("connectedLayout")).forEach(el => el.style.display = "none");
+  } else {
+    Array.from(document.getElementsByClassName("loginLayout")).forEach(el => el.style.display = "none");
+    // Check maxwidth to adjust layout
+    if (window.innerWidth <= 600) {
+      Array.from(document.getElementsByClassName("connectedLayout")).forEach(el => el.style.display = "flex");
+    } else {
+      Array.from(document.getElementsByClassName("connectedLayout")).forEach(el => el.style.display = "inline");
+    }
+    document.getElementById("usernameUser").textContent = user ? user.core.firstName : "Guest";
+    document.getElementById("usernameAdmin").textContent = user ? user.core.firstName : "Guest";
+    apiKeyDisplay(user);
+  }
+}
+
+function apiKeyDisplay(user) {
+  let apiKey = user ? user.local.api_key : "";
+  if (apiKey && apiKey.length > 0) {
+    document.getElementById("selfAPIKey").style.display = "inline";
+    document.getElementById("selfAPIKey").textContent = apiKey;
+  } else {
+    document.getElementById("selfAPIKey").style.display = "none";
+  }
+}
+
+function generateApiKey() {
+  console.log("Generating new API key...");
+  fetchLocalUsers().then(user => {
+    if (!user) {
+      console.error("Cannot generate API key: user not found");
+      return;
+    }
+    fetch(API_BASE_URL + `/api/auth/key/${user.cid}`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({ userId: user.cid })
+    });
+  });
+
+  // Refresh the dashboard to show new key
+  fetchLocalUsers().then(user => {
+    apiKeyDisplay(user);
+  });
+}
+
+function updateApiKeyList() {
+  const tbody = document.querySelector("#apiKeyListTable tbody");
+  if (!tbody) return;
+  fetch(API_BASE_URL + "/api/auth/keys", {
+    headers: {
+      "Content-Type": "application/json"
+    },
+    credentials: "same-origin"
+  })
+    .then((res) => {
+      if (!res.ok) throw new Error("Network response was not ok");
+      // Display no API keys message if empty
+      showNoApiKeysMessageIfEmpty();
+      return res.json();
+    })
+    .then((data) => {
+      // Clear existing rows
+      tbody.innerHTML = "";
+
+      // FIXME: Debug log
+      console.log("Fetched API keys:", data);
+
+      // Populate table with API keys
+      data.keys.forEach(key => {
+        const row = document.createElement("tr");
+        row.id = key.cid;
+        row.innerHTML = `
+          <td>${key.cid}</td>
+          <td class="apiValue">${key.apiKey}</td>
+          <td class="createdValue">${key.createdAt}</td>
+          <td>${key.lastUsed}</td>
+          <td class="actionCell">
+            <button class="renewButton" onclick="renewApiKey('${key.cid}')">Renew</button>
+            <button class="revokeButton" onclick="revokeApiKey('${key.cid}')">Revoke</button>
+          </td>
+        `;
+        tbody.appendChild(row);
+      });
+      updateApiKeyCount();
+      showNoApiKeysMessageIfEmpty();
+    })
+    .catch((err) => {
+      console.error("Failed to fetch API key list", err);
+    });
+}
+
+function updateApiKeyCount() {
+  const countElem = document.getElementById("apiKeyCount");
+  const apiKeyCounter = document.querySelectorAll("#apiKeyListTable tbody tr").length;
+  if (countElem) {
+    countElem.textContent = apiKeyCounter;
+  }
+}
+
+// API actions
+function renewApiKey(cid) {
+  console.log("Renewing API key of CID:", cid);
+  fetch(API_BASE_URL + `/api/auth/key/${cid}/renew`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json"
+    },
+    credentials: "same-origin",
+    body: JSON.stringify({ cid })
+  });
+}
+
+function revokeApiKey(cid) {
+  console.log("Revoking API key of CID:", cid);
+
+  fetch(API_BASE_URL + `/api/auth/key/${cid}/revoke`, {
+    method: "DELETE",
+    headers: {
+      "Content-Type": "application/json"
+    },
+    credentials: "same-origin",
+    body: JSON.stringify({ cid })
+  });
+
+  // Remove entire row from table
+  const row = document.getElementById(cid);
+  if (row) {
+    row.remove();
+    updateApiKeyCount();
+  }
+
+  // If table is empty after removal, show "no keys" message
+  showNoApiKeysMessageIfEmpty();
+}
+
+function showNoApiKeysMessageIfEmpty() {
+  const tbody = document.querySelector('#apiKeyListTable tbody');
+  if (tbody && tbody.children.length === 0) {
+    const noKeysRow = document.createElement('tr');
+    const noKeysCell = document.createElement('td');
+    noKeysCell.colSpan = 5;
+    noKeysCell.textContent = "No API keys found";
+    noKeysRow.appendChild(noKeysCell);
+    tbody.appendChild(noKeysRow);
+  }
+}
+
+// ATC controller number
+function updateControllerNumber() {
+  const span = document.getElementById("connectedAtcCount");
+  if (!span) return;
+  fetch(API_BASE_URL + "/api/occupancy/controllers", {
+    headers: { "X-Internal-Request": "1" },
+  })
+    .then((res) => {
+      if (!res.ok) throw new Error("Network response was not ok");
+      return res.json();
+    })
+    .then((data) => {
+      if (typeof data.count === "number") {
+        span.textContent = data.count;
+      }
+    })
+    .catch((err) => {
+      console.error("Failed to fetch connected ATC count", err);
+    });
+}
+
+setInterval(updateControllerNumber, 15000); // update every 15 seconds
+
+// Swipe buttons
+(function enableRowSwipeActions() {
+  const tbody = document.querySelector('#apiKeyListTable tbody');
+  if (!tbody) return;
+
+  let startX = 0, startY = 0, activeRow = null;
+  let dragging = false;
+  const HORIZONTAL_THRESHOLD = 50; // px needed to count as swipe
+  const MAX_TRANSLATE = 120; // px maximum visual translation
+
+  function getRow(el) {
+    while (el && el !== tbody && el.tagName !== 'TR') el = el.parentElement;
+    return (el && el.tagName === 'TR') ? el : null;
+  }
+
+  function ensureIndicators(row) {
+    if (!row) return;
+    if (!row.querySelector('.swipe-indicator.left')) {
+      const left = document.createElement('div');
+      left.className = 'swipe-indicator left';
+      left.innerHTML = '<span>Renew</span>';
+      row.appendChild(left);
+    }
+    if (!row.querySelector('.swipe-indicator.right')) {
+      const right = document.createElement('div');
+      right.className = 'swipe-indicator right';
+      right.innerHTML = '<span>Revoke</span>';
+      row.appendChild(right);
+    }
+  }
+
+  function startDrag(x, y, target) {
+    startX = x; startY = y;
+    activeRow = getRow(target);
+    if (!activeRow) return;
+    ensureIndicators(activeRow);
+    dragging = true;
+    activeRow.classList.add('swipe-dragging');
+    // guard everything that touches style with a check
+    if (activeRow) {
+      activeRow.style.transition = 'none';
+      activeRow.style.willChange = 'transform';
+      activeRow.style.zIndex = '1500';
+      activeRow.style.boxShadow = '0 12px 30px rgba(0,0,0,0.18)';
+      activeRow.style.transform = 'translateX(0) scale(1.01)';
+      activeRow.style.userSelect = 'none';
+    }
+
+    // initialize indicators
+    const left = activeRow.querySelector('.swipe-indicator.left');
+    const right = activeRow.querySelector('.swipe-indicator.right');
+    if (left) { left.style.width = '0px'; left.style.opacity = '0'; }
+    if (right) { right.style.width = '0px'; right.style.opacity = '0'; }
+  }
+
+  function moveDrag(x, y) {
+    if (!dragging || !activeRow) return;
+    const dx = x - startX;
+    const dy = y - startY;
+    if (Math.abs(dy) > Math.abs(dx)) return;
+    const limited = Math.max(-MAX_TRANSLATE, Math.min(MAX_TRANSLATE, dx));
+    const scale = 1 + Math.min(Math.abs(limited) / 800, 0.03);
+    activeRow.style.transform = `translateX(${limited}px) scale(${scale})`;
+
+    const left = activeRow.querySelector('.swipe-indicator.left');
+    const right = activeRow.querySelector('.swipe-indicator.right');
+    if (limited > 0) {
+      // reveal left indicator proportionally
+      if (left) {
+        left.style.width = `${Math.min(limited, MAX_TRANSLATE)}px`;
+        left.style.opacity = String(Math.min(1, Math.abs(limited) / 20));
+      }
+      if (right) {
+        right.style.width = '0px';
+        right.style.opacity = '0';
+      }
+    } else if (limited < 0) {
+      // reveal right indicator proportionally
+      const w = Math.min(-limited, MAX_TRANSLATE);
+      if (right) {
+        right.style.width = `${w}px`;
+        right.style.opacity = String(Math.min(1, Math.abs(limited) / 20));
+      }
+      if (left) {
+        left.style.width = '0px';
+        left.style.opacity = '0';
+      }
+    } else {
+      if (left) { left.style.width = '0px'; left.style.opacity = '0'; }
+      if (right) { right.style.width = '0px'; right.style.opacity = '0'; }
+    }
+  }
+
+  function endDrag(x, y) {
+    if (!activeRow) { dragging = false; return; }
+    const dx = x - startX;
+    const dy = y - startY;
+    dragging = false;
+
+    // use a localRef to avoid race if activeRow is cleared/removed later
+    const rowRef = activeRow;
+
+    if (rowRef) rowRef.style.transition = 'transform 220ms ease, box-shadow 180ms ease';
+
+    const left = rowRef ? rowRef.querySelector('.swipe-indicator.left') : null;
+    const right = rowRef ? rowRef.querySelector('.swipe-indicator.right') : null;
+
+    if (Math.abs(dx) >= HORIZONTAL_THRESHOLD && Math.abs(dx) > Math.abs(dy)) {
+      const apiCell = rowRef ? rowRef.querySelector('.apiValue') : null;
+      const apiKey = apiCell ? apiCell.textContent.trim() : null;
+      if (apiKey && rowRef) {
+        const direction = dx > 0 ? 'right' : 'left';
+        const finishTranslate = dx > 0 ? MAX_TRANSLATE : -MAX_TRANSLATE;
+        rowRef.style.transform = `translateX(${finishTranslate}px) scale(1.02)`;
+        if (direction === 'right' && left) { left.style.width = `${MAX_TRANSLATE}px`; left.style.opacity = '1'; }
+        if (direction === 'left' && right) { right.style.width = `${MAX_TRANSLATE}px`; right.style.opacity = '1'; }
+
+        setTimeout(() => {
+          if (direction === 'right') {
+            try { renewApiKey(apiKey); } catch (err) { console.error(err); }
+          } else {
+            try { revokeApiKey(apiKey); } catch (err) { console.error(err); }
+          }
+          if (rowRef) {
+            rowRef.style.transform = 'translateX(0) scale(1)';
+            if (left) { left.style.width = '0px'; left.style.opacity = '0'; }
+            if (right) { right.style.width = '0px'; right.style.opacity = '0'; }
+          }
+        }, 180);
+      } else if (rowRef) {
+        rowRef.style.transform = 'translateX(0) scale(1)';
+      }
+    } else {
+      if (rowRef) {
+        rowRef.style.transform = 'translateX(0) scale(1)';
+        if (left) { left.style.width = '0px'; left.style.opacity = '0'; }
+        if (right) { right.style.width = '0px'; right.style.opacity = '0'; }
+      }
+    }
+
+    const cleanup = () => {
+      if (!rowRef) return;
+      rowRef.classList.remove('swipe-dragging');
+      // clear inline styles safely
+      rowRef.style.transition = '';
+      rowRef.style.transform = '';
+      rowRef.style.willChange = '';
+      rowRef.style.boxShadow = '';
+      rowRef.style.zIndex = '';
+      rowRef.style.userSelect = '';
+      const l = rowRef.querySelector('.swipe-indicator.left');
+      const r = rowRef.querySelector('.swipe-indicator.right');
+      if (l) l.remove();
+      if (r) r.remove();
+      rowRef.removeEventListener('transitionend', cleanup);
+      // only null the shared activeRow after cleanup finishes
+      if (activeRow === rowRef) activeRow = null;
+    };
+    if (rowRef) rowRef.addEventListener('transitionend', cleanup);
+  }
+
+  // Touch handlers
+  tbody.addEventListener('touchstart', (e) => {
+    const t = e.changedTouches[0];
+    startDrag(t.clientX, t.clientY, e.target);
+  }, { passive: true });
+
+  tbody.addEventListener('touchmove', (e) => {
+    if (!dragging) return;
+    const t = e.changedTouches[0];
+    moveDrag(t.clientX, t.clientY);
+  }, { passive: true });
+
+  tbody.addEventListener('touchend', (e) => {
+    const t = e.changedTouches[0];
+    endDrag(t.clientX, t.clientY);
+  }, { passive: true });
+
+  tbody.addEventListener('touchcancel', () => {
+    if (activeRow) {
+      activeRow.style.transition = 'transform 150ms ease';
+      activeRow.style.transform = 'translateX(0) scale(1)';
+      activeRow.addEventListener('transitionend', () => {
+        if (activeRow) {
+          activeRow.classList.remove('swipe-dragging');
+          activeRow.style.transition = '';
+          activeRow.style.transform = '';
+          activeRow = null;
+        }
+      }, { once: true });
+    }
+    dragging = false;
+  }, { passive: true });
+
+  
+})();

@@ -52,6 +52,14 @@ body.dark-mode h2 {
   color: #b6b6b6;
 }
 
+h3 {
+  color: #000000;
+  cursor: default;
+}
+body.dark-mode h3 {
+  color: #b6b6b6;
+}
+
 .bx-menu {
   font-size: 50px;
 }
@@ -346,21 +354,6 @@ body.dark-mode .log-container::-webkit-scrollbar-track {
 
 .log-container::-webkit-scrollbar-thumb:hover {
   background: #a8a8a8;
-}
-
-/* On smaller screens, where height is less than 450px, change the style of the sidenav (less padding and a smaller font size) */
-@media screen and (max-height: 450px) {
-  .sidenav a {
-    font-size: 18px;
-  }
-}
-@media screen and (max-width: 500px) {
-  h1 {
-    display: none;
-  }
-  header {
-    min-height: 80px;
-  }
 }
 
 #map {
@@ -791,4 +784,350 @@ body.dark-mode .performance-toggle.active {
   background: #804a1b;
   border-color: #e67e22;
   box-shadow: 0 0 10px rgba(230, 126, 34, 0.5);
+}
+
+/* DASHBOARD */
+
+/* User Dashboard */
+
+.loginLayout {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.connectedLayout {
+  display: flex;
+  flex-direction: column;
+}
+
+#loginButton {
+  padding: 15px 40px;
+  font-size: 20px;
+  border: 1px solid #ccc;
+  border-radius: 14px;
+  background-color: #4a5d83;
+  cursor: pointer;
+  font-weight: bold;
+  color: white;
+}
+body.dark-mode #loginButton {
+  background-color: #3a3a3a;
+  border: 1px solid #666;
+  color: #e0e0e0;
+}
+
+#loginButton:hover {
+  background-color: #3d5073;
+}
+body.dark-mode #loginButton:hover {
+  background-color: #4a4a4a;
+}
+
+#logoutButton {
+  display: block;
+  margin-top: 20px;
+  margin-bottom: 20px;
+  padding: 8px 20px;
+  border: 1px solid #ccc;
+  border-radius: 8px;
+  background-color: #dc3545;
+  cursor: pointer;
+  font-weight: bold;
+  color: white;
+}
+body.dark-mode #logoutButton {
+  background-color: #a94442;
+  border: 1px solid #666;
+  color: #e0e0e0;
+}
+
+#logoutButton:hover {
+  background-color: #c82333;
+}
+body.dark-mode #logoutButton:hover {
+  background-color: #b03a3a;
+}
+
+#selfAPIKey {
+  font-family: 'Fira Code', monospace;
+  letter-spacing: 1px;
+  margin-bottom: 10px;
+  margin-top: 1px;
+  padding: 8px 20px;
+  border-radius: 10px;
+  background-color: #fafafa;
+}
+body.dark-mode #selfAPIKey {
+  background-color: #6b6b6b;
+  color: #e0e0e0;
+}
+
+#generateAPIKeyButton {
+  padding: 10px 20px;
+  border: 1px solid #ccc;
+  border-radius: 8px;
+  background-color: #28a745;
+  cursor: pointer;
+  font-weight: bold;
+  color: white;
+}
+body.dark-mode #generateAPIKeyButton {
+  background-color: #218838;
+  border: 1px solid #1c7430;
+  color: #e0e0e0;
+}
+
+#generateAPIKeyButton:hover {
+  background-color: #218838;
+}
+body.dark-mode #generateAPIKeyButton:hover {
+  background-color: #1c7430;
+}
+
+/* Admin Dashboard */
+#dashboardData {
+  height: 100px;
+  min-width: 330px;
+  max-width: none;
+  justify-content: center;
+}
+
+#apiKeyManagementContainer {
+  margin-top: 20px;
+  max-width: 100%;
+  min-width: 330px;
+  height: calc(100vh - 400px);
+  min-height: 250px;
+  overflow: hidden;
+}
+
+#apiKeyListWrapper {
+  width: 90%;
+  margin-top: 10px;
+  margin-bottom: 30px;
+  border-radius: 10px;
+  background-color: #fafafa;
+  border: 2px solid #ccc;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  max-height: calc(100vh - 420px);
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+body.dark-mode #apiKeyListWrapper {
+  background-color: #6b6b6b;
+  border: 2px solid #444;
+}
+
+#apiKeyListTable {
+  width: 100%;
+  margin: 0;
+  border-collapse: collapse;
+  border: none;
+  background: transparent;
+}
+
+#apiKeyListTable thead {
+  position: sticky;
+  top: 0;
+  z-index: 3;
+  background-color: #ebebeb;
+}
+body.dark-mode #apiKeyListTable thead {
+  background-color: #646464;
+  box-shadow: 0 2px 0 rgba(0,0,0,0.06);
+}
+
+#apiKeyListTable th, #apiKeyListTable td {
+  text-align: center;
+  border-bottom: 2px solid #ccc;
+}
+body.dark-mode #apiKeyListTable th, body.dark-mode #apiKeyListTable td {
+  color: #b6b6b6;
+  border-bottom: 2px solid #444;
+}
+
+.revokeButton {
+  padding: 8px 30px;
+  border: 1px solid #ccc;
+  border-radius: 8px;
+  background-color: #dc3545;
+  cursor: pointer;
+  font-weight: bold;
+  color: white;
+}
+body.dark-mode .revokeButton {
+  background-color: #a94442;
+  border: 1px solid #666;
+  color: #e0e0e0;
+}
+
+.revokeButton:hover {
+  background-color: #c82333;
+}
+body.dark-mode .revokeButton:hover {
+  background-color: #b03a3a;
+}
+
+.renewButton {
+  padding: 8px 30px;
+  border: 1px solid #ccc;
+  border-radius: 8px;
+  background-color: #28a745;
+  cursor: pointer;
+  font-weight: bold;
+  color: white;
+}
+body.dark-mode .renewButton {
+  background-color: #1e7e34;
+  border: 1px solid #1c7430;
+  color: #e0e0e0;
+}
+
+.renewButton:hover {
+  background-color: #218838;
+}
+body.dark-mode .renewButton:hover {
+  background-color: #1c7430;
+}
+
+.apiValue {
+  font-family: 'Fira Code', monospace;
+  letter-spacing: 1px;
+}
+
+.createdValue {
+  font-family: 'Fira Code', monospace;
+  letter-spacing: 1px;
+}
+
+#apiKeyListTable tbody tr {
+  position: relative; /* needed so indicators can be positioned inside each row */
+  overflow: visible;
+}
+
+/* visual for grabbed row during swipe */
+#apiKeyListTable tbody tr.swipe-dragging {
+  position: relative; /* allow z-index */
+  cursor: grabbing;
+  user-select: none;
+  background-color: rgba(255, 255, 255, 0.02);
+  z-index: 1500;
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.18);
+  border-radius: 6px;
+}
+
+/* swipe indicator backgrounds (sitting behind the row) */
+#apiKeyListTable tbody tr .swipe-indicator {
+  position: absolute;
+  top: 6px; /* small inset so background peek aligns with rounded row */
+  bottom: 6px;
+  width: 0;
+  height: 50px;
+  pointer-events: none;
+  display: flex;
+  align-items: center;
+  padding: 0 16px;
+  font-weight: 700;
+  color: #fff;
+  border-radius: 6px;
+  z-index: 1400; /* below the lifted row (1500) */
+  transition: width 120ms linear, opacity 120ms linear;
+  opacity: 0;
+  white-space: nowrap;
+  font-family: 'Fira Code', monospace;
+  font-size: 14px;
+}
+
+/* left indicator for Renew (revealed when swiping right) */
+#apiKeyListTable tbody tr .swipe-indicator.left {
+  left: 6px;
+  justify-content: flex-start;
+  background: linear-gradient(90deg, #2ecc71 0%, #28a745 100%);
+}
+
+/* right indicator for Revoke (revealed when swiping left) */
+#apiKeyListTable tbody tr .swipe-indicator.right {
+  right: 6px;
+  justify-content: flex-end;
+  background: linear-gradient(270deg, #e74c3c 0%, #c82333 100%);
+}
+
+/* small icon/text spacing inside indicator */
+#apiKeyListTable tbody tr .swipe-indicator span {
+  display: inline-block;
+  padding: 8px 10px;
+}
+
+/* dark-mode tweaks */
+body.dark-mode #apiKeyListTable tbody tr .swipe-indicator.left {
+  background: linear-gradient(90deg, #27ae60 0%, #1e7e34 100%);
+}
+body.dark-mode #apiKeyListTable tbody tr .swipe-indicator.right {
+  background: linear-gradient(270deg, #c0392b 0%, #b03a3a 100%);
+}
+
+/* Media Queries */
+@media screen and (min-width: 1100px) {
+  #dashboardData {
+    width: calc((100% - 60px) / 3);
+  }
+}
+
+@media screen and (max-width: 1050px) {
+  .apiValue {
+    font-size: 0px;
+  }
+}
+
+@media screen and (max-width: 850px) {
+  .createdValue {
+    font-size: 0px;
+  }
+}
+
+@media screen and (max-width: 600px) {
+    /* hide action buttons on small screens */
+  #apiKeyListTable .renewButton,
+  #apiKeyListTable .revokeButton {
+    display: none;
+  }
+  
+  .actionCell {
+    font-size: 0px;
+  }
+
+  /* ensure vertical scrolling still works and allow horizontal gesture detection */
+  #apiKeyListTable tbody tr {
+    touch-action: pan-y;
+    -webkit-tap-highlight-color: transparent;
+    height: 60px;
+  }
+}
+
+@media screen and (max-width: 500px) {
+  h1 {
+    display: none;
+  }
+  header {
+    min-height: 80px;
+  }
+  .status-container {
+    grid-template: none;
+  }
+  .airport-display {
+    max-width: 310px;
+    overflow-x: hidden;
+  }
+  .letter, .letter::before, .letter::after {
+    font-size: 16px;
+  }
+}
+
+@media screen and (max-height: 450px) {
+  .sidenav a {
+    font-size: 18px;
+  }
 }
