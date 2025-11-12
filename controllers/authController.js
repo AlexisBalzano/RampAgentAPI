@@ -239,7 +239,9 @@ async function decryptToken(accessToken) {
       tokenContent: payload,
     };
   } catch (err) {
-    error("Failed to verify session: " + err, { category: "Auth" });
+    if (err.name !== "TokenExpiredError") {
+      error("Failed to verify session: " + err, { category: "Auth" });
+    }
     return null;
   }
 }
