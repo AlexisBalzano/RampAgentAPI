@@ -66,9 +66,10 @@ app.post('/api/config-webhook', async (req, res) => {
 app.use(express.json());
 
 // Serve viewer
-app.get("/debug", (req, res) => {
+app.get("/", (req, res) => {
   res.sendFile(path.join(__dirname, "viewer", "viewer.html"));
 });
+app.use("/", express.static(path.join(__dirname, "viewer")));
 
 // Authentication routes
 app.use("/api/auth", authRoutes);
@@ -86,7 +87,6 @@ app.use("/api/airports", airportRoutes);
 app.use("/api/stats", statRoutes);
 
 // Register routes
-app.use("/debug", express.static(path.join(__dirname, "viewer")));
 app.use("/api/assign", assignRoutes);
 app.use("/api/occupancy", occupancyRoutes);
 
