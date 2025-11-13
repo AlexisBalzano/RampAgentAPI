@@ -1911,12 +1911,12 @@ function updateApiKeyList() {
         tbody.appendChild(row);
       });
       updateApiKeyCount();
-      showNoApiKeysMessageIfEmpty();
     })
     .catch((err) => {
       console.error("Failed to fetch API key list", err);
     });
-}
+    showNoApiKeysMessageIfEmpty();
+  }
 
 function updateApiKeyCount() {
   const countElem = document.getElementById("apiKeyCount");
