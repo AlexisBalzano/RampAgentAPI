@@ -1115,10 +1115,11 @@ document.addEventListener("DOMContentLoaded", () => {
     );
 
     function showPage(page) {
-      sections.forEach((s) => {
+      sections.forEach(async (s) => {
         if (page === "log" || page === "configs") {
           // Block access to logs and configs if not authenticated
-          if (!isUserAdmin(fetchCurrentUser())) {
+          const currentUser = await fetchCurrentUser();
+          if (!isUserAdmin(currentUser)) {
             console.log("Access denied to page:", page);
             s.style.display = "none";
             // redirect to status page
@@ -1805,12 +1806,10 @@ function displayDashboard(user) {
   if (isAdmin) {
     renderAdminList('adminUserList');
     document.getElementById("dashboardAdmin").style.display = "block";
-    document.getElementById("dashboardUser").style.display = "block";
     updateControllerNumber();
     updateApiKeyList();
   } else {
     document.getElementById("dashboardAdmin").style.display = "none";
-    document.getElementById("dashboardUser").style.display = "block";
   }
 }
 
@@ -1836,8 +1835,7 @@ function renderLoginLayout(user) {
     } else {
       Array.from(document.getElementsByClassName("connectedLayout")).forEach(el => el.style.display = "inline");
     }
-    document.getElementById("usernameUser").textContent = user ? user.core.firstName : "Guest";
-    document.getElementById("usernameAdmin").textContent = user ? user.core.firstName : "Guest";
+    document.getElementById("username").textContent = user ? user.core.firstName : "Guest";
     apiKeyDisplay(user);
   }
 }
