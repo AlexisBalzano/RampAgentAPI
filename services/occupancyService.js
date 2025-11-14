@@ -155,7 +155,7 @@ class StandRegistry {
     for (const [key, stand] of this.assigned) {
       if (predicateFn(stand)) {
         this.assigned.delete(key);
-        warn(
+        info(
           `Clearing expired assigned stand ${stand.name} at ${stand.icao} for ${stand.callsign}`,
           {
             category: "Stand Management",
@@ -168,7 +168,7 @@ class StandRegistry {
     for (const [key, stand] of this.blocked) {
       if (predicateFn(stand)) {
         this.blocked.delete(key);
-        warn(
+        info(
           `Clearing expired blocked stand ${stand.name} at ${stand.icao} for ${stand.callsign}`,
           {
             category: "Stand Management",
