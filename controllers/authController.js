@@ -121,7 +121,7 @@ exports.requireRoles = (roles) => {
 // Verifying token from plugins for manual stand assignement
 exports.verifyToken = (token, client) => {
   // Return true if token is valid, false otherwise
-  const secret = process.env.CORE_JWT_KEY;
+  const secret = process.env.AUTH_SECRET;
 
   if (!secret) {
     error("No secret found", { category: "Auth" });
