@@ -96,6 +96,7 @@ exports.revokeRole = async function (req, res) {
 };
 
 exports.requireRoles = (roles) => {
+    const requiredRoles = Array.isArray(roles) ? roles : roles ? [roles] : [];
   return async (req, res, next) => {
     if (!req.user || !req.user.cid) {
       return res.status(401).json({ error: "Not authenticated" });
@@ -103,7 +104,7 @@ exports.requireRoles = (roles) => {
 
     try {
       const userRoles = req.user.roles || [];
-      const hasRequiredRole = roles.some((role) => userRoles.includes(role));
+      const hasRequiredRole = requiredRoles.some((role) => userRoles.includes(role));
 
       if (hasRequiredRole) {
         return next();
@@ -259,7 +260,7 @@ exports.getSession = async (req, res) => {
   if (!sessionData) return res.status(401).json({ error: "Invalid session" });
 
   const coreUserUrl =
-    process.env.CORE_URL_INTERNAL + `/v1/user/${sessionData.tokenContent.cid}`; //FIXME: is correct ?
+    process.env.CORE_URL_INTERNAL + `/v1/user/${sessionData.tokenContent.cid}`;
   const coreRes = await fetch(coreUserUrl, {
     method: "GET",
     headers: {
