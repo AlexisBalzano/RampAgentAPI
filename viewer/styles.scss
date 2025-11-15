@@ -364,6 +364,11 @@ body.dark-mode .log-container::-webkit-scrollbar-track {
   z-index: 0;
 }
 
+.leaflet-interactive {
+  stroke-linejoin: round;
+  stroke-linecap: round;
+}
+
 .map-layer {
   filter: brightness(1) contrast(1);
 }

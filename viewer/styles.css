@@ -383,6 +383,11 @@ body.dark-mode .log-container::-webkit-scrollbar-track {
   z-index: 0;
 }
 
+.leaflet-interactive {
+  stroke-linejoin: round;
+  stroke-linecap: round;
+}
+
 .map-layer {
   filter: brightness(1) contrast(1);
 }
@@ -1888,22 +1893,22 @@ body.dark-mode .letter::after {
     transform: rotateX(0deg);
   }
   20% {
-    content: "R";
+    content: "K";
     transform: rotateX(360deg);
   }
   40% {
     color: #afafaf;
-    content: "S";
+    content: "O";
     transform: rotateX(0deg);
   }
   60% {
     color: #afafaf;
-    content: "C";
+    content: "S";
     transform: rotateX(360deg);
   }
   80% {
     color: #afafaf;
-    content: "U";
+    content: "2";
     transform: rotateX(0deg);
   }
   100% {
