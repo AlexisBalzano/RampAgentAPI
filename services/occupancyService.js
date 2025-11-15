@@ -105,6 +105,17 @@ class StandRegistry {
     this.apron.set(stand.key(), stand);
   }
 
+  getApronOccupancyLevel(standName, icao) {
+      // Count how many stands with the same name/icao exist in apron
+      let count = 0;
+      for (const [key, apronStand] of this.apron.entries()) {
+        if (apronStand.name === standName && apronStand.icao === icao) {
+          count++;
+        }
+      }
+      return count;
+  }
+
   removeApron(stand) {
     this.apron.delete(stand.key());
   }
@@ -278,6 +289,17 @@ const isAircraftOnStand = async (
       coords.lon
     );
 
+    if (standDef.Apron && standDef.Apron.Coordinates && Array.isArray(standDef.Apron.Coordinates)) {
+      // Check if aircraft is inside apron polygon
+      const apronCoords = standDef.Apron.Coordinates.map((coordString) => {
+        const coord = parseCoordinates(coordString);
+        return coord ? { lat: coord.lat, lon: coord.lon } : null;
+      }).filter(c => c !== null);
+
+      if (isPointInPolygon({ lat: ac.latitude, lon: ac.longitude }, apronCoords)) {
+        return standName;
+      }
+    }
     if (aircraftDist <= coords.radius) {
       if (!ac.flight_plan || !ac.flight_plan.aircraft_short || ac.flight_plan.aircraft_short === "UNKNOWN" || ac.flight_plan.aircraft_short === "") {
         if (ac.flight_plan) {
@@ -378,6 +400,22 @@ const blockStands = (standDef, icao, callsign) => {
     }
   }
 };
+
+function isPointInPolygon(point, polygon) {
+  let inside = false;
+  const x = point.lon;
+  const y = point.lat;
+  for (let i = 0, j = polygon.length - 1; i < polygon.length; j = i++) {
+    const xi = polygon[i].lon,
+      yi = polygon[i].lat;
+    const xj = polygon[j].lon,
+      yj = polygon[j].lat;
+
+    const intersect = ((yi > y) !== (yj > y)) && (x < (xj - xi) * (y - yi) / (yj - yi) + xi);
+    if (intersect) inside = !inside;
+  }
+  return inside;
+}
 
 async function getAirportCoordinates(icao) {
   const airport = await airportService.getAirportConfig(icao);
@@ -609,7 +647,7 @@ const cs = (ac.callsign || "").toUpperCase();
         continue;
       }
     }
-    if (standDef.Apron === undefined || standDef.Apron === false) {
+    if (standDef.Apron === undefined) {
       if (registry.isOccupied(ac.destination, standName)) {
         continue;
       }
@@ -617,6 +655,13 @@ const cs = (ac.callsign || "").toUpperCase();
         continue;
       }
       if (registry.isBlocked(ac.destination, standName)) {
+        continue;
+      }
+    } else {
+      const apronSize = standDef.Apron.Size;
+      const currentApronOccupancy = registry.getApronOccupancyLevel(standName, airportConfig.ICAO);
+      if (currentApronOccupancy >= apronSize) {
+        // Apron is full
         continue;
       }
     }
@@ -665,7 +710,7 @@ const cs = (ac.callsign || "").toUpperCase();
       callsign: ac.callsign,
       icao: airportConfig.ICAO,
     });
-    if (selectedStandDef.apron === undefined || selectedStandDef.apron === false) {
+    if (selectedStandDef.apron === undefined) {
       registry.addAssigned(stand);
       blockStands(selectedStandDef, ac.destination, ac.callsign);
     } else {
@@ -763,7 +808,7 @@ processDatafeed = async (aircrafts) => {
         airportJson && airportJson.Stands && airportJson.Stands[ac.stand];
       if (
         standDef &&
-        (standDef.Apron === undefined || standDef.Apron === false)
+        (standDef.Apron === undefined)
       ) {
         let aircraftCode = "UNKNOWN";
         if (ac.flight_plan && ac.flight_plan.aircraft_short && ac.flight_plan.aircraft_short !== "UNKNOWN" && ac.flight_plan.aircraft_short !== "") {
@@ -906,7 +951,7 @@ async function assignStandToPilot(standName, icao, callsign, client) {
   };
 }
 
-  if (standDef.Apron === undefined || standDef.Apron === false) {
+  if (standDef.Apron === undefined) {
     if (registry.isOccupied(icao, standName)) {
       warn(
         `Cannot assign stand ${standName} at ${icao} to ${callsign} - already occupied, Requester: ${client}`,
