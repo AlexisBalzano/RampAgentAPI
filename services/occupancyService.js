@@ -595,7 +595,7 @@ function assignStand(airportConfig, config, ac) {
       }
     }
     if (standDef.Callsigns && Array.isArray(standDef.Callsigns)) {
-      if (!standDef.Callsigns.includes(compagnyPrefix)) {
+      if (!standDef.Callsigns.includes(compagnyPrefix) && !standDef.Callsigns.includes(ac.callsign.toUpperCase())) {
         continue;
       }
     }
