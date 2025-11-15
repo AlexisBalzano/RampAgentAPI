@@ -17,6 +17,7 @@ const redisService = require("./services/redisService");
 const airportService = require("./services/airportService");
 const healthRoutes = require("./routes/health");
 const authRoutes = require("./routes/auth");
+const apiKeyRoutes = require("./routes/APIkey");
 
 const app = express();
 
@@ -86,9 +87,12 @@ app.use("/api/airports", airportRoutes);
 // API endpoint to get stats (call service and return JSON)
 app.use("/api/stats", statRoutes);
 
-// Register routes
+// API endpoint for Stands management
 app.use("/api/assign", assignRoutes);
 app.use("/api/occupancy", occupancyRoutes);
+
+// API endpoint for API key management
+app.use("/api/apikey", apiKeyRoutes);
 
 // Connect to Redis
 redisService

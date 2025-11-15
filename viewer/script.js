@@ -1875,7 +1875,7 @@ function generateApiKey() {
 function updateApiKeyList() {
   const tbody = document.querySelector("#apiKeyListTable tbody");
   if (!tbody) return;
-  fetch(API_BASE_URL + "/api/auth/keys", {
+  fetch(API_BASE_URL + "/api/apikey/", {
     headers: {
       "Content-Type": "application/json"
     },
@@ -1934,7 +1934,7 @@ function updateApiKeyCount() {
 // API actions
 function renewApiKey(cid) {
   console.log("Renewing API key of CID:", cid);
-  fetch(API_BASE_URL + `/api/auth/key/${cid}/renew`, {
+  fetch(API_BASE_URL + `/api/apikey/${cid}/renew`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json"
@@ -1947,7 +1947,7 @@ function renewApiKey(cid) {
 function revokeApiKey(cid) {
   console.log("Revoking API key of CID:", cid);
 
-  fetch(API_BASE_URL + `/api/auth/key/${cid}/revoke`, {
+  fetch(API_BASE_URL + `/api/apikey/${cid}/revoke`, {
     method: "DELETE",
     headers: {
       "Content-Type": "application/json"
