@@ -595,7 +595,17 @@ function assignStand(airportConfig, config, ac) {
       }
     }
     if (standDef.Callsigns && Array.isArray(standDef.Callsigns)) {
-      if (!standDef.Callsigns.includes(compagnyPrefix)) {
+const cs = (ac.callsign || "").toUpperCase();
+      let match = false;
+      // check prefixes from length 3 up to full callsign
+      for (let len = 3; len <= cs.length; len++) {
+        const prefix = cs.substring(0, len);
+        if (standDef.Callsigns.includes(prefix)) {
+          match = true;
+          break;
+        }
+      }
+      if (!match) {
         continue;
       }
     }
