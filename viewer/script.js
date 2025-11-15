@@ -1895,6 +1895,11 @@ function updateApiKeyList() {
       console.log("Fetched API keys:", data);
 
       // Populate table with API keys
+      // Make sure it is an array
+      if (!Array.isArray(data.keys)) {
+        console.error("API keys data is not an array:", data.keys);
+        return;
+      }
       data.keys.forEach(key => {
         const row = document.createElement("tr");
         row.id = key.cid;
