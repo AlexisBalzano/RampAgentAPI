@@ -991,16 +991,39 @@ async function assignStandToPilot(standName, icao, callsign, client) {
         message: `Stand ${standName} could not be assigned to ${callsign} as it is blocked`,
       };
     }
+    const stand = new Stand(standName, icao, callsign);
+    registry.addAssigned(stand);
+    // Block stands
+    blockStands(standDef, icao, callsign);
+    info(`Manually assigned stand ${standName} at ${icao} to ${callsign}, Requester: ${client}`, {
+      category: "Manual Assign",
+      callsign: callsign,
+      icao: icao,
+    });
+  } else {
+    const size = standDef.Apron.Size;
+    if (registry.getApronOccupancyLevel(standName, icao) >= size) {
+      warn(
+        `Cannot assign apron stand ${standName} at ${icao} to ${callsign} - apron full, Requester: ${client}`,
+        { category: "Manual Assign", callsign: callsign, icao: icao }
+      );
+      return {
+        action: "full",
+        stand: standName,
+        callsign: callsign,
+        icao: icao,
+        message: `Apron ${standName} at ${icao} is full and cannot be assigned to ${callsign}`,
+      };
+    } else {
+      const stand = new Stand(standName, icao, callsign);
+      registry.addApron(stand);
+      info(`Manually assigned apron stand ${standName} at ${icao} to ${callsign}, Requester: ${client}`, {
+        category: "Manual Assign",
+        callsign: callsign,
+        icao: icao,
+      });
+    }
   }
-  const stand = new Stand(standName, icao, callsign);
-  registry.addAssigned(stand);
-  // Block stands
-  blockStands(standDef, icao, callsign);
-  info(`Manually assigned stand ${standName} at ${icao} to ${callsign}, Requester: ${client}`, {
-    category: "Manual Assign",
-    callsign: callsign,
-    icao: icao,
-  });
   return {
     action: "assign",
     stand: standName,
