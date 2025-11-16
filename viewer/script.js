@@ -1931,12 +1931,12 @@ function generateApiKey() {
       console.error("Cannot generate API key: user not found");
       return;
     }
-    fetch(API_BASE_URL + `/api/auth/key/${user.cid}`, {
+    fetch(API_BASE_URL + `/api/auth/key/${user.core.cid}`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
       },
-      body: JSON.stringify({ userId: user.cid }),
+      body: JSON.stringify({ userId: user.core.cid }),
     });
   });
 
