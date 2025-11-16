@@ -402,9 +402,8 @@ const blockStands = (standDef, icao, callsign) => {
 };
 
 function isPointInPolygon(point, polygon) {
+  // Ray casting algorithm for point-in-polygon
   let inside = false;
-  const x = point.lon;
-  const y = point.lat;
   for (let i = 0, j = polygon.length - 1; i < polygon.length; j = i++) {
     const xi = polygon[i].lon,
       yi = polygon[i].lat;
