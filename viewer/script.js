@@ -1630,8 +1630,8 @@ function loadMapData() {
             stand.polygon = L.polygon(stand.apron.Coordinates, {
               color: color[0],
               fillColor: color[1],
-              fillOpacity: 0.8,
-              weight: 3,
+              fillOpacity: 0.5,
+              weight: 2,
               lineJoin: "round",    // <- round joins
               lineCap: "round",     // <- round end caps
               smoothFactor: 1.5
