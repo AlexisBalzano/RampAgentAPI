@@ -1582,26 +1582,52 @@ function createStandPopupContent(standId) {
   const assigned = assignedStands.find((s) => s.id === standId);
   const blocked = blockedStands.find((s) => s.id === standId);
   
-  if (occupied) {
-    if (occupied.isApron && Array.isArray(occupied.callsigns)) {
-      div.innerHTML += `<p><strong>Occupied (${occupied.callsigns.length}):</strong></p><ul>`;
-      occupied.callsigns.forEach(cs => {
+  // For aprons, combine occupied and assigned callsigns
+  if (occupied && occupied.isApron && assigned && assigned.isApron) {
+    // Both occupied and assigned callsigns exist
+    const occupiedCallsigns = Array.isArray(occupied.callsigns) ? occupied.callsigns : [];
+    const assignedCallsigns = Array.isArray(assigned.callsigns) ? assigned.callsigns : [];
+    const totalCount = occupiedCallsigns.length + assignedCallsigns.length;
+    
+    div.innerHTML += `<p><strong>Aircraft (${totalCount}):</strong></p>`;
+    
+    if (occupiedCallsigns.length > 0) {
+      div.innerHTML += `<p><em>Occupied (${occupiedCallsigns.length}):</em></p><ul>`;
+      occupiedCallsigns.forEach(cs => {
         div.innerHTML += `<li>${cs}</li>`;
       });
       div.innerHTML += `</ul>`;
-    } else {
-      div.innerHTML += `<p>Occupied by <strong>${occupied.callsign}</strong></p>`;
     }
+    
+    if (assignedCallsigns.length > 0) {
+      div.innerHTML += `<p><em>Assigned (${assignedCallsigns.length}):</em></p><ul>`;
+      assignedCallsigns.forEach(cs => {
+        div.innerHTML += `<li>${cs}</li>`;
+      });
+      div.innerHTML += `</ul>`;
+    }
+  } else if (occupied && occupied.isApron) {
+    // Only occupied callsigns
+    const occupiedCallsigns = Array.isArray(occupied.callsigns) ? occupied.callsigns : [];
+    div.innerHTML += `<p><strong>Occupied (${occupiedCallsigns.length}):</strong></p><ul>`;
+    occupiedCallsigns.forEach(cs => {
+      div.innerHTML += `<li>${cs}</li>`;
+    });
+    div.innerHTML += `</ul>`;
+  } else if (assigned && assigned.isApron) {
+    // Only assigned callsigns
+    const assignedCallsigns = Array.isArray(assigned.callsigns) ? assigned.callsigns : [];
+    div.innerHTML += `<p><strong>Assigned (${assignedCallsigns.length}):</strong></p><ul>`;
+    assignedCallsigns.forEach(cs => {
+      div.innerHTML += `<li>${cs}</li>`;
+    });
+    div.innerHTML += `</ul>`;
+  } else if (occupied) {
+    // Non-apron occupied stand
+    div.innerHTML += `<p>Occupied by <strong>${occupied.callsign}</strong></p>`;
   } else if (assigned) {
-    if (assigned.isApron && Array.isArray(assigned.callsigns)) {
-      div.innerHTML += `<p><strong>Assigned (${assigned.callsigns.length}):</strong></p><ul>`;
-      assigned.callsigns.forEach(cs => {
-        div.innerHTML += `<li>${cs}</li>`;
-      });
-      div.innerHTML += `</ul>`;
-    } else {
-      div.innerHTML += `<p>Assigned to <strong>${assigned.callsign}</strong></p>`;
-    }
+    // Non-apron assigned stand
+    div.innerHTML += `<p>Assigned to <strong>${assigned.callsign}</strong></p>`;
   } else if (blocked) {
     if (blocked.isApron && Array.isArray(blocked.callsigns)) {
       div.innerHTML += `<p><strong>Blocked by (${blocked.callsigns.length}):</strong></p><ul>`;
