@@ -1718,7 +1718,7 @@ function loadMapData() {
             stand.circle = L.circle(stand.coords, {
               color: color[0],
               fillColor: color[1],
-              fillOpacity: 0.8,
+              fillOpacity: 0.5,
               radius: stand.radius,
               weight: 3,
             }).bindPopup(() => {
