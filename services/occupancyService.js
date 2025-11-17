@@ -410,6 +410,7 @@ function isPointInPolygon(point, polygon) {
     const xj = polygon[j].lon,
       yj = polygon[j].lat;
 
+    const x = point.lon, y = point.lat;
     const intersect = ((yi > y) !== (yj > y)) && (x < (xj - xi) * (y - yi) / (yj - yi) + xi);
     if (intersect) inside = !inside;
   }
