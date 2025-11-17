@@ -1,4 +1,4 @@
-const API_BASE_URL = "https://pintade.vatsim.fr/rampagent";
+const API_BASE_URL = "";
 
 /* Set the width of the side navigation to 250px */
 function openNav() {
@@ -1103,8 +1103,6 @@ document.addEventListener("DOMContentLoaded", () => {
   }, 2000);
 });
 
-// Event listeners for filter changes are now set up inside DOMContentLoaded
-
 // Navigation routing - wrapped to execute after DOM is ready
 (function () {
   function initNavigation() {
@@ -1200,11 +1198,20 @@ function fetchOccupiedStands() {
     })
     .then((stands) => {
       if (Array.isArray(stands)) {
-        // Store as ICAO-StandName format instead of just name
-        occupiedStands = stands.map((s) => ({
-          id: s.icao + "-" + s.name,
-          callsign: s.callsign,
-        }));
+        // Group apron stands by ICAO-StandName, keep others as-is
+        const grouped = new Map();
+        stands.forEach((s) => {
+          const id = s.icao + "-" + s.name;
+          if (s.apronSize > 0) {
+            if (!grouped.has(id)) {
+              grouped.set(id, { id, callsigns: [], isApron: true });
+            }
+            grouped.get(id).callsigns.push(s.callsign);
+          } else {
+            grouped.set(id, { id, callsign: s.callsign, isApron: false });
+          }
+        });
+        occupiedStands = Array.from(grouped.values());
       }
     })
     .catch((err) => {
@@ -1222,11 +1229,20 @@ function fetchAssignedStands() {
     })
     .then((stands) => {
       if (Array.isArray(stands)) {
-        // Store as ICAO-StandName format instead of just name
-        assignedStands = stands.map((s) => ({
-          id: s.icao + "-" + s.name,
-          callsign: s.callsign,
-        }));
+        // Group apron stands by ICAO-StandName, keep others as-is
+        const grouped = new Map();
+        stands.forEach((s) => {
+          const id = s.icao + "-" + s.name;
+          if (s.apronSize > 0) {
+            if (!grouped.has(id)) {
+              grouped.set(id, { id, callsigns: [], isApron: true });
+            }
+            grouped.get(id).callsigns.push(s.callsign);
+          } else {
+            grouped.set(id, { id, callsign: s.callsign, isApron: false });
+          }
+        });
+        assignedStands = Array.from(grouped.values());
       }
     })
     .catch((err) => {
@@ -1244,11 +1260,20 @@ function fetchBlockedStands() {
     })
     .then((stands) => {
       if (Array.isArray(stands)) {
-        // Store as ICAO-StandName format instead of just name
-        blockedStands = stands.map((s) => ({
-          id: s.icao + "-" + s.name,
-          callsign: s.callsign,
-        }));
+        // Blocked stands are usually not aprons, but handle just in case
+        const grouped = new Map();
+        stands.forEach((s) => {
+          const id = s.icao + "-" + s.name;
+          if (s.apronSize > 0) {
+            if (!grouped.has(id)) {
+              grouped.set(id, { id, callsigns: [], isApron: true });
+            }
+            grouped.get(id).callsigns.push(s.callsign);
+          } else {
+            grouped.set(id, { id, callsign: s.callsign, isApron: false });
+          }
+        });
+        blockedStands = Array.from(grouped.values());
       }
     })
     .catch((err) => {
@@ -1258,6 +1283,10 @@ function fetchBlockedStands() {
 
 function getStandColor(standName, apron) {
   // Now both standName and the arrays are in ICAO-StandName format
+  if (apron) {
+    return ["#4682B4", "#87CEEB"]; // steel blue border, sky blue fill (apron)
+  }
+
   if (occupiedStands.some((s) => s.id === standName)) {
     return ["#B22222", "#FF6B6B"]; // dark red border, light red fill (occupied)
   }
@@ -1268,10 +1297,6 @@ function getStandColor(standName, apron) {
 
   if (blockedStands.some((s) => s.id === standName)) {
     return ["#9c7c22ff", "#cdc54eff"]; // dark teal border, light teal fill (blocked)
-  }
-
-  if (apron) {
-    return ["#4682B4", "#87CEEB"]; // steel blue border, sky blue fill (apron)
   }
 
   return ["#78BFA0", "#96CEB4"]; // darker green border, light green fill (default)
@@ -1552,16 +1577,41 @@ function createStandPopupContent(standId) {
   div.className = "stand-popup-content";
   div.innerHTML = "<h1>" + standId + "</h1>";
 
-  // Check occupied/assigned/blocked arrays for callsign
+  // Check occupied/assigned/blocked arrays for callsign(s)
   const occupied = occupiedStands.find((s) => s.id === standId);
   const assigned = assignedStands.find((s) => s.id === standId);
   const blocked = blockedStands.find((s) => s.id === standId);
+  
   if (occupied) {
-    div.innerHTML += `<p>Occupied by <strong>${occupied.callsign}</strong></p>`;
+    if (occupied.isApron && Array.isArray(occupied.callsigns)) {
+      div.innerHTML += `<p><strong>Occupied (${occupied.callsigns.length}):</strong></p><ul>`;
+      occupied.callsigns.forEach(cs => {
+        div.innerHTML += `<li>${cs}</li>`;
+      });
+      div.innerHTML += `</ul>`;
+    } else {
+      div.innerHTML += `<p>Occupied by <strong>${occupied.callsign}</strong></p>`;
+    }
   } else if (assigned) {
-    div.innerHTML += `<p>Assigned to <strong>${assigned.callsign}</strong></p>`;
+    if (assigned.isApron && Array.isArray(assigned.callsigns)) {
+      div.innerHTML += `<p><strong>Assigned (${assigned.callsigns.length}):</strong></p><ul>`;
+      assigned.callsigns.forEach(cs => {
+        div.innerHTML += `<li>${cs}</li>`;
+      });
+      div.innerHTML += `</ul>`;
+    } else {
+      div.innerHTML += `<p>Assigned to <strong>${assigned.callsign}</strong></p>`;
+    }
   } else if (blocked) {
-    div.innerHTML += `<p>Blocked by <strong>${blocked.callsign}</strong></p>`;
+    if (blocked.isApron && Array.isArray(blocked.callsigns)) {
+      div.innerHTML += `<p><strong>Blocked by (${blocked.callsigns.length}):</strong></p><ul>`;
+      blocked.callsigns.forEach(cs => {
+        div.innerHTML += `<li>${cs}</li>`;
+      });
+      div.innerHTML += `</ul>`;
+    } else {
+      div.innerHTML += `<p>Blocked by <strong>${blocked.callsign}</strong></p>`;
+    }
   } else {
     div.innerHTML += `<p>Free</p>`;
   }
@@ -2220,6 +2270,7 @@ setInterval(updateControllerNumber, 15000); // update every 15 seconds
         if (direction === "left" && right) {
           right.style.width = `${MAX_TRANSLATE}px`;
           right.style.opacity = "1";
+       
         }
 
         setTimeout(() => {
