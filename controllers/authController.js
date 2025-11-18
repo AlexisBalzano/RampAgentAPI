@@ -11,7 +11,7 @@ exports.getLocalUser = async (req, res) => {
     const localUser = await redisService.getLocalUser(cid);
     res.json(localUser);
   } catch (err) {
-    error("Failed to get local user:", err);
+    error(`Failed to get local user: ${err}`, { category: "Auth" });
     res.status(500).json({ error: "Failed to get local user" });
   }
 };
@@ -24,7 +24,7 @@ exports.getAllLocalUsers = async (req, res) => {
     }
     res.json(users);
   } catch (err) {
-    error("Failed to get all local users:", err);
+    error(`Failed to get all local users: ${err}`, { category: "Auth" });
     res.status(500).json({ error: "Failed to get users" });
   }
 };
@@ -39,7 +39,7 @@ exports.updateLocalUser = async (req, res) => {
     }
     res.json(updated);
   } catch (err) {
-    error("Failed to update local user:", err);
+    error(`Failed to update local user: ${err}`, { category: "Auth" });
     res.status(500).json({ error: "Failed to update local user" });
   }
 };
@@ -67,7 +67,7 @@ exports.grantRole = async function (req, res) {
     }
     res.json({ ok: true, user });
   } catch (err) {
-    error("Failed to grant role:", err);
+    error(`Failed to grant role: ${err}`, { category: "Auth" });
     res.status(500).json({ error: "Failed to grant role" });
   }
 };
@@ -90,12 +90,13 @@ exports.revokeRole = async function (req, res) {
     }
     res.json({ ok: true, user });
   } catch (err) {
-    error("Failed to revoke role:", err);
+    error(`Failed to revoke role: ${err}`, { category: "Auth" });
     res.status(500).json({ error: "Failed to revoke role" });
   }
 };
 
 exports.requireRoles = (roles) => {
+    const requiredRoles = Array.isArray(roles) ? roles : roles ? [roles] : [];
   return async (req, res, next) => {
     if (!req.user || !req.user.cid) {
       return res.status(401).json({ error: "Not authenticated" });
@@ -103,7 +104,7 @@ exports.requireRoles = (roles) => {
 
     try {
       const userRoles = req.user.roles || [];
-      const hasRequiredRole = roles.some((role) => userRoles.includes(role));
+      const hasRequiredRole = requiredRoles.some((role) => userRoles.includes(role));
 
       if (hasRequiredRole) {
         return next();
@@ -111,7 +112,7 @@ exports.requireRoles = (roles) => {
 
       return res.status(403).json({ error: "Insufficient permissions" });
     } catch (err) {
-      error("Failed to check roles:", err);
+      error(`Failed to check roles: ${err}`, { category: "Auth" });
       return res.status(500).json({ error: "Failed to check permissions" });
     }
   };
@@ -120,7 +121,7 @@ exports.requireRoles = (roles) => {
 // Verifying token from plugins for manual stand assignement
 exports.verifyToken = (token, client) => {
   // Return true if token is valid, false otherwise
-  const secret = process.env.CORE_JWT_KEY;
+  const secret = process.env.AUTH_SECRET;
 
   if (!secret) {
     error("No secret found", { category: "Auth" });
@@ -151,7 +152,7 @@ exports.logout = async (req, res) => {
   try {
     deleteSession(res);
     const baseURL = process.env.BASE_URL;
-    return res.redirect(baseURL + "/rampagent/debug/");
+    return res.redirect(baseURL + "/rampagent/");
   } catch (err) {
     error("logout error: " + (err.message || err), { category: "Auth" });
     return res.status(500).send("Error during logout");
@@ -202,7 +203,7 @@ exports.requireAuth = async (req, res, next) => {
 
     return next();
   } catch (err) {
-    error("Auth error:", err);
+    error(`Auth error: ${err.message || err}`, { category: "Auth" });
     return res.status(401).json({ error: "Not authenticated" });
   }
 };
@@ -239,7 +240,9 @@ async function decryptToken(accessToken) {
       tokenContent: payload,
     };
   } catch (err) {
-    error("Failed to verify session: " + err, { category: "Auth" });
+    if (err.name !== "TokenExpiredError") {
+      error("Failed to verify session: " + err, { category: "Auth" });
+    }
     return null;
   }
 }
@@ -257,7 +260,7 @@ exports.getSession = async (req, res) => {
   if (!sessionData) return res.status(401).json({ error: "Invalid session" });
 
   const coreUserUrl =
-    process.env.CORE_URL_INTERNAL + `/v1/user/${sessionData.tokenContent.cid}`; //FIXME: is correct ?
+    process.env.CORE_URL_INTERNAL + `/v1/user/${sessionData.tokenContent.cid}`;
   const coreRes = await fetch(coreUserUrl, {
     method: "GET",
     headers: {
@@ -355,74 +358,9 @@ exports.loginCallback = async (req, res) => {
 
     // Redirect back to UI
     const baseURL = process.env.BASE_URL;
-    return res.redirect(baseURL + "/rampagent/debug/#dashboard");
+    return res.redirect(baseURL + "/rampagent/#dashboard");
   } catch (err) {
     error("loginCallback error: " + (err.message || err), { category: "Auth" });
     return res.status(401).send("Authentication failed, check logs");
-  }
-};
-
-// API Key Management
-
-exports.getKeys = async (req, res) => {
-  try {
-    const keys = await redisService.getAllKeys();
-    return res.json(keys);
-  } catch (err) {
-    error("Error fetching keys:", err);
-    return res.status(500).json({ error: "Internal Server Error" });
-  }
-};
-
-exports.getUserKey = async (req, res) => {
-  try {
-    const keyId = req.params.id;
-    const key = await redisService.getKeyById(keyId);
-    if (key) {
-      return res.json(key);
-    }
-    return res.status(404).json({ error: "Key not found" });
-  } catch (err) {
-    error("Error fetching key:", err);
-    return res.status(500).json({ error: "Internal Server Error" });
-  }
-};
-
-exports.createKey = async (req, res) => {
-  try {
-    const id = req.params.id;
-    const newKey = await redisService.createKey(id);
-    return res.status(201).json(newKey);
-  } catch (err) {
-    error("Error creating key:", err);
-    return res.status(500).json({ error: "Internal Server Error" });
-  }
-};
-
-exports.renewKey = async (req, res) => {
-  try {
-    const keyId = req.params.id;
-    const renewed = await redisService.renewKey(keyId);
-    if (renewed) {
-      return res.status(200).json({ message: "Key renewed successfully" });
-    }
-    return res.status(404).json({ error: "Key not found" });
-  } catch (err) {
-    error("Error renewing key:", err);
-    return res.status(500).json({ error: "Internal Server Error" });
-  }
-};
-
-exports.deleteKey = async (req, res) => {
-  try {
-    const keyId = req.params.id;
-    const deleted = await redisService.deleteKey(keyId);
-    if (deleted) {
-      return res.status(200).json({ message: "Key deleted successfully" });
-    }
-    return res.status(404).json({ error: "Key not found" });
-  } catch (err) {
-    error("Error deleting key:", err);
-    return res.status(500).json({ error: "Internal Server Error" });
   }
 };
