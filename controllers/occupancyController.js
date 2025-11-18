@@ -24,6 +24,8 @@ exports.getOccupied = (req, res) => {
       name: s.name,
       icao: s.icao,
       callsign: s.callsign || null,
+      remark: s.remark || null,
+      apronSize: s.apronSize || 0,
     }));
     res.json(occupied);
   } catch (err) {
@@ -41,6 +43,8 @@ exports.getAssigned = (req, res) => {
       name: s.name,
       icao: s.icao,
       callsign: s.callsign || null,
+      remark: s.remark || null,
+      apronSize: s.apronSize || 0,
     }));
     res.json(assigned);
   } catch (err) {
@@ -58,6 +62,8 @@ exports.getBlocked = (req, res) => {
       name: s.name,
       icao: s.icao,
       callsign: s.callsign || null,
+      remark: s.remark || null,
+      apronSize: s.apronSize || 0,
     }));
     res.json(blocked);
   } catch (err) {

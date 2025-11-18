@@ -17,6 +17,7 @@ const redisService = require("./services/redisService");
 const airportService = require("./services/airportService");
 const healthRoutes = require("./routes/health");
 const authRoutes = require("./routes/auth");
+const apiKeyRoutes = require("./routes/APIkey");
 
 const app = express();
 
@@ -66,9 +67,10 @@ app.post('/api/config-webhook', async (req, res) => {
 app.use(express.json());
 
 // Serve viewer
-app.get("/debug", (req, res) => {
+app.get("/", (req, res) => {
   res.sendFile(path.join(__dirname, "viewer", "viewer.html"));
 });
+app.use("/", express.static(path.join(__dirname, "viewer")));
 
 // Authentication routes
 app.use("/api/auth", authRoutes);
@@ -85,10 +87,12 @@ app.use("/api/airports", airportRoutes);
 // API endpoint to get stats (call service and return JSON)
 app.use("/api/stats", statRoutes);
 
-// Register routes
-app.use("/debug", express.static(path.join(__dirname, "viewer")));
+// API endpoint for Stands management
 app.use("/api/assign", assignRoutes);
 app.use("/api/occupancy", occupancyRoutes);
+
+// API endpoint for API key management
+app.use("/api/apikey", apiKeyRoutes);
 
 // Connect to Redis
 redisService
