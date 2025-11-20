@@ -8,9 +8,13 @@ const coordinateCache = new Map(); // key: "lat:lon:alt" -> { lat, lon, radius }
 // Cache to avoid log flooding when unknown aircraft types are encountered
 const aircraftTypeCache = new Set();
 
+// Cache for no stand found error
+const noStandFoundCache = new Set();
+
 setInterval(() => {
   coordinateCache.clear();
   aircraftTypeCache.clear();
+  noStandFoundCache.clear();
 }, 60 * 60 * 1000); // Clear every hour
 
 // Helper to parse and cache coordinates
@@ -667,13 +671,19 @@ function assignStand(airportConfig, config, ac) {
     });
     registry.addAssigned(stand);
     blockStands(selectedStandDef, ac.destination, ac.callsign);
+    if (noStandFoundCache.has(ac.callsign)) {
+      noStandFoundCache.delete(ac.callsign);
+    }
     return;
   }
-  warn(`No available stands found for ${ac.callsign} at ${ac.destination}`, {
-    category: "Assignation",
-    callsign: ac.callsign,
-    icao: airportConfig.ICAO,
-  });
+  if (!noStandFoundCache.has(ac.callsign)) {
+    warn(`No available stands found for ${ac.callsign} at ${ac.destination}`, {
+      category: "Assignation",
+      callsign: ac.callsign,
+      icao: airportConfig.ICAO,
+    });
+    noStandFoundCache.add(ac.callsign);
+  }
 }
 
 processDatafeed = async (aircrafts) => {
