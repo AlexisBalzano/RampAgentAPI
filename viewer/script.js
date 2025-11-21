@@ -1,4 +1,4 @@
-const API_BASE_URL = "https://pintade.vatsim.fr/rampagent";
+const API_BASE_URL = process.env.BASE_URL;
 
 /* Set the width of the side navigation to 250px */
 function openNav() {
