@@ -140,7 +140,7 @@ exports.login = (req, res) => {
   const params = new URLSearchParams();
   const baseURL = process.env.BASE_URL;
   params.set("origin", baseURL);
-  params.set("redirect", `${baseURL}/rampagent/api/auth/callback`);
+  params.set("redirect", `${baseURL}/api/auth/callback`);
   const loginUrl =
     `${process.env.CORE_URL_EXTERNAL}/v1/auth/vatsim/login?` +
     params.toString();
@@ -152,7 +152,7 @@ exports.logout = async (req, res) => {
   try {
     deleteSession(res);
     const baseURL = process.env.BASE_URL;
-    return res.redirect(baseURL + "/rampagent/");
+    return res.redirect(baseURL + "/");
   } catch (err) {
     error("logout error: " + (err.message || err), { category: "Auth" });
     return res.status(500).send("Error during logout");
@@ -358,7 +358,7 @@ exports.loginCallback = async (req, res) => {
 
     // Redirect back to UI
     const baseURL = process.env.BASE_URL;
-    return res.redirect(baseURL + "/rampagent/#dashboard");
+    return res.redirect(baseURL + "/#dashboard");
   } catch (err) {
     error("loginCallback error: " + (err.message || err), { category: "Auth" });
     return res.status(401).send("Authentication failed, check logs");
