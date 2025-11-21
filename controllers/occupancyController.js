@@ -8,7 +8,7 @@ setInterval(() => {
   const now = Date.now();
   for (const [callsign, timestamp] of callsignCache.entries()) {
     if (now - timestamp > 10 * 60 * 1000) {
-      logger.info(`Controller ${callsign} disconnected - CID - ${callsign}`, { category: "Connection", callsign: callsign });
+      logger.info(`Controller ${callsign} disconnected.`, { category: "Connection", callsign: callsign });
       callsignCache.delete(callsign);
     }
   }
@@ -79,11 +79,10 @@ exports.getAllStandsStatus = (req, res) => {
     // registry.getAllStands returns array of Stand instances; convert to simple objects
 
     const callsign = req.query.callsign || "";
-    const cid = req.query.cid || "";
     const lastRequest = Date.now();
     if (callsign) {
       if (!callsignCache.has(callsign)) {
-        logger.info(`Controller ${callsign} connected, CID - ${cid}`, { category: "Connection" });
+        logger.info(`Controller ${callsign} connected.`, { category: "Connection" });
       }
       callsignCache.set(callsign, lastRequest);
     }
