@@ -1,4 +1,4 @@
-const API_BASE_URL = process.env.BASE_URL;
+const API_BASE_URL = "rampagent.vatsim.fr";
 
 /* Set the width of the side navigation to 250px */
 function openNav() {
