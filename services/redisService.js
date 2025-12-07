@@ -24,6 +24,7 @@ class RedisService {
           reconnectStrategy: false, // Don't auto-reconnect if Redis is down
         },
         password: process.env.REDIS_PASSWORD || undefined,
+        database: process.env.REDIS_DATABASE || 0;
       });
 
       this.client.on("error", (err) => {
