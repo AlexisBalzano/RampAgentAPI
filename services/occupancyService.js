@@ -494,16 +494,28 @@ async function isConcernedArrival(ac, config, airportSet) {
   if (!ac || !ac.destination || !ac.longitude || !ac.latitude) {
     return false;
   }
-  if (ac.altitude > config.max_alt) {
-    return false;
-  }
   if (!airportSet.has(ac.destination)) {
     return false;
   }
-  ac.remainingDistance = await calculateRemainingDistance(ac);
-  if (ac.remainingDistance * 0.00053996 > config.max_distance) {
-    // convert to nautical miles
-    return false;
+  if (config.extended_icaos && config.extended_icaos.includes(ac.destination)) {
+    if (ac.altitude > config.max_alt_extended) {
+      return false;
+    }
+    ac.remainingDistance = await calculateRemainingDistance(ac);
+    if (ac.remainingDistance * 0.00053996 > config.max_distance_extended) {
+      // convert to nautical miles
+      return false;
+    }
+    
+  } else {
+    if (ac.altitude > config.max_alt) {
+      return false;
+    }
+    ac.remainingDistance = await calculateRemainingDistance(ac);
+    if (ac.remainingDistance * 0.00053996 > config.max_distance) {
+      // convert to nautical miles
+      return false;
+    }
   }
   return true;
 }
@@ -558,6 +570,13 @@ function getAircraftWingspan(config, aircraftType) {
     return 81;
   const wingspan = config.AircraftWingspans[aircraftType.toUpperCase()];
   if (!wingspan) {
+    // Check wingspan of any derivative types (atyp = XXX*) that may match
+    const matchingTypes = Object.keys(config.AircraftWingspans).filter((type) =>
+      type.startsWith(aircraftType.toUpperCase().slice(0, 3))
+    );
+    if (matchingTypes.length > 0) {
+      return config.AircraftWingspans[matchingTypes[0]];
+    }
     if (!aircraftTypeCache.has(aircraftType)) {
       warn(`Unknown wingspan for aircraft type ${aircraftType}`, {
         category: "Missing Data",
@@ -1028,17 +1047,22 @@ async function assignStandToPilot(standName, icao, callsign, client) {
     };
   }
   if (registry.isBlocked(icao, standName)) {
-    warn(
-      `Cannot assign stand ${standName} at ${icao} to ${callsign} - already blocked, Requester: ${client}`,
-      { category: "Manual Assign", callsign: callsign, icao: icao }
-    );
-    return {
-      action: "blocked",
-      stand: standName,
-      callsign: callsign,
-      icao: icao,
-      message: `Stand ${standName} could not be assigned to ${callsign} as it is blocked`,
-    };
+    // If stand is blocked by the same callsign, allow assignment
+    if (registry.getBlocked(icao, standName).callsign === callsign) {
+      registry.removeBlocked(registry.getBlocked(icao, standName));
+    } else {
+      warn(
+        `Cannot assign stand ${standName} at ${icao} to ${callsign} - already blocked, Requester: ${client}`,
+        { category: "Manual Assign", callsign: callsign, icao: icao }
+      );
+      return {
+        action: "blocked",
+        stand: standName,
+        callsign: callsign,
+        icao: icao,
+        message: `Stand ${standName} could not be assigned to ${callsign} as it is blocked`,
+      };
+    }
   }
   const stand = new Stand(standName, icao, callsign, "", standDef.Apron === undefined ? 0 : standDef.Apron.Size);
   registry.addAssigned(stand);
