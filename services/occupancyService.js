@@ -494,16 +494,28 @@ async function isConcernedArrival(ac, config, airportSet) {
   if (!ac || !ac.destination || !ac.longitude || !ac.latitude) {
     return false;
   }
-  if (ac.altitude > config.max_alt) {
-    return false;
-  }
   if (!airportSet.has(ac.destination)) {
     return false;
   }
-  ac.remainingDistance = await calculateRemainingDistance(ac);
-  if (ac.remainingDistance * 0.00053996 > config.max_distance) {
-    // convert to nautical miles
-    return false;
+  if (config.extended_icaos && config.extended_icaos.includes(ac.destination)) {
+    if (ac.altitude > config.max_alt_extended) {
+      return false;
+    }
+    ac.remainingDistance = await calculateRemainingDistance(ac);
+    if (ac.remainingDistance * 0.00053996 > config.max_distance_extended) {
+      // convert to nautical miles
+      return false;
+    }
+    
+  } else {
+    if (ac.altitude > config.max_alt) {
+      return false;
+    }
+    ac.remainingDistance = await calculateRemainingDistance(ac);
+    if (ac.remainingDistance * 0.00053996 > config.max_distance) {
+      // convert to nautical miles
+      return false;
+    }
   }
   return true;
 }
