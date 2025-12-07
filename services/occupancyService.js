@@ -1047,17 +1047,22 @@ async function assignStandToPilot(standName, icao, callsign, client) {
     };
   }
   if (registry.isBlocked(icao, standName)) {
-    warn(
-      `Cannot assign stand ${standName} at ${icao} to ${callsign} - already blocked, Requester: ${client}`,
-      { category: "Manual Assign", callsign: callsign, icao: icao }
-    );
-    return {
-      action: "blocked",
-      stand: standName,
-      callsign: callsign,
-      icao: icao,
-      message: `Stand ${standName} could not be assigned to ${callsign} as it is blocked`,
-    };
+    // If stand is blocked by the same callsign, allow assignment
+    if (registry.getBlocked(icao, standName).callsign === callsign) {
+      registry.removeBlocked(registry.getBlocked(icao, standName));
+    } else {
+      warn(
+        `Cannot assign stand ${standName} at ${icao} to ${callsign} - already blocked, Requester: ${client}`,
+        { category: "Manual Assign", callsign: callsign, icao: icao }
+      );
+      return {
+        action: "blocked",
+        stand: standName,
+        callsign: callsign,
+        icao: icao,
+        message: `Stand ${standName} could not be assigned to ${callsign} as it is blocked`,
+      };
+    }
   }
   const stand = new Stand(standName, icao, callsign, "", standDef.Apron === undefined ? 0 : standDef.Apron.Size);
   registry.addAssigned(stand);
