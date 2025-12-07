@@ -570,6 +570,13 @@ function getAircraftWingspan(config, aircraftType) {
     return 81;
   const wingspan = config.AircraftWingspans[aircraftType.toUpperCase()];
   if (!wingspan) {
+    // Check wingspan of any derivative types (atyp = XXX*) that may match
+    const matchingTypes = Object.keys(config.AircraftWingspans).filter((type) =>
+      type.startsWith(aircraftType.toUpperCase().slice(0, 3))
+    );
+    if (matchingTypes.length > 0) {
+      return config.AircraftWingspans[matchingTypes[0]];
+    }
     if (!aircraftTypeCache.has(aircraftType)) {
       warn(`Unknown wingspan for aircraft type ${aircraftType}`, {
         category: "Missing Data",
