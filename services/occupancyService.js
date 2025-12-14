@@ -598,13 +598,24 @@ function getAircraftCode(wingspan) {
   return "F"; // default to F if larger
 }
 
-function getAircraftUse(config, callsign, aircraftType) {
+function getAircraftUse(config, callsign, aircraftType, remarks) {
   if (callsign.length < 3) {
     return "P"; // general aviation
   }
 
   if (callsign[1] === "-" || callsign[2] === "-") {
     return "P"; // general aviation
+  }
+
+  if (aircraftType == "A3ST") {
+    return "C"; // cargo
+  }
+
+  if (remarks) {
+    const remarkText = String(remarks).toLowerCase();
+    if (remarkText.includes("cargo") || remarkText.includes("freight") || remarkText.includes("cargoflight")) {
+      return "C"; // cargo
+    }
   }
 
   if (config.CargoOperator.includes(callsign.substring(0, 3).toUpperCase())) {
@@ -665,7 +676,8 @@ function assignStand(airportConfig, config, ac) {
   const use = getAircraftUse(
     config,
     ac.callsign,
-    ac.flight_plan.aircraft_short
+    ac.flight_plan.aircraft_short,
+    ac.flight_plan.remarks
   );
   const originPrefix = ac.origin.substring(0, 2).toUpperCase();
   const compagnyPrefix = ac.callsign.substring(0, 3).toUpperCase();
