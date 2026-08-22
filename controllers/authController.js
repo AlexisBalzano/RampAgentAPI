@@ -259,8 +259,12 @@ exports.getSession = async (req, res) => {
   const sessionData = await decryptToken(token);
   if (!sessionData) return res.status(401).json({ error: "Invalid session" });
 
+  // The members endpoint rather than /v1/user: it returns cid, names, rating
+  // and roles, and leaves out the email address, which nothing here uses. The
+  // viewer reads cid and firstName, both of which it still carries.
   const coreUserUrl =
-    process.env.CORE_URL_INTERNAL + `/v1/user/${sessionData.tokenContent.cid}`;
+    process.env.CORE_URL_INTERNAL +
+    `/v1/user/members/${sessionData.tokenContent.cid}`;
   const coreRes = await fetch(coreUserUrl, {
     method: "GET",
     headers: {
@@ -293,7 +297,11 @@ async function updateSessionLocalUser(_token, _user) {
     full_name: _user.fullName,
     first_name: _user.firstName,
     last_name: _user.lastName,
-    email: _user.email,
+    // Core no longer hands one out and nothing here reads it. updateLocalUser
+    // merges over the existing record, so setting this undefined drops the key
+    // from the stored JSON on the next login instead of leaving a stale
+    // address behind for users already cached.
+    email: undefined,
     updated_at: new Date().toISOString(),
   };
 
@@ -323,10 +331,11 @@ exports.loginCallback = async (req, res) => {
       return res.status(401).send("Invalid access token");
     }
 
-    // Fetch core user info
+    // Fetch core user info. See the note in getSession on why this is the
+    // members endpoint and not /v1/user.
     const coreUserUrl =
       process.env.CORE_URL_INTERNAL +
-      `/v1/user/${sessionData.tokenContent.cid}`;
+      `/v1/user/members/${sessionData.tokenContent.cid}`;
     const coreRes = await fetch(coreUserUrl, {
       method: "GET",
       headers: {
