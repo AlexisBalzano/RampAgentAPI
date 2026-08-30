@@ -756,6 +756,7 @@ function assignStand(airportConfig, config, ac) {
         for (const s of blockedStands) {
           s.timestamp = Date.now();
         }
+      checkPendingHoppieNotification(ac);
       return;
     }
   }
@@ -883,6 +884,14 @@ function assignStand(airportConfig, config, ac) {
     blockStands(selectedStandDef, ac.destination, ac.callsign);
     if (noStandFoundCache.has(ac.callsign)) {
       noStandFoundCache.delete(ac.callsign);
+    }
+
+    registerHoppieEligibility(ac.callsign, selectedStandDef, airportConfig);
+    if (typeof ac.altitude === "number" && ac.altitude >= HOPPIE_MIN_ALTITUDE_FT) {
+      const state = notificationState.get(ac.callsign);
+      if (state && state.status === "pending") {
+        attemptHoppieNotification(ac.callsign, state);
+      }
     }
     return;
   }
@@ -1066,6 +1075,8 @@ const getGlobalOccupied = () => {
   return Array.from(occupied);
 };
 
+// Manual/plugin-driven assignment - intentionally does not touch notificationState or trigger
+// a Hoppie TELEX; that notification only fires for automatic engine assignments (assignStand()).
 async function assignStandToPilot(standName, icao, callsign, client) {
   // Remove any existing assignment
   const existingStand = registry
@@ -1192,6 +1203,18 @@ function standCleanup() {
   // Remove occupied stands if timestamp is older than 2 minutes without update
   const now = Date.now();
   registry.clearExpired((stand) => now - stand.timestamp > 2 * 60 * 1000);
+
+  // Drop Hoppie notification tracking once a callsign has no remaining registry entries at
+  // all (session over) - this is what makes a later reappearance count as a fresh session.
+  for (const callsign of notificationState.keys()) {
+    const stillTracked =
+      registry.getAllOccupied().some((s) => s.callsign === callsign) ||
+      registry.getAllAssigned().some((s) => s.callsign === callsign) ||
+      registry.getAllBlocked().some((s) => s.callsign === callsign);
+    if (!stillTracked) {
+      notificationState.delete(callsign);
+    }
+  }
 }
 
 setInterval(standCleanup, 60 * 1000); // every minute
