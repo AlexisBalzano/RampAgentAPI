@@ -1,5 +1,6 @@
 const { info, warn, error } = require("../utils/logger");
 const airportService = require("./airportService");
+const hoppieService = require("./hoppieService");
 const { haversineMeters } = require("../utils/utils");
 
 // Cache for parsed coordinates to avoid repeated string splitting
@@ -226,6 +227,95 @@ class StandRegistry {
 }
 
 const registry = new StandRegistry();
+
+// Tracks Hoppie gate-terminal TELEX notification lifecycle per callsign, independent of
+// StandRegistry (a Stand object is replaced, not mutated, on reassignment, so a flag stored
+// on it would not survive a stand swap and could cause a resend).
+// status: 'pending' (below 10,000ft, or not yet confirmed connected to Hoppie) | 'sent'
+const notificationState = new Map();
+const HOPPIE_MIN_ALTITUDE_FT = 10000;
+const HOPPIE_RECHECK_TICKS = 4; // ~60s at a 15s datafeed tick, to bound Hoppie API call volume
+
+// Determines whether an assigned stand qualifies for a Hoppie notification: both the stand
+// (Terminal) and the airport (Hoppie.MessageTemplate) must opt in via config. Absence of either
+// is the sole scoping mechanism - no separate enable flag exists.
+function getHoppieEligibility(standDef, airportConfig) {
+  if (!standDef || !standDef.Terminal) return null;
+  if (!airportConfig || !airportConfig.Hoppie || !airportConfig.Hoppie.MessageTemplate) {
+    return null;
+  }
+  return {
+    terminal: standDef.Terminal,
+    briefingUrl: airportConfig.Hoppie.BriefingUrl || "",
+    messageTemplate: airportConfig.Hoppie.MessageTemplate,
+  };
+}
+
+function buildHoppieMessage(messageTemplate, terminal, briefingUrl) {
+  return messageTemplate
+    .replace(/{terminal}/g, terminal)
+    .replace(/{briefingUrl}/g, briefingUrl);
+}
+
+// Confirms Hoppie presence and sends the TELEX. Never throws - best-effort, fire-and-forget.
+async function attemptHoppieNotification(callsign, state) {
+  try {
+    const connected = await hoppieService.isConnected(callsign);
+    if (!connected) {
+      return; // stays 'pending', retried on a later re-check window
+    }
+    const message = buildHoppieMessage(
+      state.messageTemplate,
+      state.terminal,
+      state.briefingUrl
+    );
+    const sent = await hoppieService.sendTelex(callsign, message);
+    if (sent) {
+      state.status = "sent";
+      info(
+        `Hoppie gate-terminal notification sent to ${callsign} (Terminal ${state.terminal})`,
+        { category: "Hoppie", callsign }
+      );
+    }
+  } catch (err) {
+    error(`Hoppie notification attempt failed for ${callsign}: ${err.message}`, {
+      category: "Hoppie",
+      callsign,
+    });
+  }
+}
+
+// Registers a callsign as eligible for a Hoppie notification the first time it's automatically
+// assigned a Terminal-bearing stand. Sends immediately if already above the altitude threshold.
+function registerHoppieEligibility(callsign, standDef, airportConfig) {
+  if (notificationState.has(callsign)) return; // already tracked this session
+  const eligibility = getHoppieEligibility(standDef, airportConfig);
+  if (!eligibility) return;
+
+  const state = {
+    status: "pending",
+    terminal: eligibility.terminal,
+    briefingUrl: eligibility.briefingUrl,
+    messageTemplate: eligibility.messageTemplate,
+    ticksSinceCheck: 0,
+  };
+  notificationState.set(callsign, state);
+}
+
+// Re-checked on every tick an already-assigned callsign is seen again; only actually evaluates
+// (altitude + Hoppie ping) every HOPPIE_RECHECK_TICKS ticks to bound Hoppie API call volume.
+function checkPendingHoppieNotification(ac) {
+  const state = notificationState.get(ac.callsign);
+  if (!state || state.status !== "pending") return;
+
+  state.ticksSinceCheck += 1;
+  if (state.ticksSinceCheck < HOPPIE_RECHECK_TICKS) return;
+  state.ticksSinceCheck = 0;
+
+  if (typeof ac.altitude === "number" && ac.altitude >= HOPPIE_MIN_ALTITUDE_FT) {
+    attemptHoppieNotification(ac.callsign, state);
+  }
+}
 
 const isAircraftOnStand = async (
   config,
