@@ -14,20 +14,52 @@ setInterval(() => {
   }
 }, 2 * 60 * 1000); // Clean up every 2 minutes
 
+/**
+ * These endpoints are polled by every connected controller, but the registry
+ * only changes once per datafeed cycle. Each response body is built and
+ * serialised once per registry version and replayed until it changes, so N
+ * pollers cost one serialisation rather than N.
+ */
+const payloadCache = new Map(); // name -> { version, body }
+
+function cachedPayload(name, build) {
+  const version = occupancyService.registry.version;
+  const entry = payloadCache.get(name);
+  if (entry && entry.version === version) return entry.body;
+
+  const body = JSON.stringify(build());
+  payloadCache.set(name, { version, body });
+  return body;
+}
+
+function sendJson(res, body) {
+  res.set("Content-Type", "application/json").send(body);
+}
+
+const toStand = (s) => ({
+  name: s.name,
+  icao: s.icao,
+  callsign: s.callsign || null,
+  remark: s.remark || null,
+  apronSize: s.apronSize || 0,
+});
+
+function countRequest(req) {
+  if (!req.headers["x-internal-request"]) {
+    stat.incrementRequestCount();
+  }
+}
+
 exports.getOccupied = (req, res) => {
   try {
-    if (!req.headers["x-internal-request"]) {
-      stat.incrementRequestCount();
-    }
+    countRequest(req);
     // registry.getAllOccupied returns array of Stand instances; convert to simple objects
-    const occupied = occupancyService.registry.getAllOccupied().map((s) => ({
-      name: s.name,
-      icao: s.icao,
-      callsign: s.callsign || null,
-      remark: s.remark || null,
-      apronSize: s.apronSize || 0,
-    }));
-    res.json(occupied);
+    sendJson(
+      res,
+      cachedPayload("occupied", () =>
+        occupancyService.registry.getAllOccupied().map(toStand)
+      )
+    );
   } catch (err) {
     res.status(500).json({ error: "Failed to retrieve occupied stands" });
   }
@@ -35,18 +67,14 @@ exports.getOccupied = (req, res) => {
 
 exports.getAssigned = (req, res) => {
   try {
-    if (!req.headers["x-internal-request"]) {
-      stat.incrementRequestCount();
-    }
+    countRequest(req);
     // registry.getAllAssigned returns array of Stand instances; convert to simple objects
-    const assigned = occupancyService.registry.getAllAssigned().map((s) => ({
-      name: s.name,
-      icao: s.icao,
-      callsign: s.callsign || null,
-      remark: s.remark || null,
-      apronSize: s.apronSize || 0,
-    }));
-    res.json(assigned);
+    sendJson(
+      res,
+      cachedPayload("assigned", () =>
+        occupancyService.registry.getAllAssigned().map(toStand)
+      )
+    );
   } catch (err) {
     res.status(500).json({ error: "Failed to retrieve assigned stands" });
   }
@@ -54,18 +82,14 @@ exports.getAssigned = (req, res) => {
 
 exports.getBlocked = (req, res) => {
   try {
-    if (!req.headers["x-internal-request"]) {
-      stat.incrementRequestCount();
-    }
+    countRequest(req);
     // registry.getAllBlocked returns array of Stand instances; convert to simple objects
-    const blocked = occupancyService.registry.getAllBlocked().map((s) => ({
-      name: s.name,
-      icao: s.icao,
-      callsign: s.callsign || null,
-      remark: s.remark || null,
-      apronSize: s.apronSize || 0,
-    }));
-    res.json(blocked);
+    sendJson(
+      res,
+      cachedPayload("blocked", () =>
+        occupancyService.registry.getAllBlocked().map(toStand)
+      )
+    );
   } catch (err) {
     res.status(500).json({ error: "Failed to retrieve blocked stands" });
   }
@@ -73,46 +97,40 @@ exports.getBlocked = (req, res) => {
 
 exports.getAllStandsStatus = (req, res) => {
   try {
-    if (!req.headers["x-internal-request"]) {
-      stat.incrementRequestCount();
-    }
-    // registry.getAllStands returns array of Stand instances; convert to simple objects
+    countRequest(req);
 
     const callsign = req.query.callsign || "";
-    const lastRequest = Date.now();
     if (callsign) {
       if (!callsignCache.has(callsign)) {
         logger.info(`Controller ${callsign} connected.`, { category: "Connection" });
       }
-      callsignCache.set(callsign, lastRequest);
+      callsignCache.set(callsign, Date.now());
     }
 
-    const assignedStands = occupancyService.registry
-      .getAllAssigned()
-      .map((s) => ({
-        name: s.name,
-        icao: s.icao,
-        callsign: s.callsign || null,
-      }));
-
-    const occupiedStands = occupancyService.registry
-      .getAllOccupied()
-      .map((s) => ({
-        name: s.name,
-        icao: s.icao,
-        callsign: s.callsign || null,
-        remark: s.remark || null,
-      }));
-
-    const blockedStands = occupancyService.registry
-      .getAllBlocked()
-      .map((s) => ({
-        name: s.name,
-        icao: s.icao,
-        callsign: s.callsign || null,
-      }));
-
-    res.status(200).json({ occupiedStands, assignedStands, blockedStands });
+    sendJson(
+      res,
+      cachedPayload("all", () => {
+        const registry = occupancyService.registry;
+        return {
+          occupiedStands: registry.getAllOccupied().map((s) => ({
+            name: s.name,
+            icao: s.icao,
+            callsign: s.callsign || null,
+            remark: s.remark || null,
+          })),
+          assignedStands: registry.getAllAssigned().map((s) => ({
+            name: s.name,
+            icao: s.icao,
+            callsign: s.callsign || null,
+          })),
+          blockedStands: registry.getAllBlocked().map((s) => ({
+            name: s.name,
+            icao: s.icao,
+            callsign: s.callsign || null,
+          })),
+        };
+      })
+    );
   } catch (err) {
     res.status(500).json({ error: "Failed to retrieve all stands status" });
   }
@@ -120,9 +138,7 @@ exports.getAllStandsStatus = (req, res) => {
 
 exports.getControllersNumber = (req, res) => {
   try {
-    if (!req.headers["x-internal-request"]) {
-      stat.incrementRequestCount();
-    }
+    countRequest(req);
     res.status(200).json({ count: callsignCache.size });
   } catch (err) {
     res.status(500).json({ error: "Failed to retrieve controllers number" });

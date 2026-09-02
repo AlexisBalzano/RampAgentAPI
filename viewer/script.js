@@ -1,4 +1,8 @@
-const API_BASE_URL = "https://rampagent.vatsim.fr";
+// The viewer is served by the API itself, so same-origin is correct in every
+// deployment (and makes a local docker/dev instance work without an edit here).
+const API_BASE_URL = location.protocol.startsWith("http")
+  ? location.origin
+  : "https://rampagent.vatsim.fr";
 
 /* Set the width of the side navigation to 250px */
 function openNav() {
@@ -66,7 +70,11 @@ document.addEventListener("DOMContentLoaded", function () {
 // High volume detection and performance mode
 let performanceMode = false;
 let lastStandCount = 0;
-const HIGH_VOLUME_THRESHOLD = 50; // Number of stands that triggers performance mode
+// Number of stands that triggers performance mode. This used to be 50 because
+// every refresh re-created and re-animated the whole board; now only rows that
+// actually changed flip, so the cost tracks churn rather than total volume and
+// the flap effect stays affordable far higher up.
+const HIGH_VOLUME_THRESHOLD = 1000;
 
 function checkVolumeAndTogglePerformanceMode(standCount) {
   let shouldBeInPerformanceMode = standCount >= HIGH_VOLUME_THRESHOLD;
@@ -75,13 +83,13 @@ function checkVolumeAndTogglePerformanceMode(standCount) {
     shouldBeInPerformanceMode = true;
   }
 
+  lastStandCount = standCount;
+
   if (shouldBeInPerformanceMode && !performanceMode) {
     enablePerformanceMode();
   } else if (!shouldBeInPerformanceMode && performanceMode && !manualToggle) {
     disablePerformanceMode();
   }
-
-  lastStandCount = standCount;
 }
 
 function enablePerformanceMode() {
@@ -161,6 +169,7 @@ function generateSpanforText(text) {
   for (let i = 0; i < blanksNeeded; i++) {
     chars.push(" ");
   }
+  const fragment = document.createDocumentFragment();
   chars.forEach((char, index) => {
     const charSpan = document.createElement("span");
     if (char === " ") {
@@ -168,8 +177,13 @@ function generateSpanforText(text) {
     } else {
       charSpan.className = "letter letter-" + char.toUpperCase();
     }
-    departureBoard.appendChild(charSpan);
+    fragment.appendChild(charSpan);
   });
+  departureBoard.appendChild(fragment);
+  // Publishing the letter count lets the board carry a definite width, so it
+  // can be skipped while off-screen without its size collapsing (which would
+  // take the min-content width of the whole panel with it).
+  departureBoard.style.setProperty("--letters", chars.length);
   return departureBoard;
 }
 
@@ -186,132 +200,229 @@ function padAirportIcao(name) {
   return name.padStart(9, " ");
 }
 
-async function renderAirportsStatus() {
-  try {
-    // Fetch all airports
-    const airportList = await fetch(API_BASE_URL + "/api/airports", {
-      headers: { "X-Internal-Request": "1" },
-    })
+// Page visibility ---------------------------------------------------------
+// Every page used to poll on its own timer regardless of what was on screen,
+// so sitting on the status page also paid for the map, the log tail and the
+// stats charts. Pollers now run only for the page actually being looked at,
+// and fire immediately when you navigate to it.
+
+let activePage = location.hash.replace("#", "") || "status";
+const pageEnterHandlers = new Map(); // page -> [fn]
+
+function isPageActive(page) {
+  return activePage === page && !document.hidden;
+}
+
+/** Runs fn every ms, but only while `page` is the one on screen. */
+function pollOnPage(page, fn, ms) {
+  setInterval(() => {
+    if (isPageActive(page)) fn();
+  }, ms);
+}
+
+/** Runs fn each time `page` becomes the active page. */
+function onPageEnter(page, fn) {
+  const handlers = pageEnterHandlers.get(page);
+  if (handlers) handlers.push(fn);
+  else pageEnterHandlers.set(page, [fn]);
+}
+
+// Runs on navigation regardless of document visibility: arriving at a page
+// should show current data even if the tab is not in the foreground yet.
+function firePageEnter(page) {
+  const handlers = pageEnterHandlers.get(page);
+  if (!handlers) return;
+  for (const fn of handlers) {
+    try {
+      fn();
+    } catch (err) {
+      console.error("page enter handler failed for " + page, err);
+    }
+  }
+}
+
+// Coming back to a backgrounded tab should refresh whatever is on screen.
+document.addEventListener("visibilitychange", () => {
+  if (!document.hidden) firePageEnter(activePage);
+});
+
+// One persistent panel per airport. Rows are reconciled against what is
+// already on screen and keyed by their rendered text, so an unchanged row is
+// never touched: no DOM work, and no flap animation. Only rows that actually
+// appeared flip, which is both far cheaper and closer to how a real split-flap
+// board behaves.
+const statusPanels = new Map(); // ICAO -> { root, sections: { kind -> sectionState } }
+const STATUS_SECTIONS = [
+  ["occupied", "Occupied Stands"],
+  ["assigned", "Assigned Stands"],
+  ["blocked", "Blocked Stands"],
+];
+
+function standLine(stand) {
+  return padStandName(stand.name) + "  " + stand.callsign;
+}
+
+// `animate: false` marks the board so its letters never flip - used for the
+// first paint, where there is no previous value to flip away from.
+function makeBoard(text, animate) {
+  const board = generateSpanforText(text);
+  if (!animate) board.classList.add("no-flip");
+  return board;
+}
+
+function createAirportPanel(icao) {
+  const root = document.createElement("div");
+  root.className = "airport-display subContainer";
+  root.id = "airport-" + icao;
+  root.appendChild(makeBoard(padAirportIcao(icao), false));
+
+  const sections = {};
+  for (const [kind, title] of STATUS_SECTIONS) {
+    root.appendChild(generateSeparator());
+    root.appendChild(makeBoard(title, false));
+    root.appendChild(generateSeparator());
+
+    // display:contents, so the wrapper groups rows for reconciliation without
+    // affecting the panel's flex layout.
+    const body = document.createElement("div");
+    body.className = "status-rows";
+    root.appendChild(body);
+    sections[kind] = { body, rows: new Map(), primed: false };
+  }
+
+  return { root, sections };
+}
+
+/**
+ * Keyed reconciliation: reuse a row element for every text still present, drop
+ * the rest, and move survivors into place. When nothing changed this walks the
+ * sibling list and performs zero DOM writes.
+ */
+function reconcileRows(section, texts) {
+  const pool = section.rows;
+  const nextRows = new Map();
+  const ordered = [];
+
+  for (const text of texts) {
+    const bucket = pool.get(text);
+    let el;
+    if (bucket && bucket.length) {
+      el = bucket.pop();
+      if (bucket.length === 0) pool.delete(text);
+    } else {
+      el = makeBoard(text, section.primed);
+    }
+    ordered.push(el);
+    const kept = nextRows.get(text);
+    if (kept) kept.push(el);
+    else nextRows.set(text, [el]);
+  }
+
+  for (const bucket of pool.values()) {
+    for (const el of bucket) el.remove();
+  }
+
+  const body = section.body;
+  let node = body.firstChild;
+  for (const el of ordered) {
+    if (node === el) {
+      node = node.nextSibling;
+      continue;
+    }
+    body.insertBefore(el, node);
+  }
+
+  section.rows = nextRows;
+  section.primed = true;
+}
+
+const byStandName = (a, b) =>
+  a.name < b.name ? -1 : a.name > b.name ? 1 : 0;
+
+/**
+ * One snapshot of every airport with its stands bucketed by state. Shared by
+ * the status board and the statistics chart, which never run at the same time
+ * because polling follows the visible page.
+ */
+async function fetchOccupancySnapshot() {
+  const headers = { "X-Internal-Request": "1" };
+  const json = (path) =>
+    fetch(API_BASE_URL + path, { headers })
       .then((res) => res.json())
       .catch(() => []);
 
-    // Fetch stands
-    const allOccupiedStands = await fetch(
-      API_BASE_URL + "/api/occupancy/occupied",
-      {
-        headers: { "X-Internal-Request": "1" },
-      }
-    ).then((res) => res.json());
-    const getAllAssignedStands = await fetch(
-      API_BASE_URL + "/api/occupancy/assigned",
-      {
-        headers: { "X-Internal-Request": "1" },
-      }
-    ).then((res) => res.json());
-    const getAllBlockedStands = await fetch(
-      API_BASE_URL + "/api/occupancy/blocked",
-      {
-        headers: { "X-Internal-Request": "1" },
-      }
-    ).then((res) => res.json());
+  // Four independent reads: issue them together instead of chaining awaits.
+  const [airportList, occupiedStands, assignedStands, blockedStands] =
+    await Promise.all([
+      json("/api/airports"),
+      json("/api/occupancy/occupied"),
+      json("/api/occupancy/assigned"),
+      json("/api/occupancy/blocked"),
+    ]);
+
+  const airports = {};
+  airportList.forEach((airport) => {
+    airports[airport.name] = {
+      name: airport.name,
+      standCount: airport.standCount || 0,
+      occupied: [],
+      assigned: [],
+      blocked: [],
+    };
+  });
+  const bucket = (list, kind) =>
+    list.forEach((stand) => {
+      const airport = airports[stand.icao];
+      if (airport) airport[kind].push(stand);
+    });
+  bucket(occupiedStands, "occupied");
+  bucket(assignedStands, "assigned");
+  bucket(blockedStands, "blocked");
+
+  return {
+    airports,
+    total: occupiedStands.length + assignedStands.length + blockedStands.length,
+  };
+}
+
+async function renderAirportsStatus() {
+  try {
+    const { airports, total } = await fetchOccupancySnapshot();
 
     // Check volume and toggle performance mode
-    const totalStands =
-      allOccupiedStands.length +
-      getAllBlockedStands.length +
-      getAllAssignedStands.length;
-    checkVolumeAndTogglePerformanceMode(totalStands);
+    checkVolumeAndTogglePerformanceMode(total);
 
     const statusContainer = document.getElementById("status-container");
     if (!statusContainer) {
       console.error("renderAirportsStatus: status-container not found");
       return;
     }
-    statusContainer.innerHTML = "";
 
-    // Build airport map
-    const airports = {};
-    airportList.forEach((airport) => {
-      airports[airport.name] = {
-        name: airport.name,
-        occupied: [],
-        assigned: [],
-        blocked: [],
-      };
-    });
-    // Assign stands
-    allOccupiedStands.forEach((stand) => {
-      const airportIcao = stand.icao;
-      if (airportIcao && airports[airportIcao]) {
-        airports[airportIcao].occupied.push(stand);
+    // Drop panels for airports that are no longer served.
+    for (const [icao, panel] of statusPanels) {
+      if (!airports[icao]) {
+        panel.root.remove();
+        statusPanels.delete(icao);
       }
-    });
-    getAllAssignedStands.forEach((stand) => {
-      const airportIcao = stand.icao;
-      if (airportIcao && airports[airportIcao]) {
-        airports[airportIcao].assigned.push(stand);
-      }
-    });
-    getAllBlockedStands.forEach((stand) => {
-      const airportIcao = stand.icao;
-      if (airportIcao && airports[airportIcao]) {
-        airports[airportIcao].blocked.push(stand);
-      }
-    });
+    }
 
-    renderAirportChart(airports);
+    for (const [icao, stands] of Object.entries(airports)) {
+      let panel = statusPanels.get(icao);
+      if (!panel) {
+        panel = createAirportPanel(icao);
+        statusPanels.set(icao, panel);
+        statusContainer.appendChild(panel.root);
+      }
 
-    // Render all airports
-    for (const [airportIcao, stands] of Object.entries(airports)) {
-      const subContainer = document.createElement("div");
-      subContainer.className = "airport-display subContainer";
-      subContainer.id = "airport-" + airportIcao;
-      subContainer.appendChild(
-        generateSpanforText(padAirportIcao(airportIcao))
-      );
-      subContainer.appendChild(generateSeparator());
-      subContainer.appendChild(generateSpanforText("Occupied Stands"));
-      subContainer.appendChild(generateSeparator());
-      if (stands.occupied.length === 0) {
-        subContainer.appendChild(generateSpanforText("None"));
-      } else {
-        stands.occupied.forEach((stand) => {
-          subContainer.appendChild(
-            generateSpanforText(
-              padStandName(stand.name) + "  " + stand.callsign
-            )
-          );
-        });
+      for (const [kind] of STATUS_SECTIONS) {
+        // Sorted by stand name so rows keep a stable position between polls -
+        // an arrival in the middle then moves one row instead of shifting all.
+        const texts =
+          stands[kind].length === 0
+            ? ["None"]
+            : stands[kind].slice().sort(byStandName).map(standLine);
+        reconcileRows(panel.sections[kind], texts);
       }
-      subContainer.appendChild(generateSeparator());
-      subContainer.appendChild(generateSpanforText("Assigned Stands"));
-      subContainer.appendChild(generateSeparator());
-      if (stands.assigned.length === 0) {
-        subContainer.appendChild(generateSpanforText("None"));
-      } else {
-        stands.assigned.forEach((stand) => {
-          subContainer.appendChild(
-            generateSpanforText(
-              padStandName(stand.name) + "  " + stand.callsign
-            )
-          );
-        });
-      }
-      subContainer.appendChild(generateSeparator());
-      subContainer.appendChild(generateSpanforText("Blocked Stands"));
-      subContainer.appendChild(generateSeparator());
-      if (stands.blocked.length === 0) {
-        subContainer.appendChild(generateSpanforText("None"));
-      } else {
-        stands.blocked.forEach((stand) => {
-          subContainer.appendChild(
-            generateSpanforText(
-              padStandName(stand.name) + "  " + stand.callsign
-            )
-          );
-        });
-      }
-      statusContainer.appendChild(subContainer);
     }
   } catch (error) {
     console.error("renderAirportsStatus: Error", error);
@@ -402,6 +513,12 @@ function updateChartColors(isDarkMode) {
   // Update airport chart if it exists
   if (airportChart) {
     airportChart.options.plugins.legend.labels.color = legendTextColor;
+    airportChart.options.scales.x.grid.color = gridColor;
+    airportChart.options.scales.y.grid.color = gridColor;
+    airportChart.options.scales.x.ticks.color = axisTextColor;
+    airportChart.options.scales.y.ticks.color = axisTextColor;
+    airportChart.options.scales.y.title.color = axisTextColor;
+    airportChart.data.datasets[3].backgroundColor = freeStandColor();
     airportChart.update("active");
   }
 }
@@ -525,22 +642,80 @@ function renderReportsChart(reportsData, requestsData = []) {
   }
 }
 
-function renderAirportChart(airports) {
-  // Convert airports object to array
-  const airportArr = Object.values(airports);
+// Stand occupancy per airport: a vertical stacked bar per airport where the
+// full column is that airport's stand count, so assigned and blocked are read
+// against capacity rather than as bare numbers.
+const OCCUPANCY_SERIES = [
+  { key: "occupied", label: "Occupied", color: "#36e695" },
+  { key: "assigned", label: "Assigned", color: "#30a9d8" },
+  { key: "blocked", label: "Blocked", color: "#e6a336" },
+  { key: "free", label: "Free", color: null }, // themed, see freeStandColor()
+];
 
-  const chartColors = [
-    "#36e695",
-    "#2fdba9",
-    "#2bccbc",
-    "#2cbbcc",
-    "#30a9d8",
-    "#3896dc",
-    "#4382df",
-    "#4f70d9",
-    "#5c60cc",
-    "#6650bc",
-  ];
+// Spare capacity is a backdrop rather than a value to read off, but a single
+// translucent grey disappears into the dark panel, so it follows the theme.
+function freeStandColor() {
+  return document.body.classList.contains("dark-mode")
+    ? "rgba(190, 196, 202, 0.32)"
+    : "rgba(118, 124, 130, 0.26)";
+}
+
+// Capacity ranges from 18 stands to 450, so plotting raw counts lets the
+// biggest airport flatten everything else. "share" normalises each column to
+// 100% of that airport's stands, which is the comparison worth making; "count"
+// keeps absolute numbers. Either way the tooltip carries both.
+let occupancyChartMode =
+  localStorage.getItem("occupancyChartMode") === "count" ? "count" : "share";
+
+function buildOccupancySeries(airports) {
+  const rows = Object.values(airports)
+    .filter((a) => a.standCount > 0)
+    .sort((a, b) => (a.name < b.name ? -1 : a.name > b.name ? 1 : 0));
+
+  return {
+    labels: rows.map((a) => a.name),
+    totals: rows.map((a) => a.standCount),
+    values: OCCUPANCY_SERIES.map((series) =>
+      rows.map((a) => {
+        if (series.key !== "free") return a[series.key].length;
+        const used = a.occupied.length + a.assigned.length + a.blocked.length;
+        // Clamp: blocked stands can in principle be counted alongside a stand
+        // that is already spoken for, and a bar must never run past capacity.
+        return Math.max(0, a.standCount - used);
+      })
+    ),
+  };
+}
+
+function toPlotted(values, totals) {
+  if (occupancyChartMode === "count") return values;
+  return values.map((row) =>
+    row.map((v, i) => (totals[i] ? (v / totals[i]) * 100 : 0))
+  );
+}
+
+function setOccupancyChartMode(mode) {
+  occupancyChartMode = mode === "count" ? "count" : "share";
+  localStorage.setItem("occupancyChartMode", occupancyChartMode);
+
+  document.querySelectorAll("[data-occupancy-mode]").forEach((btn) => {
+    btn.classList.toggle(
+      "active",
+      btn.dataset.occupancyMode === occupancyChartMode
+    );
+  });
+
+  if (!airportChart) return;
+  const share = occupancyChartMode === "share";
+  airportChart.data.datasets.forEach((dataset, i) => {
+    dataset.data = toPlotted(airportChart.$raw, airportChart.$totals)[i];
+  });
+  airportChart.options.scales.y.max = share ? 100 : undefined;
+  airportChart.options.scales.y.title.text = share ? "% of stands" : "Stands";
+  airportChart.update();
+}
+
+function renderAirportChart(airports) {
   const canvas = document.getElementById("airportChart");
   if (!canvas) {
     console.warn("renderAirportChart -> canvas#airportChart not found");
@@ -551,60 +726,111 @@ function renderAirportChart(airports) {
     return;
   }
 
-  const ctx = canvas.getContext("2d");
+  const { labels, totals, values } = buildOccupancySeries(airports);
+  const plotted = toPlotted(values, totals);
+  const share = occupancyChartMode === "share";
+  const isDarkMode = document.body.classList.contains("dark-mode");
+  const gridColor = isDarkMode ? "#666" : "#ddd";
+  const axisTextColor = isDarkMode ? "#ccc" : "#333";
 
-  if (!airportChart) {
-    airportChart = new Chart(ctx, {
-      type: "pie",
-      data: {
-        labels: airportArr.map((a) => a.name),
-        datasets: [
-          {
-            data: airportArr.map((a) => a.occupied.length),
-            backgroundColor: chartColors,
-            borderColor: "#5f5f5f",
-            borderWidth: 1,
+  if (airportChart) {
+    airportChart.data.labels = labels;
+    plotted.forEach((data, i) => {
+      airportChart.data.datasets[i].data = data;
+    });
+    airportChart.$totals = totals;
+    airportChart.$raw = values;
+    airportChart.update("none");
+    return;
+  }
+
+  // Absolute counts behind the plotted values, so tooltips can show both
+  // whichever mode the chart is in.
+  const raw = (item) => (airportChart.$raw[item.datasetIndex] || [])[item.dataIndex] || 0;
+
+  const ctx = canvas.getContext("2d");
+  airportChart = new Chart(ctx, {
+    type: "bar",
+    data: {
+      labels: labels,
+      datasets: OCCUPANCY_SERIES.map((series, i) => ({
+        label: series.label,
+        data: plotted[i],
+        backgroundColor: series.color || freeStandColor(),
+        borderColor: "#5f5f5f",
+        borderWidth: 1,
+      })),
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      animation: { duration: 250 },
+      scales: {
+        x: {
+          stacked: true,
+          grid: { color: gridColor, display: false },
+          ticks: { color: axisTextColor, autoSkip: false },
+        },
+        y: {
+          stacked: true,
+          beginAtZero: true,
+          max: share ? 100 : undefined,
+          grid: { color: gridColor },
+          ticks: { color: axisTextColor, precision: 0 },
+          title: {
+            display: true,
+            text: share ? "% of stands" : "Stands",
+            color: axisTextColor,
           },
-        ],
+        },
       },
-      options: {
-        responsive: true,
-        maintainAspectRatio: false,
-        plugins: {
-          legend: {
-            position: "top",
-            labels: {
-              color: "#b1b1b1ff",
+      plugins: {
+        legend: {
+          position: "top",
+          labels: { color: "#b1b1b1ff" },
+        },
+        tooltip: {
+          callbacks: {
+            title: (items) => {
+              const total = (airportChart.$totals || [])[items[0].dataIndex] || 0;
+              return items[0].label + " - " + total + " stands";
             },
-          },
-          tooltip: {
-            callbacks: {
-              label: (tooltipItem) => {
-                const label = tooltipItem.label || "";
-                const value = tooltipItem.raw || 0;
-                return label + ": " + value;
-              },
+            label: (item) => {
+              const total = (airportChart.$totals || [])[item.dataIndex] || 0;
+              const value = raw(item);
+              const pct = total ? Math.round((value / total) * 100) : 0;
+              return item.dataset.label + ": " + value + " (" + pct + "%)";
+            },
+            footer: (items) => {
+              const i = items[0].dataIndex;
+              const total = (airportChart.$totals || [])[i] || 0;
+              const free = (airportChart.$raw[3] || [])[i] || 0;
+              const used = total - free;
+              const pct = total ? Math.round((used / total) * 100) : 0;
+              return "In use: " + used + "/" + total + " (" + pct + "%)";
             },
           },
         },
       },
-    });
-  } else {
-    airportChart.data.labels = airportArr.map((a) => a.name);
-    airportChart.data.datasets[0].data = airportArr.map(
-      (a) => a.occupied.length
-    );
-    airportChart.update("none");
-  }
+    },
+  });
+  airportChart.$totals = totals;
+  airportChart.$raw = values;
 }
 
 async function refreshStatsChart() {
   try {
-    const reportsData = await fetchReportsPerHour();
-    const requestsData = await fetchRequestsPerHour();
+    // The occupancy chart used to be driven from the status page, so it stayed
+    // empty if you opened statistics directly. It now fetches its own snapshot.
+    const [reportsData, requestsData, snapshot] = await Promise.all([
+      fetchReportsPerHour(),
+      fetchRequestsPerHour(),
+      fetchOccupancySnapshot().catch(() => null),
+    ]);
 
     // Pass both datasets to the chart
     renderReportsChart(reportsData, requestsData);
+    if (snapshot) renderAirportChart(snapshot.airports);
 
     totalRequests = requestsData.reduce((sum, d) => sum + d.count, 0);
     totalReports = reportsData.reduce((sum, d) => sum + d.count, 0);
@@ -632,8 +858,10 @@ document.addEventListener("DOMContentLoaded", () => {
   setTimeout(() => {
     refreshStatsChart();
   }, 200);
+  // reflect the persisted mode on the toggle buttons
+  setOccupancyChartMode(occupancyChartMode);
   // refresh every 10 seconds
-  setInterval(refreshStatsChart, 10000);
+  pollOnPage("statistics", refreshStatsChart, 10000);
 });
 
 // Log management
@@ -1034,12 +1262,17 @@ function scrollToBottom() {
 
 // Initial render and periodic refresh
 document.addEventListener("DOMContentLoaded", () => {
-  renderAirportsStatus();
+  // Paint the board once if it is the landing page. Only polling is gated on
+  // document visibility - a first render still has to happen for a tab that
+  // opens in the background.
+  if (activePage === "status") renderAirportsStatus();
   renderConfigButtons();
 
-  // Initial log setup
-  populateLogFilters();
-  fetchFilteredLogs();
+  // Initial log setup (the log page is admin-only; arriving there loads these)
+  if (activePage === "log") {
+    populateLogFilters();
+    fetchFilteredLogs();
+  }
 
   // Set up infinite scroll on logContainer
   const logContainer = document.getElementById("logContainer");
@@ -1089,11 +1322,17 @@ document.addEventListener("DOMContentLoaded", () => {
   if (categorySelect)
     categorySelect.addEventListener("change", () => fetchFilteredLogs(true));
 
-  setInterval(renderAirportsStatus, 10000);
-  setInterval(populateLogFilters, 5000);
+  pollOnPage("status", renderAirportsStatus, 10000);
+  onPageEnter("status", renderAirportsStatus);
+
+  pollOnPage("log", populateLogFilters, 5000);
+  onPageEnter("log", () => {
+    populateLogFilters();
+    fetchFilteredLogs(true);
+  });
 
   // Fetch new logs periodically - only if auto-scroll is enabled
-  setInterval(() => {
+  pollOnPage("log", () => {
     if (!isLoading && autoScroll) {
       // Only fetch latest logs when user wants auto-scroll
       currentPage = 1;
@@ -1162,7 +1401,9 @@ document.addEventListener("DOMContentLoaded", () => {
 
     function route() {
       const hash = location.hash.replace("#", "") || "status";
+      activePage = hash;
       showPage(hash);
+      firePageEnter(hash);
     }
 
     // initialize
@@ -1523,9 +1764,14 @@ function initializeMap() {
     fetchOccupiedStands();
     fetchAssignedStands();
     fetchBlockedStands();
-    setInterval(fetchOccupiedStands, 10000);
-    setInterval(fetchAssignedStands, 10000);
-    setInterval(fetchBlockedStands, 10000);
+    pollOnPage("standMap", fetchOccupiedStands, 10000);
+    pollOnPage("standMap", fetchAssignedStands, 10000);
+    pollOnPage("standMap", fetchBlockedStands, 10000);
+    onPageEnter("standMap", () => {
+      fetchOccupiedStands();
+      fetchAssignedStands();
+      fetchBlockedStands();
+    });
 
     // Add map event handlers
     map.on("zoomend", updateMarkerSizes);
@@ -1565,8 +1811,17 @@ function initializeMap() {
     var homeControl = new HomeControl({ position: "topleft" });
     homeControl.addTo(map);
 
-    // Load stands and airports data
-    loadMapData();
+    // Load stands and airports data. Deferred to the first visit: it pulls the
+    // full stand list (~150 kB) and builds a marker per stand, which was
+    // competing with the first paint of whichever page you actually opened.
+    let mapDataLoaded = false;
+    const loadMapDataOnce = () => {
+      if (mapDataLoaded) return;
+      mapDataLoaded = true;
+      loadMapData();
+    };
+    if (activePage === "standMap") loadMapDataOnce();
+    else onPageEnter("standMap", loadMapDataOnce);
   } catch (error) {
     console.error("Failed to initialize map:", error);
   }
@@ -1749,7 +2004,7 @@ function loadMapData() {
     });
 
   // Update stand colors periodically
-  setInterval(() => {
+  pollOnPage("standMap", () => {
     if (!Array.isArray(stands) || stands.length === 0) return;
     stands.forEach((stand) => {
       if (!stand || !stand.circle) return;
@@ -2154,7 +2409,8 @@ function updateControllerNumber() {
     });
 }
 
-setInterval(updateControllerNumber, 15000); // update every 15 seconds
+pollOnPage("dashboard", updateControllerNumber, 15000); // update every 15 seconds
+onPageEnter("dashboard", updateControllerNumber);
 
 // Swipe buttons
 (function enableRowSwipeActions() {

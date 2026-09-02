@@ -1,44 +1,24 @@
 const { info, warn, error } = require("../utils/logger");
 const airportService = require("./airportService");
-const { haversineMeters } = require("../utils/utils");
+const airportIndex = require("./airportIndex");
+const { haversineMeters, withinRadius } = require("../utils/utils");
 
-// Cache for parsed coordinates to avoid repeated string splitting
-const coordinateCache = new Map(); // key: "lat:lon:alt" -> { lat, lon, radius }
-
-// Cache to avoid log flooding when unknown aircraft types are encountered
+// Caches that only exist to stop log flooding when the same condition repeats
+// on every datafeed cycle.
 const aircraftTypeCache = new Set();
-
-// Cache for no stand found error
 const noStandFoundCache = new Set();
+const searchLoggedCache = new Set();
+const missingCoordsCache = new Set();
 
 setInterval(() => {
-  coordinateCache.clear();
   aircraftTypeCache.clear();
   noStandFoundCache.clear();
+  searchLoggedCache.clear();
+  missingCoordsCache.clear();
 }, 60 * 60 * 1000); // Clear every hour
 
-// Helper to parse and cache coordinates
-function parseCoordinates(coordString, defaultRadius = 30) {
-  if (!coordString) return null;
-
-  let cached = coordinateCache.get(coordString);
-  if (cached) return cached;
-
-  const parts = String(coordString).split(":");
-  if (parts.length < 2) return null;
-
-  const lat = parseFloat(parts[0]);
-  const lon = parseFloat(parts[1]);
-
-  if (isNaN(lat) || isNaN(lon)) return null;
-
-  const radius = parts[2] ? parseFloat(parts[2]) : defaultRadius;
-
-  cached = { lat, lon, radius };
-  coordinateCache.set(coordString, cached);
-
-  return cached;
-}
+const MAX_DISTANCE = Number.MAX_SAFE_INTEGER;
+const METERS_TO_NM = 0.00053996;
 
 class Stand {
   constructor(name, icao, callsign, remark = "", apronSize = 0) {
@@ -48,20 +28,23 @@ class Stand {
     this.remark = remark;
     this.apronSize = apronSize;
     this.timestamp = Date.now();
+
+    // Identity fields never change after construction, so both keys are built
+    // once here rather than on every registry lookup.
+    this.slot = `${icao}:${name}`;
+    this._key = apronSize > 0 ? `${this.slot}:${callsign}` : this.slot;
   }
 
   // Hash function for the Stand class
   key() {
-    return this.apronSize > 0
-      ? `${this.icao}:${this.name}:${this.callsign}`
-      : `${this.icao}:${this.name}`;
+    return this._key;
   }
 
   equals(other) {
     return (
       this.icao === other.icao &&
       this.name === other.name &&
-      this.callsign === other.callsign && 
+      this.callsign === other.callsign &&
       this.apronSize === other.apronSize
     );
   }
@@ -78,95 +61,239 @@ class Stand {
   }
 }
 
+// Small helpers for the "key -> count" secondary indexes.
+function bump(map, key) {
+  map.set(key, (map.get(key) || 0) + 1);
+}
+function drop(map, key) {
+  const n = map.get(key);
+  if (n === undefined) return;
+  if (n <= 1) map.delete(key);
+  else map.set(key, n - 1);
+}
+function addTo(map, key, value) {
+  let set = map.get(key);
+  if (!set) map.set(key, (set = new Set()));
+  set.add(value);
+}
+function removeFrom(map, key, value) {
+  const set = map.get(key);
+  if (!set) return;
+  set.delete(value);
+  if (set.size === 0) map.delete(key);
+}
+
+/**
+ * Stand bookkeeping for every tracked airport.
+ *
+ * The three primary Maps are the source of truth. Everything else is a
+ * secondary index kept in step by add/remove, so that the questions the
+ * datafeed loop asks thousands of times per cycle - "is this slot taken?",
+ * "what does this callsign hold?", "how full is this apron?" - are O(1)
+ * instead of a linear scan (and an array allocation) over the whole registry.
+ */
 class StandRegistry {
   constructor() {
     this.occupied = new Map(); // key -> Stand
     this.assigned = new Map(); // key -> Stand
     this.blocked = new Map(); // key -> Stand
+
+    this.occupiedByCallsign = new Map(); // callsign -> Set<Stand>
+    this.assignedByCallsign = new Map();
+    this.blockedByCallsign = new Map();
+
+    // Per slot ("ICAO:name") counters, split by whether the stand is an apron.
+    this.occupiedSimple = new Map(); // slot -> count
+    this.occupiedApron = new Map(); // slot -> count
+    this.assignedSimple = new Map();
+    this.assignedApron = new Map();
+    this.apronCapacity = new Map(); // slot -> declared apron size
+
+    // Bumped on every mutation so read endpoints can cache their serialised
+    // payload and skip rebuilding it between datafeed cycles.
+    this.version = 0;
+  }
+
+  _index(stand, byCallsign, simple, apron) {
+    addTo(byCallsign, stand.callsign, stand);
+    if (stand.apronSize > 0) {
+      bump(apron, stand.slot);
+      this.apronCapacity.set(stand.slot, stand.apronSize);
+    } else {
+      bump(simple, stand.slot);
+    }
+  }
+
+  _unindex(stand, byCallsign, simple, apron) {
+    removeFrom(byCallsign, stand.callsign, stand);
+    if (stand.apronSize > 0) drop(apron, stand.slot);
+    else drop(simple, stand.slot);
   }
 
   addOccupied(stand) {
-    this.occupied.set(stand.key(), stand);
+    const key = stand.key();
+    const previous = this.occupied.get(key);
+    if (previous) {
+      this._unindex(
+        previous,
+        this.occupiedByCallsign,
+        this.occupiedSimple,
+        this.occupiedApron
+      );
+    }
+    this.occupied.set(key, stand);
+    this._index(
+      stand,
+      this.occupiedByCallsign,
+      this.occupiedSimple,
+      this.occupiedApron
+    );
+    this.version++;
   }
 
   removeOccupied(stand) {
-    this.occupied.delete(stand.key());
+    const key = stand.key();
+    const current = this.occupied.get(key);
+    if (!current) return;
+    this.occupied.delete(key);
+    this._unindex(
+      current,
+      this.occupiedByCallsign,
+      this.occupiedSimple,
+      this.occupiedApron
+    );
+    this.version++;
   }
 
   addAssigned(stand) {
-    this.assigned.set(stand.key(), stand);
+    const key = stand.key();
+    const previous = this.assigned.get(key);
+    if (previous) {
+      this._unindex(
+        previous,
+        this.assignedByCallsign,
+        this.assignedSimple,
+        this.assignedApron
+      );
+    }
+    this.assigned.set(key, stand);
+    this._index(
+      stand,
+      this.assignedByCallsign,
+      this.assignedSimple,
+      this.assignedApron
+    );
+    this.version++;
   }
 
   removeAssigned(stand) {
-    this.assigned.delete(stand.key());
+    const key = stand.key();
+    const current = this.assigned.get(key);
+    if (!current) return;
+    this.assigned.delete(key);
+    this._unindex(
+      current,
+      this.assignedByCallsign,
+      this.assignedSimple,
+      this.assignedApron
+    );
+    this.version++;
   }
 
   addBlocked(stand) {
-    this.blocked.set(stand.key(), stand);
+    const key = stand.key();
+    const previous = this.blocked.get(key);
+    if (previous) removeFrom(this.blockedByCallsign, previous.callsign, previous);
+    this.blocked.set(key, stand);
+    addTo(this.blockedByCallsign, stand.callsign, stand);
+    this.version++;
   }
 
   removeBlocked(stand) {
-    this.blocked.delete(stand.key());
+    const key = stand.key();
+    const current = this.blocked.get(key);
+    if (!current) return;
+    this.blocked.delete(key);
+    removeFrom(this.blockedByCallsign, current.callsign, current);
+    this.version++;
+  }
+
+  /** First occupied stand held by a callsign, or undefined. */
+  firstOccupiedOf(callsign) {
+    const set = this.occupiedByCallsign.get(callsign);
+    if (!set) return undefined;
+    return set.values().next().value;
+  }
+
+  /** First assigned stand held by a callsign, or undefined. */
+  firstAssignedOf(callsign) {
+    const set = this.assignedByCallsign.get(callsign);
+    if (!set) return undefined;
+    return set.values().next().value;
+  }
+
+  blockedOf(callsign) {
+    return this.blockedByCallsign.get(callsign);
+  }
+
+  removeAllOccupiedOf(callsign) {
+    const set = this.occupiedByCallsign.get(callsign);
+    if (!set) return;
+    for (const stand of Array.from(set)) this.removeOccupied(stand);
+  }
+
+  removeAllAssignedOf(callsign) {
+    const set = this.assignedByCallsign.get(callsign);
+    if (!set) return;
+    for (const stand of Array.from(set)) this.removeAssigned(stand);
+  }
+
+  removeAllBlockedOf(callsign) {
+    const set = this.blockedByCallsign.get(callsign);
+    if (!set) return;
+    for (const stand of Array.from(set)) this.removeBlocked(stand);
+  }
+
+  apronLevelOfSlot(slot) {
+    return (this.occupiedApron.get(slot) || 0) + (this.assignedApron.get(slot) || 0);
   }
 
   getApronOccupancyLevel(standName, icao) {
     // Count how many pilot have this stand assigned or occupied
-    let count = 0;
-    for (const stand of this.occupied.values()) {
-      if (stand.name === standName && stand.icao === icao && stand.apronSize > 0) {
-        count++;
-      }
+    return this.apronLevelOfSlot(`${icao}:${standName}`);
+  }
+
+  _slotTaken(slot, simple, apron) {
+    if (simple.has(slot)) return true;
+    if (apron.has(slot)) {
+      const capacity = this.apronCapacity.get(slot);
+      if (this.apronLevelOfSlot(slot) >= capacity) return true;
     }
-    for (const stand of this.assigned.values()) {
-      if (stand.name === standName && stand.icao === icao && stand.apronSize > 0) {
-        count++;
-      }
-    }
-    return count;
+    return false;
   }
 
   isOccupied(icao, name) {
-    // For non-apron stands, check simple key
-    const simpleOccupied = Array.from(this.occupied.values()).find(
-      s => s.icao === icao && s.name === name && s.apronSize === 0
+    return this._slotTaken(
+      `${icao}:${name}`,
+      this.occupiedSimple,
+      this.occupiedApron
     );
-    if (simpleOccupied) return true;
-
-    // For apron stands, check if capacity is reached
-    const apronStand = Array.from(this.occupied.values()).filter(
-      s => s.icao === icao && s.name === name && s.apronSize > 0
-    );
-    if (apronStand.length > 0) {
-      if(this.getApronOccupancyLevel(name, icao) >= apronStand[0].apronSize) {
-        return true;
-      }
-    }
-
-    return false;
   }
 
   isAssigned(icao, name) {
-    // For non-apron stands, check simple key
-    const simpleAssigned = Array.from(this.assigned.values()).find(
-      s => s.icao === icao && s.name === name && s.apronSize === 0
+    return this._slotTaken(
+      `${icao}:${name}`,
+      this.assignedSimple,
+      this.assignedApron
     );
-    if (simpleAssigned) return true;
-
-    // For apron stands, check if capacity is reached
-    const apronStand = Array.from(this.assigned.values()).filter(
-      s => s.icao === icao && s.name === name && s.apronSize > 0
-    );
-    if (apronStand.length > 0) {
-      if(this.getApronOccupancyLevel(name, icao) >= apronStand[0].apronSize) {
-        return true;
-      }
-    }
-
-    return false;
   }
 
   isBlocked(icao, name) {
     return this.blocked.has(`${icao}:${name}`);
+  }
+
+  getBlocked(icao, name) {
+    return this.blocked.get(`${icao}:${name}`);
   }
 
   getAllOccupied() {
@@ -183,9 +310,9 @@ class StandRegistry {
 
   clearExpired(predicateFn) {
     // e.g. remove old stands if needed
-    for (const [key, stand] of this.occupied) {
+    for (const stand of Array.from(this.occupied.values())) {
       if (predicateFn(stand)) {
-        this.occupied.delete(key);
+        this.removeOccupied(stand);
         info(
           `Clearing expired occupied stand ${stand.name} at ${stand.icao} for ${stand.callsign}`,
           {
@@ -196,9 +323,9 @@ class StandRegistry {
         );
       }
     }
-    for (const [key, stand] of this.assigned) {
+    for (const stand of Array.from(this.assigned.values())) {
       if (predicateFn(stand)) {
-        this.assigned.delete(key);
+        this.removeAssigned(stand);
         info(
           `Clearing expired assigned stand ${stand.name} at ${stand.icao} for ${stand.callsign}`,
           {
@@ -209,9 +336,9 @@ class StandRegistry {
         );
       }
     }
-    for (const [key, stand] of this.blocked) {
+    for (const stand of Array.from(this.blocked.values())) {
       if (predicateFn(stand)) {
-        this.blocked.delete(key);
+        this.removeBlocked(stand);
         info(
           `Clearing expired blocked stand ${stand.name} at ${stand.icao} for ${stand.callsign}`,
           {
@@ -227,364 +354,249 @@ class StandRegistry {
 
 const registry = new StandRegistry();
 
-const isAircraftOnStand = async (
-  config,
-  ac,
-  airportSet,
-  airportConfigCache
-) => {
+// Scratch buffers reused across calls. Both consumers are synchronous and
+// non-reentrant, so this avoids an array allocation per aircraft.
+const candidateScratch = [];
+const availableScratch = [];
+
+/**
+ * Finds the stand an aircraft is parked on, setting ac.origin to the airport it
+ * was found at. Returns "" when it is not on a stand at a tracked airport.
+ */
+function findAircraftStand(derived, ac, compiledAirports) {
   if (!ac || !ac.latitude || !ac.longitude) {
     return "";
   }
 
+  const lat = ac.latitude;
+  const lon = ac.longitude;
+
   // Find current airport
-  for (const airport of airportSet) {
-    try {
-      // Use cached airport config
-      let airportJson = airportConfigCache.get(airport);
-      if (!airportJson) {
-        airportJson = await airportService.getAirportConfig(airport);
-        if (airportJson) {
-          airportConfigCache.set(airport, airportJson);
-        }
-      }
-
-      if (airportJson && airportJson.Coordinates && airportJson.ICAO) {
-        const coords = parseCoordinates(airportJson.Coordinates, 5000);
-        if (!coords) continue;
-
-        const aircraftDist = haversineMeters(
-          ac.latitude,
-          ac.longitude,
-          coords.lat,
-          coords.lon
-        );
-        if (aircraftDist <= coords.radius) {
-          ac.origin = airportJson.ICAO;
-          break;
-        }
-      }
-    } catch (err) {
-      // Skip this airport if config cannot be loaded
-      warn(`Could not load config for airport ${airport}: ${err.message}`, {
-        category: "System",
-        icao: airport,
-      });
-      continue;
+  let airport = null;
+  for (let i = 0; i < compiledAirports.length; i++) {
+    const candidate = compiledAirports[i];
+    if (!candidate.hasCoords) continue;
+    if (withinRadius(lat, lon, candidate.lat, candidate.lon, candidate.radius)) {
+      ac.origin = candidate.icao;
+      airport = candidate;
+      break;
     }
   }
 
-  // If still N/A after checking all airports, traffic is not of interest
-  if (!ac.origin || ac.origin === "N/A" || ac.origin === "") {
+  // If no airport matched, traffic is not of interest
+  if (!airport) {
     return "";
   }
 
-  if (!airportSet.has(ac.origin)) {
-    return "";
-  }
+  const stands = airport.stands;
+  for (let i = 0; i < stands.length; i++) {
+    const stand = stands[i];
+    if (!stand.hasCoords) continue;
 
-  // Load airport data from cache or service
-  let airportData = airportConfigCache.get(ac.origin);
-  if (!airportData) {
-    airportData = await airportService.getAirportConfig(ac.origin);
-    if (airportData) {
-      airportConfigCache.set(ac.origin, airportData);
+    // Aprons are polygons, and take precedence over the radius check.
+    if (stand.apronRing && stand.isInApron(lat, lon)) {
+      return stand.name;
     }
-  }
 
-  if (!airportData || !airportData.Stands) {
-    return "";
-  }
+    if (!withinRadius(lat, lon, stand.lat, stand.lon, stand.radius)) continue;
 
-  for (const [standName, standDef] of Object.entries(airportData.Stands)) {
-    if (!standDef.Coordinates) continue;
-
-    const coords = parseCoordinates(standDef.Coordinates, 30);
-    if (!coords) continue;
-
-    const aircraftDist = haversineMeters(
-      ac.latitude,
-      ac.longitude,
-      coords.lat,
-      coords.lon
-    );
-
-    if (
-      standDef.Apron &&
-      standDef.Apron.Coordinates &&
-      Array.isArray(standDef.Apron.Coordinates)
-    ) {
-      // Check if aircraft is inside apron polygon
-      const apronCoords = standDef.Apron.Coordinates.map((coordString) => {
-        const coord = parseCoordinates(coordString);
-        return coord ? { lat: coord.lat, lon: coord.lon } : null;
-      }).filter((c) => c !== null);
-
-      if (
-        isPointInPolygon({ lat: ac.latitude, lon: ac.longitude }, apronCoords)
-      ) {
-        return standName;
+    const aircraftType = ac.flight_plan && ac.flight_plan.aircraft_short;
+    if (!aircraftType || aircraftType === "UNKNOWN") {
+      if (ac.flight_plan) {
+        warn(`Aircraft ${ac.callsign} on ground at ${ac.origin} has unknown type`, {
+          category: "Missing Data",
+          callsign: ac.callsign,
+          icao: ac.origin,
+        });
       }
+      return stand.name;
     }
-    if (aircraftDist <= coords.radius) {
-      if (
-        !ac.flight_plan ||
-        !ac.flight_plan.aircraft_short ||
-        ac.flight_plan.aircraft_short === "UNKNOWN" ||
-        ac.flight_plan.aircraft_short === ""
-      ) {
-        if (ac.flight_plan) {
-          warn(
-            `Aircraft ${ac.callsign} on ground at ${ac.origin} has unknown type`,
-            { category: "Missing Data", callsign: ac.callsign, icao: ac.origin }
-          );
-        }
-        return standName;
-      }
-      if (!standDef.Block) {
-        return standName;
-      }
 
-      // Convert Block array to Set for easier manipulation
-      const potentialStands = new Set(standDef.Block);
-      potentialStands.add(standName); // Include the original stand as potential
-      // Remove stands where aircraft is not located
-      for (const potentialStandName of potentialStands) {
-        const potentialStandDef = airportData.Stands[potentialStandName];
-        if (!potentialStandDef || !potentialStandDef.Coordinates) {
-          potentialStands.delete(potentialStandName);
-          continue;
-        }
-
-        const coords = parseCoordinates(potentialStandDef.Coordinates, 30);
-        if (!coords) {
-          potentialStands.delete(potentialStandName);
-          continue;
-        }
-
-        const dist = haversineMeters(
-          ac.latitude,
-          ac.longitude,
-          coords.lat,
-          coords.lon
-        );
-
-        if (dist > coords.radius) {
-          potentialStands.delete(potentialStandName);
-        }
-      }
-
-      // We have a list of all stands on which the aircraft is located
-      // Now select the most appropriate one based on criteria
-      let bestPriority = Number.MAX_SAFE_INTEGER;
-
-      for (const potentialStandName of potentialStands) {
-        const wingspan = getAircraftWingspan(
-          config,
-          ac.flight_plan.aircraft_short
-        );
-        const aircraftCode = getAircraftCode(wingspan);
-        const potentialStandDef = airportData.Stands[potentialStandName];
-
-        // Remove stands that don't match aircraft code
-        if (
-          potentialStandDef.Code &&
-          !potentialStandDef.Code.includes(aircraftCode)
-        ) {
-          potentialStands.delete(potentialStandName);
-          continue;
-        }
-
-        // Find the lowest priority
-        const priority = potentialStandDef.Priority || Number.MAX_SAFE_INTEGER;
-        if (priority < bestPriority) {
-          bestPriority = priority;
-        }
-      }
-
-      // Keep only stands with the lowest priority
-      for (const potentialStandName of potentialStands) {
-        const potentialStandDef = airportData.Stands[potentialStandName];
-        const priority = potentialStandDef.Priority || Number.MAX_SAFE_INTEGER;
-        if (priority > bestPriority) {
-          potentialStands.delete(potentialStandName);
-        }
-      }
-      // If no potential stands remain, return the original stand
-      if (potentialStands.size === 0) {
-        return standName;
-      }
-
-      // Return first stand from potential stands
-      return potentialStands.values().next().value;
+    if (!stand.block) {
+      return stand.name;
     }
+
+    // Candidates are the stands this one blocks, then itself - the same order
+    // the previous Set-based implementation produced.
+    const candidates = candidateScratch;
+    candidates.length = 0;
+    let selfIncluded = false;
+    for (let b = 0; b < stand.block.length; b++) {
+      const name = stand.block[b];
+      if (name === stand.name) selfIncluded = true;
+      const blocked = airport.standsByName.get(name);
+      if (blocked) candidates.push(blocked);
+    }
+    if (!selfIncluded) candidates.push(stand);
+
+    // Keep only the stands the aircraft is actually sitting within.
+    let kept = 0;
+    for (let c = 0; c < candidates.length; c++) {
+      const candidate = candidates[c];
+      if (!candidate.hasCoords) continue;
+      if (!withinRadius(lat, lon, candidate.lat, candidate.lon, candidate.radius))
+        continue;
+      candidates[kept++] = candidate;
+    }
+    candidates.length = kept;
+
+    // Drop stands that cannot take this aircraft, tracking the best priority.
+    const aircraftCode = getAircraftCode(getAircraftWingspan(derived, aircraftType));
+    let bestPriority = MAX_DISTANCE;
+    kept = 0;
+    for (let c = 0; c < candidates.length; c++) {
+      const candidate = candidates[c];
+      if (candidate.code && !candidate.code.includes(aircraftCode)) continue;
+      candidates[kept++] = candidate;
+      const priority = candidate.priority || MAX_DISTANCE;
+      if (priority < bestPriority) bestPriority = priority;
+    }
+    candidates.length = kept;
+
+    // Keep only stands with the lowest priority
+    kept = 0;
+    for (let c = 0; c < candidates.length; c++) {
+      if ((candidates[c].priority || MAX_DISTANCE) > bestPriority) continue;
+      candidates[kept++] = candidates[c];
+    }
+    candidates.length = kept;
+
+    // If no potential stands remain, return the original stand
+    if (candidates.length === 0) return stand.name;
+    return candidates[0].name;
   }
+
   return "";
-};
+}
 
-const blockStands = (standDef, icao, callsign) => {
-  if (standDef && standDef.Block && Array.isArray(standDef.Block)) {
-    for (const blockedStandName of standDef.Block) {
-      const blockedStand = new Stand(
-        blockedStandName,
-        icao || "UNKNOWN",
-        callsign,
-        "",
-        0
-      );
-      registry.addBlocked(blockedStand);
-    }
+const blockStands = (compiledStand, icao, callsign) => {
+  const block = compiledStand && compiledStand.block;
+  if (!block) return;
+  for (let i = 0; i < block.length; i++) {
+    registry.addBlocked(new Stand(block[i], icao || "UNKNOWN", callsign, "", 0));
   }
 };
 
-function isPointInPolygon(point, polygon) {
-  // Ray casting algorithm for point-in-polygon
-  let inside = false;
-  for (let i = 0, j = polygon.length - 1; i < polygon.length; j = i++) {
-    const xi = polygon[i].lon,
-      yi = polygon[i].lat;
-    const xj = polygon[j].lon,
-      yj = polygon[j].lat;
-
-    const x = point.lon,
-      y = point.lat;
-    const intersect =
-      yi > y !== yj > y && x < ((xj - xi) * (y - yi)) / (yj - yi) + xi;
-    if (intersect) inside = !inside;
-  }
-  return inside;
-}
-
-async function getAirportCoordinates(icao) {
-  const airport = await airportService.getAirportConfig(icao);
-  if (!airport || !airport.Coordinates) {
-    error(`Cannot retrieve coordinates for airport ${icao}`, {
-      category: "Assignation",
-      icao: icao,
-    });
-    return null;
-  }
-  let coordinates = parseCoordinates(airport.Coordinates, 5000);
-  return coordinates;
-}
-
-async function calculateRemainingDistance(ac) {
+function calculateRemainingDistance(ac, destination) {
   if (
     !ac.flight_plan ||
     !ac.flight_plan.arrival ||
     !ac.latitude ||
     !ac.longitude
   ) {
-    return Number.MAX_SAFE_INTEGER;
+    return MAX_DISTANCE;
   }
-  const destCoords = await getAirportCoordinates(ac.flight_plan.arrival);
-  if (!destCoords) {
-    return Number.MAX_SAFE_INTEGER;
+  if (!destination || !destination.hasCoords) {
+    if (!missingCoordsCache.has(ac.destination)) {
+      error(`Cannot retrieve coordinates for airport ${ac.destination}`, {
+        category: "Assignation",
+        icao: ac.destination,
+      });
+      missingCoordsCache.add(ac.destination);
+    }
+    return MAX_DISTANCE;
   }
-  const dist = haversineMeters(
-    ac.latitude,
-    ac.longitude,
-    destCoords.lat,
-    destCoords.lon
-  );
-  return dist; // distance in meters
+  return haversineMeters(ac.latitude, ac.longitude, destination.lat, destination.lon);
 }
 
-async function isConcernedArrival(ac, config, airportSet) {
+function isConcernedArrival(ac, config, derived, destination) {
   if (!ac || !ac.destination || !ac.longitude || !ac.latitude) {
     return false;
   }
-  if (!airportSet.has(ac.destination)) {
+  if (!destination) {
     return false;
   }
-  if (config.extended_icaos && config.extended_icaos.includes(ac.destination)) {
-    if (ac.altitude > config.max_alt_extended) {
-      return false;
-    }
-    ac.remainingDistance = await calculateRemainingDistance(ac);
-    if (ac.remainingDistance * 0.00053996 > config.max_distance_extended) {
-      // convert to nautical miles
-      return false;
-    }
-    
-  } else {
-    if (ac.altitude > config.max_alt) {
-      return false;
-    }
-    ac.remainingDistance = await calculateRemainingDistance(ac);
-    if (ac.remainingDistance * 0.00053996 > config.max_distance) {
-      // convert to nautical miles
-      return false;
-    }
+
+  const extended = derived.extendedIcaos.has(ac.destination);
+  const maxAlt = extended ? config.max_alt_extended : config.max_alt;
+  const maxDistance = extended ? config.max_distance_extended : config.max_distance;
+
+  if (ac.altitude > maxAlt) {
+    return false;
+  }
+  ac.remainingDistance = calculateRemainingDistance(ac, destination);
+  if (ac.remainingDistance * METERS_TO_NM > maxDistance) {
+    // convert to nautical miles
+    return false;
   }
   return true;
 }
 
+const SCHENGEN_PREFIXES = new Set([
+  "LF", // France
+  "LS", // Switzerland
+  "ED", // Germany (civil)
+  "ET", // Germany (military)
+  "LO", // Austria
+  "EB", // Belgium
+  "EL", // Luxembourg
+  "EH", // Netherlands
+  "EK", // Denmark
+  "ES", // Sweden
+  "EN", // Norway
+  "EF", // Finland
+  "EE", // Estonia
+  "EV", // Latvia
+  "EY", // Lithuania
+  "EP", // Poland
+  "LK", // Czech Republic
+  "LZ", // Slovakia
+  "LH", // Hungary
+  "LJ", // Slovenia
+  "LD", // Croatia
+  "LI", // Italy
+  "LG", // Greece
+  "LE", // Spain
+  "LP", // Portugal
+  "LM", // Malta
+  "BI", // Iceland
+  "LB", // Bulgaria
+  "LR", // Romania
+]);
+
 function isSchengen(origin, destination) {
   if (!origin || !destination) return false;
-  const originPrefix = origin.substring(0, 2).toUpperCase();
-  const destPrefix = destination.substring(0, 2).toUpperCase();
-  return isSchengenPrefix(originPrefix) && isSchengenPrefix(destPrefix);
-}
-
-function isSchengenPrefix(prefix) {
   return (
-    prefix == "LF" || // France
-    prefix == "LS" || // Switzerland
-    prefix == "ED" || // Germany (civil)
-    prefix == "ET" || // Germany (military)
-    prefix == "LO" || // Austria
-    prefix == "EB" || // Belgium
-    prefix == "EL" || // Luxembourg
-    prefix == "EH" || // Netherlands
-    prefix == "EK" || // Denmark
-    prefix == "ES" || // Sweden
-    prefix == "EN" || // Norway
-    prefix == "EF" || // Finland
-    prefix == "EE" || // Estonia
-    prefix == "EV" || // Latvia
-    prefix == "EY" || // Lithuania
-    prefix == "EP" || // Poland
-    prefix == "LK" || // Czech Republic
-    prefix == "LZ" || // Slovakia
-    prefix == "LH" || // Hungary
-    prefix == "LJ" || // Slovenia
-    prefix == "LD" || // Croatia
-    prefix == "LI" || // Italy
-    prefix == "LG" || // Greece
-    prefix == "LE" || // Spain
-    prefix == "LP" || // Portugal
-    prefix == "LM" || // Malta
-    prefix == "BI" || // Iceland
-    prefix == "LB" || // Bulgaria
-    prefix == "LR"
-  ); // Romania
+    SCHENGEN_PREFIXES.has(origin.substring(0, 2).toUpperCase()) &&
+    SCHENGEN_PREFIXES.has(destination.substring(0, 2).toUpperCase())
+  );
 }
 
-function getAircraftWingspan(config, aircraftType) {
+function getAircraftWingspan(derived, aircraftType) {
   if (
     !aircraftType ||
     typeof aircraftType !== "string" ||
     aircraftType === "ZZZZ"
   )
     return 81;
-  const wingspan = config.AircraftWingspans[aircraftType.toUpperCase()];
-  if (!wingspan) {
+
+  const upper = aircraftType.toUpperCase();
+  const cached = derived.wingspanCache.get(upper);
+  if (cached !== undefined) return cached;
+
+  let wingspan = derived.wingspans[upper];
+  if (wingspan === undefined) {
     // Check wingspan of any derivative types (atyp = XXX*) that may match
-    const matchingTypes = Object.keys(config.AircraftWingspans).filter((type) =>
-      type.startsWith(aircraftType.toUpperCase().slice(0, 3))
-    );
-    if (matchingTypes.length > 0) {
-      return config.AircraftWingspans[matchingTypes[0]];
+    if (upper.length >= 3) {
+      wingspan = derived.wingspanByPrefix.get(upper.slice(0, 3));
+    } else {
+      const match = Object.keys(derived.wingspans).find((type) =>
+        type.startsWith(upper)
+      );
+      wingspan = match ? derived.wingspans[match] : undefined;
     }
+  }
+  if (wingspan === undefined) {
     if (!aircraftTypeCache.has(aircraftType)) {
       warn(`Unknown wingspan for aircraft type ${aircraftType}`, {
         category: "Missing Data",
       });
       aircraftTypeCache.add(aircraftType);
     }
-    return 81; // default if unknown
+    wingspan = 81; // default if unknown
   }
+
+  derived.wingspanCache.set(upper, wingspan);
   return wingspan;
 }
 
@@ -594,11 +606,12 @@ function getAircraftCode(wingspan) {
   if (wingspan < 36.0) return "C";
   if (wingspan < 52.0) return "D";
   if (wingspan < 65.0) return "E";
-  if (wingspan < 80.0) return "F";
   return "F"; // default to F if larger
 }
 
-function getAircraftUse(config, callsign, aircraftType, remarks) {
+const CARGO_REMARK = /cargo|freight/i;
+
+function getAircraftUse(derived, callsign, aircraftType, remarks) {
   if (callsign.length < 3) {
     return "P"; // general aviation
   }
@@ -607,221 +620,198 @@ function getAircraftUse(config, callsign, aircraftType, remarks) {
     return "P"; // general aviation
   }
 
-  if (aircraftType == "A3ST") {
+  const type = aircraftType ? String(aircraftType).toUpperCase() : "";
+
+  if (type === "A3ST") {
     return "C"; // cargo
   }
 
-  if (remarks) {
-    const remarkText = String(remarks).toLowerCase();
-    if (remarkText.includes("cargo") || remarkText.includes("freight") || remarkText.includes("cargoflight")) {
-      return "C"; // cargo
-    }
-  }
-
-  if (config.CargoOperator.includes(callsign.substring(0, 3).toUpperCase())) {
+  if (remarks && CARGO_REMARK.test(remarks)) {
     return "C"; // cargo
   }
 
-  if (config.Helicopters.includes(aircraftType.toUpperCase())) {
+  if (derived.cargoOperators.has(callsign.substring(0, 3).toUpperCase())) {
+    return "C"; // cargo
+  }
+
+  if (derived.helicopters.has(type)) {
     return "H"; // helicopter
   }
 
-  if (config.Military.includes(aircraftType.toUpperCase())) {
+  if (derived.military.has(type)) {
     return "M"; // military
   }
 
-  if (config.GeneralAviation.includes(aircraftType.toUpperCase())) {
+  if (derived.generalAviation.has(type)) {
     return "P"; // general aviation
   }
 
   return "A"; // default to airliner
 }
 
-function shuffleArray(array) {
-  const shuffled = [...array]; // Create a copy to avoid mutating original
-  for (let i = shuffled.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]]; // Swap elements
-  }
-  return shuffled;
-}
-
-function assignStand(airportConfig, config, ac) {
+function assignStand(airport, derived, ac) {
   // Check if aircraft already has a stand assigned
-  const assignedStand = registry
-    .getAllAssigned()
-    .find((s) => s.callsign === ac.callsign);
-  const blockedStands = registry
-    .getAllBlocked()
-    .filter((s) => s.callsign === ac.callsign);
+  const assignedStand = registry.firstAssignedOf(ac.callsign);
   if (assignedStand) {
     if (
-      assignedStand &&
-      (registry.isOccupied(ac.destination, assignedStand.name) ||
-        registry.isBlocked(ac.destination, assignedStand.name))
+      registry.isOccupied(ac.destination, assignedStand.name) ||
+      registry.isBlocked(ac.destination, assignedStand.name)
     ) {
       registry.removeAssigned(assignedStand);
     } else {
-        assignedStand.timestamp = Date.now();
-        for (const s of blockedStands) {
-          s.timestamp = Date.now();
-        }
+      const now = Date.now();
+      assignedStand.timestamp = now;
+      const blockedStands = registry.blockedOf(ac.callsign);
+      if (blockedStands) {
+        for (const stand of blockedStands) stand.timestamp = now;
+      }
       return;
     }
   }
 
+  const aircraftType = ac.flight_plan.aircraft_short;
   const schengen = isSchengen(ac.origin, ac.destination);
-  const wingspan = getAircraftWingspan(config, ac.flight_plan.aircraft_short);
+  const wingspan = getAircraftWingspan(derived, aircraftType);
   const code = getAircraftCode(wingspan);
   const use = getAircraftUse(
-    config,
+    derived,
     ac.callsign,
-    ac.flight_plan.aircraft_short,
+    aircraftType,
     ac.flight_plan.remarks
   );
-  const originPrefix = ac.origin.substring(0, 2).toUpperCase();
-  const compagnyPrefix = ac.callsign.substring(0, 3).toUpperCase();
+  const originPrefix = ac.origin ? ac.origin.substring(0, 2).toUpperCase() : "";
+  const callsign = ac.callsign.toUpperCase();
+  const compagnyPrefix = callsign.substring(0, 3);
 
-  info(
-    `Searching stand for ${ac.callsign} at ${ac.destination} (Use: ${use}, Code: ${code}, Schengen: ${schengen}, Compagny: ${compagnyPrefix}, Origin Country: ${originPrefix}, Wingspan: ${wingspan}m, AircraftType: ${ac.flight_plan.aircraft_short})`,
-    { category: "Assignation", callsign: ac.callsign, icao: airportConfig.ICAO }
-  );
+  // Logged once per callsign: with a wide assignment radius this line would
+  // otherwise repeat every cycle for every aircraft that cannot be placed.
+  if (!searchLoggedCache.has(ac.callsign)) {
+    searchLoggedCache.add(ac.callsign);
+    info(
+      `Searching stand for ${ac.callsign} at ${ac.destination} (Use: ${use}, Code: ${code}, Schengen: ${schengen}, Compagny: ${compagnyPrefix}, Origin Country: ${originPrefix}, Wingspan: ${wingspan}m, AircraftType: ${aircraftType})`,
+      { category: "Assignation", callsign: ac.callsign, icao: airport.icao }
+    );
+  }
 
-  let availableStandList = [];
+  const available = availableScratch;
+  available.length = 0;
 
-  for (const [standName, standDef] of Object.entries(airportConfig.Stands)) {
+  const stands = airport.stands;
+  let anyPriority = false;
+  let lowestPriority = MAX_DISTANCE;
+
+  for (let i = 0; i < stands.length; i++) {
+    const stand = stands[i];
+
     // Implements checks
-    if (standDef.Use && standDef.Use.includes(use) === false) {
-      continue;
+    if (stand.use && stand.use.includes(use) === false) continue;
+    if (stand.code && stand.code.includes(code) === false) continue;
+    if (stand.schengen !== undefined && stand.schengen !== schengen) continue;
+    if (stand.wingspan && stand.wingspan < wingspan) continue;
+    if (stand.countries && !stand.countries.has(originPrefix)) continue;
+    if (stand.callsigns && !stand.matchesCallsign(callsign)) continue;
+
+    if (!stand.hasApron) {
+      if (registry.isOccupied(ac.destination, stand.name)) continue;
+      if (registry.isAssigned(ac.destination, stand.name)) continue;
+      if (registry.isBlocked(ac.destination, stand.name)) continue;
+    } else if (
+      registry.getApronOccupancyLevel(stand.name, airport.icao) >= stand.apronSize
+    ) {
+      continue; // Apron is full
     }
-    if (standDef.Code && standDef.Code.includes(code) === false) {
-      continue;
+
+    if (stand.priority) {
+      anyPriority = true;
+      if (stand.priority < lowestPriority) lowestPriority = stand.priority;
     }
-    if (standDef.Schengen !== undefined && standDef.Schengen !== schengen) {
-      continue;
-    }
-    if (standDef.Wingspan && standDef.Wingspan < wingspan) {
-      continue;
-    }
-    if (standDef.Countries && Array.isArray(standDef.Countries)) {
-      if (!standDef.Countries.includes(originPrefix)) {
-        continue;
-      }
-    }
-    if (standDef.Callsigns && Array.isArray(standDef.Callsigns)) {
-      const cs = (ac.callsign || "").toUpperCase();
-      let match = false;
-      // check prefixes from length 3 up to full callsign
-      for (let len = 3; len <= cs.length; len++) {
-        const prefix = cs.substring(0, len);
-        if (standDef.Callsigns.includes(prefix)) {
-          match = true;
-          break;
-        }
-      }
-      if (!match) {
-        continue;
-      }
-    }
-    if (standDef.Apron === undefined) {
-      if (registry.isOccupied(ac.destination, standName)) {
-        continue;
-      }
-      if (registry.isAssigned(ac.destination, standName)) {
-        continue;
-      }
-      if (registry.isBlocked(ac.destination, standName)) {
-        continue;
-      }
-    } else {
-      const apronSize = standDef.Apron.Size;
-      const currentApronOccupancy = registry.getApronOccupancyLevel(
-        standName,
-        airportConfig.ICAO
-      );
-      if (currentApronOccupancy >= apronSize) {
-        // Apron is full
-        continue;
-      }
-    }
-    availableStandList.push(standDef);
+    available.push(stand);
   }
 
   // Priority filtering
-  let anyPriority = false;
-  let lowestPriority = Number.MAX_SAFE_INTEGER;
-  for (const standDef of availableStandList) {
-    if (standDef.Priority && Number.isInteger(standDef.Priority)) {
-      anyPriority = true;
-      if (standDef.Priority < lowestPriority) {
-        lowestPriority = standDef.Priority;
-      }
-    }
-  }
-
+  let count = available.length;
   if (anyPriority) {
-    availableStandList = availableStandList.filter(
-      (standDef) => standDef.Priority && standDef.Priority === lowestPriority
-    );
-  }
-  if (availableStandList.length > 0) {
-    let availableStandListShuffled = shuffleArray(availableStandList);
-    let selectedStandDef = availableStandListShuffled[0];
-    let bestMaxCode = "F";
-    for (const standDef of availableStandListShuffled) {
-      if (standDef.Code) {
-        const maxCode = standDef.Code.split("").reduce((a, b) =>
-          a > b ? a : b
-        );
-        if (maxCode < bestMaxCode) {
-          bestMaxCode = maxCode;
-          selectedStandDef = standDef;
-        }
-      }
+    let kept = 0;
+    for (let i = 0; i < count; i++) {
+      if (available[i].priority !== lowestPriority) continue;
+      available[kept++] = available[i];
     }
+    available.length = count = kept;
+  }
 
-    const standName = Object.keys(airportConfig.Stands).find(
-      (name) => airportConfig.Stands[name] === selectedStandDef
-    );
-    const stand = new Stand(standName, airportConfig.ICAO, ac.callsign, "", selectedStandDef.Apron === undefined ? 0 : selectedStandDef.Apron.Size);
-    info(`Assigning Stand ${standName} to ${ac.callsign}`, {
-      category: "Assignation",
-      callsign: ac.callsign,
-      icao: airportConfig.ICAO,
-    });
-    registry.addAssigned(stand);
-    blockStands(selectedStandDef, ac.destination, ac.callsign);
-    if (noStandFoundCache.has(ac.callsign)) {
-      noStandFoundCache.delete(ac.callsign);
+  if (count === 0) {
+    if (!noStandFoundCache.has(ac.callsign)) {
+      warn(`No available stands found for ${ac.callsign} at ${ac.destination}`, {
+        category: "Assignation",
+        callsign: ac.callsign,
+        icao: airport.icao,
+      });
+      noStandFoundCache.add(ac.callsign);
     }
     return;
   }
-  if (!noStandFoundCache.has(ac.callsign)) {
-    warn(`No available stands found for ${ac.callsign} at ${ac.destination}`, {
-      category: "Assignation",
-      callsign: ac.callsign,
-      icao: airportConfig.ICAO,
-    });
-    noStandFoundCache.add(ac.callsign);
+
+  // Prefer the tightest-fitting stand: the lowest "highest code letter" on
+  // offer, picked at random among equals. Anything at or above code F is no
+  // better than an arbitrary pick, which is what the shuffle used to give.
+  let bestMaxCode = "F";
+  let hasBetter = false;
+  for (let i = 0; i < count; i++) {
+    const maxCode = available[i].maxCode;
+    if (maxCode !== null && maxCode < bestMaxCode) {
+      bestMaxCode = maxCode;
+      hasBetter = true;
+    }
   }
+
+  let selected;
+  if (hasBetter) {
+    let ties = 0;
+    for (let i = 0; i < count; i++) {
+      if (available[i].maxCode === bestMaxCode) ties++;
+    }
+    let pick = (Math.random() * ties) | 0;
+    for (let i = 0; i < count; i++) {
+      if (available[i].maxCode !== bestMaxCode) continue;
+      if (pick-- === 0) {
+        selected = available[i];
+        break;
+      }
+    }
+  } else {
+    selected = available[(Math.random() * count) | 0];
+  }
+
+  const stand = new Stand(
+    selected.name,
+    airport.icao,
+    ac.callsign,
+    "",
+    selected.apronSize
+  );
+  info(`Assigning Stand ${selected.name} to ${ac.callsign}`, {
+    category: "Assignation",
+    callsign: ac.callsign,
+    icao: airport.icao,
+  });
+  registry.addAssigned(stand);
+  blockStands(selected, ac.destination, ac.callsign);
+  noStandFoundCache.delete(ac.callsign);
 }
 
-processDatafeed = async (aircrafts) => {
-  // Parse JSON of all the reported aircraft positions/states
-  let airportSet = new Set();
-  const airportConfigCache = new Map(); // Cache airport configs to avoid repeated loads
-
-  try {
-    const al = airportService.getAirportList();
-    if (Array.isArray(al)) {
-      airportSet = new Set(al);
-    }
-  } catch (e) {
-    error(`Error loading airport list: ${e.message}`, {
-      category: "Missing Data",
-    });
+/**
+ * Resolves the remark configured for an aircraft code on a stand.
+ * Remark keys are code lists, e.g. { "CD": "...", "EF": "..." }.
+ */
+function resolveRemark(standDef, aircraftCode) {
+  if (!standDef.Remark || typeof standDef.Remark !== "object") return "";
+  for (const [codeList, remarkText] of Object.entries(standDef.Remark)) {
+    if (codeList.includes(aircraftCode)) return remarkText;
   }
+  return "";
+}
 
+const processDatafeed = async (aircrafts) => {
   // get config.json for parameters
   const config = await airportService.getConfig();
   if (!config) {
@@ -829,129 +819,86 @@ processDatafeed = async (aircrafts) => {
     return;
   }
 
-  // Handle onGround aircraft
-  for (let ac of Object.values(aircrafts.onGround || {})) {
-    const previouslyOnStand = registry
-      .getAllOccupied()
-      .find((s) => s.callsign === ac.callsign);
+  let icaoList = [];
+  try {
+    const al = airportService.getAirportList();
+    if (Array.isArray(al)) icaoList = al;
+  } catch (e) {
+    error(`Error loading airport list: ${e.message}`, {
+      category: "Missing Data",
+    });
+  }
 
+  // Compile every airport up front. Once warm this is a no-op, and it is what
+  // lets the rest of the cycle run without awaiting per aircraft.
+  const compiledAirports = await airportIndex.preload(icaoList);
+  const airportByIcao = airportIndex.byIcao();
+  const derived = airportIndex.deriveConfig(config);
+
+  // Handle onGround aircraft
+  for (const ac of Object.values(aircrafts.onGround || {})) {
+    const previouslyOnStand = registry.firstOccupiedOf(ac.callsign);
     if (previouslyOnStand) {
       registry.removeOccupied(previouslyOnStand);
 
       // Unblock any stands that were blocked due to this stand
-      const standsToUnblock = registry
-        .getAllBlocked()
-        .filter((s) => s.callsign === ac.callsign);
-
-      standsToUnblock.forEach((s) => {
-        registry.removeBlocked(s);
-      });
+      registry.removeAllBlockedOf(ac.callsign);
     }
 
-    const aircraftOnStand = await isAircraftOnStand(
-      config,
-      ac,
-      airportSet,
-      airportConfigCache
-    );
-    if (aircraftOnStand) {
-      ac.stand = aircraftOnStand;
-      // Use cached config
-      let airportJson = airportConfigCache.get(ac.origin);
-      if (!airportJson) {
-        airportJson = await airportService.getAirportConfig(ac.origin);
-        if (airportJson) {
-          airportConfigCache.set(ac.origin, airportJson);
-        }
-      }
+    const standName = findAircraftStand(derived, ac, compiledAirports);
+    if (!standName) continue;
 
-      // remove any existing occupied / blocked / assigned stands for this callsign
-      const existingOccupied = registry
-        .getAllOccupied()
-        .filter((s) => s.callsign === ac.callsign);
-      existingOccupied.forEach((s) => {
-        registry.removeOccupied(s);
-      });
-      const existingBlocked = registry
-        .getAllBlocked()
-        .filter((s) => s.callsign === ac.callsign);
-      existingBlocked.forEach((s) => {
-        registry.removeBlocked(s);
-      });
-      const existingAssigned = registry
-        .getAllAssigned()
-        .filter((s) => s.callsign === ac.callsign);
-      existingAssigned.forEach((s) => {
-        registry.removeAssigned(s);
-      });
+    ac.stand = standName;
+    const airport = airportByIcao.get(ac.origin);
 
-      const standDef =
-        airportJson && airportJson.Stands && airportJson.Stands[ac.stand];
-      if (!standDef) {
-        warn(
-          `Stand definition for stand ${ac.stand} not found at airport ${ac.origin}, skipping occupancy`,
-          { category: "Assignation", callsign: ac.callsign, icao: ac.origin }
-        );
-        continue;
-      }
-      let aircraftCode = "UNKNOWN";
-      if (
-        ac.flight_plan &&
-        ac.flight_plan.aircraft_short &&
-        ac.flight_plan.aircraft_short !== "UNKNOWN" &&
-        ac.flight_plan.aircraft_short !== ""
-      ) {
-        aircraftCode = getAircraftCode(
-          getAircraftWingspan(config, ac.flight_plan.aircraft_short)
-        );
-      }
-      let remark = "";
-      if (standDef.Remark && typeof standDef.Remark === "object") {
-        // Iterate through all keys in the Remark object
-        for (const [codeList, remarkText] of Object.entries(standDef.Remark)) {
-          // Check if the aircraft code is in this key
-          if (codeList.includes(aircraftCode)) {
-            remark = remarkText;
-            break;
-          }
-        }
-      }
-      const stand = new Stand(
-        ac.stand,
+    // remove any existing occupied / blocked / assigned stands for this callsign
+    registry.removeAllOccupiedOf(ac.callsign);
+    registry.removeAllBlockedOf(ac.callsign);
+    registry.removeAllAssignedOf(ac.callsign);
+
+    const stand = airport && airport.standsByName.get(standName);
+    if (!stand) {
+      warn(
+        `Stand definition for stand ${standName} not found at airport ${ac.origin}, skipping occupancy`,
+        { category: "Assignation", callsign: ac.callsign, icao: ac.origin }
+      );
+      continue;
+    }
+
+    let aircraftCode = "UNKNOWN";
+    const aircraftType = ac.flight_plan && ac.flight_plan.aircraft_short;
+    if (aircraftType && aircraftType !== "UNKNOWN") {
+      aircraftCode = getAircraftCode(getAircraftWingspan(derived, aircraftType));
+    }
+
+    registry.addOccupied(
+      new Stand(
+        standName,
         ac.origin || "UNKNOWN",
         ac.callsign,
-        remark,
-        standDef.Apron === undefined ? 0 : standDef.Apron.Size
-      );
-
-      registry.addOccupied(stand);
-      blockStands(standDef, ac.origin, ac.callsign);
-    }
+        resolveRemark(stand.def, aircraftCode),
+        stand.apronSize
+      )
+    );
+    blockStands(stand, ac.origin, ac.callsign);
   }
 
   // Handle airborne aircraft - (ie: assign stand if criterias met)
-  for (let ac of Object.values(aircrafts.airborne || {})) {
+  for (const ac of Object.values(aircrafts.airborne || {})) {
     if (!ac.flight_plan) {
       continue;
     }
     ac.origin = ac.flight_plan.departure;
     ac.destination = ac.flight_plan.arrival;
+
+    const destination = airportByIcao.get(ac.destination);
+
     // Check Assignement conditions
-    if (!(await isConcernedArrival(ac, config, airportSet))) {
+    if (!isConcernedArrival(ac, config, derived, destination)) {
       continue;
     }
 
-    // Aircraft meets requirements for stand assignment
-    // Use cached config
-    let airportConfig = airportConfigCache.get(ac.destination);
-    if (!airportConfig) {
-      airportConfig = await airportService.getAirportConfig(ac.destination);
-      if (airportConfig) {
-        airportConfigCache.set(ac.destination, airportConfig);
-      }
-    }
-
-    if (!airportConfig || !airportConfig.Stands) {
+    if (destination.stands.length === 0) {
       warn(
         `No stands found for airport ${ac.destination}, skipping assignment`,
         { category: "Assignation", callsign: ac.callsign, icao: ac.destination }
@@ -959,37 +906,16 @@ processDatafeed = async (aircrafts) => {
       continue;
     }
 
-    assignStand(airportConfig, config, ac);
+    assignStand(destination, derived, ac);
   }
-};
-
-const getGlobalOccupied = () => {
-  const now = Date.now();
-  const occupied = new Set();
-
-  for (const [_, data] of clients.entries()) {
-    if (now - data.lastUpdate < 10_000) {
-      data.occupied.forEach((s) => occupied.add(s));
-    }
-  }
-
-  return Array.from(occupied);
 };
 
 async function assignStandToPilot(standName, icao, callsign, client) {
   // Remove any existing assignment
-  const existingStand = registry
-    .getAllAssigned()
-    .filter((s) => s.callsign === callsign);
-  existingStand.forEach((existingStand) => {
-    registry.removeAssigned(existingStand);
-  });
-  const blockedStands = registry
-    .getAllBlocked()
-    .filter((s) => s.callsign === callsign);
-  blockedStands.forEach((s) => {
-    registry.removeBlocked(s);
-  });
+  registry.removeAllAssignedOf(callsign);
+  registry.removeAllBlockedOf(callsign);
+  searchLoggedCache.delete(callsign);
+
   if (standName === "None") {
     info(`Removed stand assignment for ${callsign}, Requester: ${client}`, {
       category: "Manual Assign",
@@ -1004,20 +930,11 @@ async function assignStandToPilot(standName, icao, callsign, client) {
       message: `Asssigned Stand has been freed from ${callsign}`,
     };
   }
-  const standDef = await airportService
-    .getAirportConfig(icao)
-    .then((airportConfig) => {
-      if (
-        airportConfig &&
-        airportConfig.Stands &&
-        airportConfig.Stands[standName]
-      ) {
-        return airportConfig.Stands[standName];
-      }
-      return null;
-    });
 
-  if (!standDef) {
+  const airport = await airportIndex.get(icao);
+  const stand = airport && airport.standsByName.get(standName);
+
+  if (!stand) {
     warn(`Stand ${standName} not found at ${icao}, Requester: ${client}`, {
       category: "Manual Assign",
       callsign: callsign,
@@ -1060,8 +977,9 @@ async function assignStandToPilot(standName, icao, callsign, client) {
   }
   if (registry.isBlocked(icao, standName)) {
     // If stand is blocked by the same callsign, allow assignment
-    if (registry.getBlocked(icao, standName).callsign === callsign) {
-      registry.removeBlocked(registry.getBlocked(icao, standName));
+    const blocking = registry.getBlocked(icao, standName);
+    if (blocking && blocking.callsign === callsign) {
+      registry.removeBlocked(blocking);
     } else {
       warn(
         `Cannot assign stand ${standName} at ${icao} to ${callsign} - already blocked, Requester: ${client}`,
@@ -1076,10 +994,12 @@ async function assignStandToPilot(standName, icao, callsign, client) {
       };
     }
   }
-  const stand = new Stand(standName, icao, callsign, "", standDef.Apron === undefined ? 0 : standDef.Apron.Size);
-  registry.addAssigned(stand);
+
+  registry.addAssigned(
+    new Stand(standName, icao, callsign, "", stand.apronSize)
+  );
   // Block stands
-  blockStands(standDef, icao, callsign);
+  blockStands(stand, icao, callsign);
   info(
     `Manually assigned stand ${standName} at ${icao} to ${callsign}, Requester: ${client}`,
     {
@@ -1112,7 +1032,6 @@ module.exports = {
   registry,
   processDatafeed,
   assignStandToPilot,
-  getGlobalOccupied,
   getAllOccupied: () => registry.getAllOccupied(),
   getAllAssigned: () => registry.getAllAssigned(),
   getAllBlocked: () => registry.getAllBlocked(),

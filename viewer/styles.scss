@@ -479,6 +479,35 @@ body.dark-mode .legend {
   max-height: 500px;
 }
 
+/* Switches the occupancy chart between share-of-capacity and absolute counts. */
+.chart-mode-toggle {
+  display: flex;
+  gap: 6px;
+  justify-content: center;
+  margin-bottom: 6px;
+
+  button {
+    background: transparent;
+    border: 1px solid #949494;
+    border-radius: 4px;
+    color: inherit;
+    cursor: pointer;
+    font-family: inherit;
+    font-size: 12px;
+    padding: 3px 10px;
+
+    &:hover {
+      border-color: #30a9d8;
+    }
+
+    &.active {
+      background-color: #30a9d8;
+      border-color: #30a9d8;
+      color: #fff;
+    }
+  }
+}
+
 #airportChart {
   width: 100%;
   height: 100%;
@@ -590,6 +619,7 @@ $chars: "A","B","C","D","E","F","G","H","I","J","K","L","M","N","O","P","Q","R",
   padding: 10px;
   max-height: 300px;
   overflow-y: auto;
+
 }
 
 .airport-display-separator {
@@ -598,8 +628,23 @@ $chars: "A","B","C","D","E","F","G","H","I","J","K","L","M","N","O","P","Q","R",
   background-color: #949494;
 }
 
+/* Groups the rows of one section for reconciliation without taking part in
+   the panel's flex layout. */
+.status-rows {
+  display: contents;
+}
+
 .departure-board {
   display: inline-flex;
+
+  /* Each letter is 20px wide plus a 1px divider. Stating the width explicitly
+     (rather than letting the letters imply it) is what makes the row safe to
+     skip while off-screen: a board can hold hundreds of rows and only a dozen
+     are ever in view, so laying out the rest is pure waste. */
+  --letter-width: 21px;
+  width: calc(var(--letters, 15) * var(--letter-width));
+  content-visibility: auto;
+  contain-intrinsic-size: calc(var(--letters, 15) * var(--letter-width)) 20px;
 }
 .letter {
   background-color: $backgroundColor;
@@ -711,6 +756,14 @@ body.dark-mode  .letter::after {
   100%{
     transform:rotateX(360deg);
   }
+}
+
+/* Rows that were not flipped into place - the first paint of a board, where
+   there is no previous value to flip away from. Kept permanently on those
+   elements so the animation cannot start later. */
+.departure-board.no-flip span:before,
+.departure-board.no-flip span:after {
+  animation: none;
 }
 
 /* Performance mode - disable animations when high volume detected */
