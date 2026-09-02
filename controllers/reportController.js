@@ -130,10 +130,13 @@ exports.getDatafeed = async () => {
   }
   inFlight = true;
 
-  // Increment only if valid report
-  stats.incrementReportCount();
-
+  // Everything after the flag is set lives inside the try, so the flag is
+  // always released: leaving it set would silently stop every later cycle and
+  // stand assignment would just quietly stop happening.
   try {
+    // Increment only if valid report
+    stats.incrementReportCount();
+
     const response = await fetch(DATAFEED_URL, {
       method: 'GET',
       headers: { Accept: 'application/json' },

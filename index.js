@@ -168,12 +168,19 @@ redisService
   });
 
 function startDatafeedProcessing() {
-  // Initial call
-  reportController.getDatafeed();
+  // getDatafeed handles its own errors, but an unforeseen rejection escaping it
+  // would kill the process rather than one cycle.
+  const runCycle = () =>
+    Promise.resolve(reportController.getDatafeed()).catch((err) => {
+      logger.error(`Datafeed cycle failed: ${err && err.stack ? err.stack : err}`, {
+        category: "Report",
+      });
+    });
 
-  const datafeedInterval = setInterval(() => {
-    reportController.getDatafeed();
-  }, 15_000); // Every 15 seconds since datafeed regenerate every 15 seconds
+  // Initial call
+  runCycle();
+
+  const datafeedInterval = setInterval(runCycle, 15_000); // Every 15 seconds since datafeed regenerate every 15 seconds
 
   // Store interval ID for cleanup
   process.datafeedInterval = datafeedInterval;
@@ -183,16 +190,48 @@ function startDatafeedProcessing() {
 // in-process compiled copies as well, or the datafeed loop keeps serving the
 // old config.
 setInterval(async () => {
-  const airports = airportService.refreshAirportList();
-  for (const icao of airports) {
-    if (await airportService.checkAirportVersion(icao)) {
-      airportIndex.invalidate(icao);
+  // Anything thrown in here would otherwise become an unhandled rejection and
+  // terminate the process. The check is idempotent, so losing one round is
+  // harmless - the next one is ten seconds away.
+  try {
+    const airports = airportService.refreshAirportList();
+    for (const icao of airports) {
+      if (await airportService.checkAirportVersion(icao)) {
+        airportIndex.invalidate(icao);
+      }
     }
-  }
-  if (await redisService.checkConfigVersion()) {
-    airportService.invalidateConfig();
+    if (await redisService.checkConfigVersion()) {
+      airportService.invalidateConfig();
+    }
+  } catch (err) {
+    logger.warn(`Config version check failed: ${err.message}`, {
+      category: "System",
+    });
   }
 }, 10_000); // Check every 10 seconds
+
+// Last-resort handlers. Node terminates on an unhandled rejection, so a stray
+// throw in a background task used to end the process with nothing written down
+// - the container simply vanished. The periodic work here is idempotent and
+// retried, so a rejection is reported and the API keeps serving; a genuine
+// uncaught exception still exits, but only after the reason has been recorded.
+process.on("unhandledRejection", (reason) => {
+  logger.error(
+    `Unhandled promise rejection: ${reason && reason.stack ? reason.stack : reason}`,
+    { category: "System" }
+  );
+});
+
+process.on("uncaughtException", (err) => {
+  logger.error(`Uncaught exception: ${err && err.stack ? err.stack : err}`, {
+    category: "System",
+  });
+  // Process state is no longer trustworthy: get the log on disk, then let the
+  // restart policy take over.
+  Promise.resolve(logger.flush())
+    .catch(() => {})
+    .finally(() => process.exit(1));
+});
 
 // Shutdown handling
 process.on("SIGINT", async () => {
