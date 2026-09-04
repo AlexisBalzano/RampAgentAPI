@@ -31,6 +31,7 @@ services:
       - REDIS_PORT=6379
       - CONFIG_REPO_URL=https://github.com/vaccfr/RampAgent-Config.git
       - CONFIG_BRANCH=main
+      - DATAPLATFORM_URL=${DATAPLATFORM_URL:-http://dataplatform:8080}
     volumes:
       - rampagent-config:/app/data 
       - ./logs:/app/logs

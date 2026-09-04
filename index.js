@@ -168,22 +168,11 @@ redisService
   });
 
 function startDatafeedProcessing() {
-  // getDatafeed handles its own errors, but an unforeseen rejection escaping it
-  // would kill the process rather than one cycle.
-  const runCycle = () =>
-    Promise.resolve(reportController.getDatafeed()).catch((err) => {
-      logger.error(`Datafeed cycle failed: ${err && err.stack ? err.stack : err}`, {
-        category: "Report",
-      });
-    });
-
-  // Initial call
-  runCycle();
-
-  const datafeedInterval = setInterval(runCycle, 15_000); // Every 15 seconds since datafeed regenerate every 15 seconds
-
-  // Store interval ID for cleanup
-  process.datafeedInterval = datafeedInterval;
+  // The poller schedules itself from the feed's own timestamp rather than on a
+  // fixed 15 s period, so it settles just behind each generation instead of
+  // inheriting whatever phase offset this container happened to boot with.
+  // See services/datafeedScheduler.js.
+  reportController.startPolling();
 }
 
 // Periodically check for airport config updates. A version bump has to drop the
@@ -237,11 +226,9 @@ process.on("uncaughtException", (err) => {
 process.on("SIGINT", async () => {
   logger.info("Shutting down...", { category: "System" });
 
-  // Clean up intervals
-  if (process.datafeedInterval) {
-    clearInterval(process.datafeedInterval);
-    logger.info("Datafeed interval cleared", { category: "System" });
-  }
+  // Clean up timers
+  reportController.stopPolling();
+  logger.info("Datafeed polling stopped", { category: "System" });
 
   await redisService.disconnect();
   process.exit(0);
