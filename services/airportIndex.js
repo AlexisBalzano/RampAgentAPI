@@ -271,6 +271,9 @@ function deriveConfig(config) {
     helicopters: new Set(config.Helicopters || []),
     military: new Set(config.Military || []),
     generalAviation: new Set(config.GeneralAviation || []),
+    // Retained only so an older config still parses; the assignment envelope no
+    // longer distinguishes extended airports - see maxAltitudeFt in
+    // occupancyService.
     extendedIcaos: new Set(config.extended_icaos || []),
   };
   derivedConfigSource = config;

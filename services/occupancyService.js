@@ -354,6 +354,134 @@ class StandRegistry {
 
 const registry = new StandRegistry();
 
+// Tracks Hoppie gate-terminal TELEX notification lifecycle per callsign, independent of
+// StandRegistry (a Stand object is replaced, not mutated, on reassignment, so a flag stored
+// on it would not survive a stand swap and could cause a resend).
+// status: 'pending' (below the altitude threshold) | 'sent'
+const notificationState = new Map();
+
+const HOPPIE_DEFAULT_MIN_ALTITUDE_FT = 10000;
+const HOPPIE_RECHECK_TICKS = 4; // ~60s at a 15s datafeed tick, to bound call volume
+const TELEX_TIMEOUT_MS = 5000;
+
+// Read per call rather than once at load. Reading it at module scope needed a
+// top-level await, which turns this CommonJS file into an ESM graph and makes
+// every require() of it throw - it took the whole API down, not just Hoppie.
+// Reading it here also means a config version bump takes effect without a
+// restart, like every other setting.
+function hoppieMinAltitudeFt(config) {
+  const configured = config && config.Hoppie && config.Hoppie.min_alt;
+  return typeof configured === "number" && configured > 0
+    ? configured
+    : HOPPIE_DEFAULT_MIN_ALTITUDE_FT;
+}
+
+// Determines whether an assigned stand qualifies for a Hoppie notification: both the stand
+// (Terminal) and the airport (Hoppie.MessageTemplate) must opt in via config. Absence of either
+// is the sole scoping mechanism - no separate enable flag exists.
+function getHoppieEligibility(standDef, airportConfig) {
+  if (!standDef || !standDef.Terminal) return null;
+  if (!airportConfig || !airportConfig.Hoppie || !airportConfig.Hoppie.MessageTemplate) {
+    return null;
+  }
+  return {
+    terminal: standDef.Terminal,
+    briefingUrl: airportConfig.Hoppie.BriefingUrl || "",
+    messageTemplate: airportConfig.Hoppie.MessageTemplate,
+  };
+}
+
+function buildTelexMessage(messageTemplate, terminal, briefingUrl) {
+  return messageTemplate
+    .replace(/{terminal}/g, terminal)
+    .replace(/{briefingUrl}/g, briefingUrl);
+}
+
+async function postTelex(callsign, message) {
+  const pinedeURL = process.env.PINEDE_INTERNAL_URL || "http://vaccfr-pinede-backend:3000";
+  const token = process.env.PINEDE_SERVICE_TOKEN;
+  if (!token) {
+    error("PINEDE_SERVICE_TOKEN is not set, cannot send Telex notification", { category: "Telex", callsign });
+    return false;
+  }
+
+  try {
+    const response = await fetch(`${pinedeURL}/v1/internal/telex`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: token,
+      },
+      body: JSON.stringify({ callsign, message }),
+      // Without this an unresponsive PINEDE leaves the request outstanding
+      // indefinitely while the caller keeps re-checking behind it.
+      signal: AbortSignal.timeout(TELEX_TIMEOUT_MS),
+    });
+    if (!response.ok) {
+      error(`Telex notification failed for ${callsign}: ${response.statusText}`, { category: "Telex", callsign });
+      return false;
+    }
+    // Returning nothing here left the caller thinking the send had failed, so the
+    // callsign stayed 'pending' and was re-sent every recheck window until landing.
+    return true;
+  } catch (err) {
+    error(`Telex notification attempt failed for ${callsign}: ${err.message}`, { category: "Telex", callsign });
+    return false; // stays 'pending', retried on a later re-check window
+  }
+}
+
+// Sends the TELEX. Never throws - best-effort, fire-and-forget.
+async function sendTelexNotification(callsign, state) {
+  try {
+    const message = buildTelexMessage(
+      state.messageTemplate,
+      state.terminal,
+      state.briefingUrl
+    );
+    const sent = await postTelex(callsign, message);
+    if (sent) {
+      state.status = "sent";
+      info(
+        `Hoppie gate-terminal notification sent to ${callsign} (Terminal ${state.terminal})`,
+        { category: "Telex", callsign }
+      );
+    }
+  } catch (err) {
+    error(`Hoppie notification attempt failed for ${callsign}: ${err.message}`, { category: "Telex", callsign });
+  }
+}
+
+// Registers a callsign as eligible for a Hoppie notification the first time it's automatically
+// assigned a Terminal-bearing stand.
+function registerHoppieEligibility(callsign, standDef, airportConfig) {
+  if (notificationState.has(callsign)) return; // already tracked this session
+  const eligibility = getHoppieEligibility(standDef, airportConfig);
+  if (!eligibility) return;
+
+  notificationState.set(callsign, {
+    status: "pending",
+    terminal: eligibility.terminal,
+    briefingUrl: eligibility.briefingUrl,
+    messageTemplate: eligibility.messageTemplate,
+    ticksSinceCheck: 0,
+  });
+}
+
+// Re-checked on every tick an already-assigned callsign is seen again; only actually evaluates
+// every HOPPIE_RECHECK_TICKS ticks to bound outbound call volume.
+function checkPendingHoppieNotification(ac, config) {
+  const state = notificationState.get(ac.callsign);
+  if (!state || state.status !== "pending") return;
+
+  state.ticksSinceCheck += 1;
+  if (state.ticksSinceCheck < HOPPIE_RECHECK_TICKS) return;
+  state.ticksSinceCheck = 0;
+
+  if (typeof ac.altitude === "number" && ac.altitude >= hoppieMinAltitudeFt(config)) {
+    sendTelexNotification(ac.callsign, state);
+  }
+}
+
 // Scratch buffers reused across calls. Both consumers are synchronous and
 // non-reentrant, so this avoids an array allocation per aircraft.
 const candidateScratch = [];
@@ -499,6 +627,23 @@ function calculateRemainingDistance(ac, destination) {
   return haversineMeters(ac.latitude, ac.longitude, destination.lat, destination.lon);
 }
 
+// One assignment envelope for every airport: what used to apply only to
+// extended_icaos is now simply the default, and that list no longer scopes
+// anything.
+//
+// These read max_alt / max_distance only, so the config repo must carry the
+// wider values there - max_alt_extended, max_distance_extended and
+// extended_icaos are no longer consulted at all. Until config.json is updated
+// the envelope is whatever max_alt / max_distance already say, which is the
+// narrow figure the non-extended airports used to get.
+function maxAltitudeFt(config) {
+  return config.max_alt ?? 20000; // default to 20,000 ft if not specified
+}
+
+function maxDistanceNm(config) {
+  return config.max_distance ?? 100; // default to 100 nautical miles if not specified
+}
+
 function isConcernedArrival(ac, config, derived, destination) {
   if (!ac || !ac.destination || !ac.longitude || !ac.latitude) {
     return false;
@@ -507,9 +652,8 @@ function isConcernedArrival(ac, config, derived, destination) {
     return false;
   }
 
-  const extended = derived.extendedIcaos.has(ac.destination);
-  const maxAlt = extended ? config.max_alt_extended : config.max_alt;
-  const maxDistance = extended ? config.max_distance_extended : config.max_distance;
+  const maxAlt = maxAltitudeFt(config);
+  const maxDistance = maxDistanceNm(config);
 
   if (ac.altitude > maxAlt) {
     return false;
@@ -665,6 +809,7 @@ function assignStand(airport, derived, ac) {
       if (blockedStands) {
         for (const stand of blockedStands) stand.timestamp = now;
       }
+      checkPendingHoppieNotification(ac, derived.config);
       return;
     }
   }
@@ -797,6 +942,20 @@ function assignStand(airport, derived, ac) {
   registry.addAssigned(stand);
   blockStands(selected, ac.destination, ac.callsign);
   noStandFoundCache.delete(ac.callsign);
+
+  // Only the automatic engine path notifies; manual assignment via /api/assign
+  // deliberately does not. Fires at most once per session however many times the
+  // assigned stand later changes.
+  registerHoppieEligibility(ac.callsign, selected.def, airport.raw);
+  if (
+    typeof ac.altitude === "number" &&
+    ac.altitude >= hoppieMinAltitudeFt(derived.config)
+  ) {
+    const state = notificationState.get(ac.callsign);
+    if (state && state.status === "pending") {
+      sendTelexNotification(ac.callsign, state);
+    }
+  }
 }
 
 /**
@@ -1022,6 +1181,20 @@ function standCleanup() {
   // Remove occupied stands if timestamp is older than 2 minutes without update
   const now = Date.now();
   registry.clearExpired((stand) => now - stand.timestamp > 2 * 60 * 1000);
+
+  // Drop Hoppie notification tracking once a callsign holds nothing in the
+  // registry at all (session over) - that is what makes a later reappearance
+  // count as a fresh session. The callsign indexes answer this in O(1), rather
+  // than scanning all three registries for every tracked callsign.
+  for (const callsign of notificationState.keys()) {
+    const stillTracked =
+      registry.occupiedByCallsign.has(callsign) ||
+      registry.assignedByCallsign.has(callsign) ||
+      registry.blockedByCallsign.has(callsign);
+    if (!stillTracked) {
+      notificationState.delete(callsign);
+    }
+  }
 }
 
 setInterval(standCleanup, 60 * 1000); // every minute
@@ -1032,6 +1205,8 @@ module.exports = {
   registry,
   processDatafeed,
   assignStandToPilot,
+  maxAltitudeFt,
+  maxDistanceNm,
   getAllOccupied: () => registry.getAllOccupied(),
   getAllAssigned: () => registry.getAllAssigned(),
   getAllBlocked: () => registry.getAllBlocked(),

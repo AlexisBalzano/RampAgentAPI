@@ -49,7 +49,7 @@ let scopeSource = null;
  * so the pre-filter has to reach the furthest tracked airport plus that
  * distance - otherwise raising the assignment radius silently does nothing
  * because the traffic was already dropped here. Same for the altitude ceiling:
- * a fixed FL200 cut kept max_alt_extended (FL400) from ever taking effect.
+ * a fixed FL200 cut kept a higher max_alt from ever taking effect.
  */
 async function getDatafeedScope() {
   const config = await airportService.getConfig();
@@ -73,17 +73,13 @@ async function getDatafeedScope() {
     warn(`Could not measure airport spread: ${err.message}`, { category: 'System' });
   }
 
-  const assignRadiusNm = Math.max(
-    config.max_distance || 0,
-    config.max_distance_extended || 0
-  );
+  const assignRadiusNm = occupancyService.maxDistanceNm(config);
   const radius = Math.max(
     MIN_RADIUS_METERS,
     furthestAirport + assignRadiusNm * NM_TO_METERS
   );
   const maxAltitude = Math.max(
-    config.max_alt || 0,
-    config.max_alt_extended || 0,
+    occupancyService.maxAltitudeFt(config),
     DEFAULT_SCOPE.maxAltitude
   );
 
