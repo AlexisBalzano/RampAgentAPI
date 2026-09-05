@@ -411,7 +411,15 @@ const TELEX_ALLOWED = /^[A-Z0-9 .,\-@/]+$/;
 const TELEX_ALLOWED_CHAR = /[A-Z0-9 .,\-@/]/;
 const TELEX_MAX_LENGTH = 220;
 
-function telexRejectionReason(message) {
+// PINEDE applies the same shape to the callsign. General aviation callsigns
+// carry a hyphen ("F-GKXA"), so those cannot be notified at all - catching it
+// here says why, instead of a bare "Bad Request".
+const TELEX_CALLSIGN = /^[A-Z0-9]{2,10}$/;
+
+function telexRejectionReason(callsign, message) {
+  if (!TELEX_CALLSIGN.test(callsign || "")) {
+    return `callsign ${JSON.stringify(callsign)} is not 2-10 letters or digits`;
+  }
   if (!message) return "empty";
   if (message.length > TELEX_MAX_LENGTH) {
     return `too long (${message.length} > ${TELEX_MAX_LENGTH})`;
@@ -440,7 +448,9 @@ async function postTelex(callsign, message) {
         "Content-Type": "application/json",
         Authorization: token,
       },
-      body: JSON.stringify({ callsign, message }),
+      // PINEDE's schema names this field "text", not "message" - sending the
+      // wrong key fails validation before the content is even looked at.
+      body: JSON.stringify({ callsign, text: message }),
       // Without this an unresponsive PINEDE leaves the request outstanding
       // indefinitely while the caller keeps re-checking behind it.
       signal: AbortSignal.timeout(TELEX_TIMEOUT_MS),
@@ -468,7 +478,7 @@ async function sendTelexNotification(callsign, state) {
       state.terminal,
       state.briefingUrl
     );
-    const reason = telexRejectionReason(message);
+    const reason = telexRejectionReason(callsign, message);
     if (reason) {
       // Terminal: no retry can fix a message the config cannot express.
       state.status = "invalid";

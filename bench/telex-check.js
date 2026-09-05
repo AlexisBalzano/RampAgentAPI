@@ -31,16 +31,40 @@ function check(label, ok, detail) {
   console.log(`  ${ok ? "ok  " : "FAIL"}  ${label}${ok || !detail ? "" : ` - ${detail}`}`);
 }
 
+// The stub validates exactly as PINEDE's zod schema does, and 400s otherwise.
+// An earlier version accepted any body, which is why it missed a live failure:
+// the sender was posting {callsign, message} while PINEDE requires
+// {callsign, text}, so every request was rejected before the content mattered.
+// A stub that accepts anything only proves the sender talks to itself.
+const PINEDE_CALLSIGN = /^[A-Z0-9]{2,10}$/;
+const PINEDE_TEXT = /^[A-Z0-9 .,\-@/]+$/;
+
+function pinedeReject(body) {
+  if (typeof body.callsign !== "string" || !PINEDE_CALLSIGN.test(body.callsign)) {
+    return "callsign: Invalid";
+  }
+  if (typeof body.text !== "string") return "text: Required";
+  if (body.text.length < 1 || body.text.length > 220) return "text: Invalid length";
+  if (!PINEDE_TEXT.test(body.text)) return "text: Invalid";
+  return null;
+}
+
 const posts = [];
+const rejections = [];
 const pinede = http.createServer((req, res) => {
   let body = "";
   req.on("data", (c) => (body += c));
   req.on("end", () => {
-    posts.push({
-      url: req.url,
-      auth: req.headers.authorization,
-      body: JSON.parse(body || "{}"),
-    });
+    const parsed = JSON.parse(body || "{}");
+    posts.push({ url: req.url, auth: req.headers.authorization, body: parsed });
+
+    const reason = pinedeReject(parsed);
+    if (reason) {
+      rejections.push(reason);
+      res.writeHead(400, { "Content-Type": "application/json" });
+      res.end(JSON.stringify({ error: reason }));
+      return;
+    }
     res.writeHead(200, { "Content-Type": "application/json" });
     res.end("{}");
   });
@@ -126,9 +150,19 @@ const pinede = http.createServer((req, res) => {
   check("addressed to the callsign", posts[0] && posts[0].body.callsign === "AFR123",
     posts[0] && posts[0].body.callsign);
   check(
+    "PINEDE accepted the request",
+    rejections.length === 0,
+    rejections.join("; ")
+  );
+  check(
+    "used the field name PINEDE requires",
+    posts[0] && typeof posts[0].body.text === "string" && posts[0].body.message === undefined,
+    posts[0] && `sent keys: ${Object.keys(posts[0].body).join(", ")}`
+  );
+  check(
     "template placeholders were substituted",
-    posts[0] && posts[0].body.message === "GATE INFO TERMINAL 2E. BRIEFING VACCFR.ORG-BRIEF-LFPG",
-    posts[0] && posts[0].body.message
+    posts[0] && posts[0].body.text === "GATE INFO TERMINAL 2E. BRIEFING VACCFR.ORG-BRIEF-LFPG",
+    posts[0] && posts[0].body.text
   );
   check(
     "the send was logged once",
