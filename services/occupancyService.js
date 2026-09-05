@@ -519,7 +519,41 @@ function registerHoppieEligibility(callsign, standDef, airportConfig) {
     briefingUrl: eligibility.briefingUrl,
     messageTemplate: eligibility.messageTemplate,
     ticksSinceCheck: 0,
+    missedCycles: 0,
   });
+}
+
+// A session ends when the callsign stops appearing in the datafeed, not when it
+// stops holding stands. Those are different: an aircraft whose stand is taken
+// and cannot be given another holds nothing at all, and expiring its record
+// there let the next assignment notify it a second time, with a different gate.
+//
+// Two consecutive absences rather than one, so a single dropped or late cycle
+// does not reset a live session.
+//
+// The record also has to outlive anything the registry still holds for the
+// callsign. Registry entries survive two minutes of silence while two cycles is
+// about thirty seconds, so expiring purely on absence would leave a window in
+// which the record is gone but a stale assignment remains - and swapping that
+// assignment to another stand would notify a second time, which is the very
+// thing this guards against.
+const NOTIFICATION_ABSENT_CYCLES = 2;
+
+function expireNotificationsNotSeen(seenCallsigns) {
+  for (const [callsign, state] of notificationState) {
+    if (seenCallsigns.has(callsign)) {
+      state.missedCycles = 0;
+      continue;
+    }
+    state.missedCycles += 1;
+    if (state.missedCycles < NOTIFICATION_ABSENT_CYCLES) continue;
+
+    const stillHoldsStands =
+      registry.occupiedByCallsign.has(callsign) ||
+      registry.assignedByCallsign.has(callsign) ||
+      registry.blockedByCallsign.has(callsign);
+    if (!stillHoldsStands) notificationState.delete(callsign);
+  }
 }
 
 // Re-checked on every tick an already-assigned callsign is seen again; only actually evaluates
@@ -1122,6 +1156,14 @@ const processDatafeed = async (aircrafts) => {
 
     assignStand(destination, derived, ac);
   }
+
+  // Every callsign this cycle carried, whether or not it was assignable - a
+  // pilot still connected is still in session even when nothing was done for
+  // them this pass.
+  const seen = new Set();
+  for (const ac of Object.values(aircrafts.onGround || {})) seen.add(ac.callsign);
+  for (const ac of Object.values(aircrafts.airborne || {})) seen.add(ac.callsign);
+  expireNotificationsNotSeen(seen);
 };
 
 async function assignStandToPilot(standName, icao, callsign, client) {
@@ -1237,19 +1279,8 @@ function standCleanup() {
   const now = Date.now();
   registry.clearExpired((stand) => now - stand.timestamp > 2 * 60 * 1000);
 
-  // Drop Hoppie notification tracking once a callsign holds nothing in the
-  // registry at all (session over) - that is what makes a later reappearance
-  // count as a fresh session. The callsign indexes answer this in O(1), rather
-  // than scanning all three registries for every tracked callsign.
-  for (const callsign of notificationState.keys()) {
-    const stillTracked =
-      registry.occupiedByCallsign.has(callsign) ||
-      registry.assignedByCallsign.has(callsign) ||
-      registry.blockedByCallsign.has(callsign);
-    if (!stillTracked) {
-      notificationState.delete(callsign);
-    }
-  }
+  // Notification tracking is not expired here: holding no stands does not mean
+  // the session is over. See expireNotificationsNotSeen, driven by the datafeed.
 }
 
 setInterval(standCleanup, 60 * 1000); // every minute
