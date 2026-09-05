@@ -1,6 +1,5 @@
 const { info, warn, error } = require("../utils/logger");
 const airportService = require("./airportService");
-const hoppieService = require("./hoppieService");
 const { haversineMeters } = require("../utils/utils");
 
 // Cache for parsed coordinates to avoid repeated string splitting
@@ -228,13 +227,29 @@ class StandRegistry {
 
 const registry = new StandRegistry();
 
+
+
 // Tracks Hoppie gate-terminal TELEX notification lifecycle per callsign, independent of
 // StandRegistry (a Stand object is replaced, not mutated, on reassignment, so a flag stored
 // on it would not survive a stand swap and could cause a resend).
 // status: 'pending' (below 10,000ft, or not yet confirmed connected to Hoppie) | 'sent'
 const notificationState = new Map();
-const HOPPIE_MIN_ALTITUDE_FT = 10000;
+
+const HOPPIE_DEFAULT_MIN_ALTITUDE_FT = 10000;
 const HOPPIE_RECHECK_TICKS = 4; // ~60s at a 15s datafeed tick, to bound Hoppie API call volume
+const TELEX_TIMEOUT_MS = 5000;
+
+// Read per call rather than once at load. Reading it at module scope needed a
+// top-level await, which turns this CommonJS file into an ESM graph and makes
+// every require() of it throw - it took the whole API down, not just Hoppie.
+// Reading it here also means a config version bump takes effect without a
+// restart, like every other setting.
+function hoppieMinAltitudeFt(config) {
+  const configured = config && config.Hoppie && config.Hoppie.MinAltitudeFt;
+  return typeof configured === "number" && configured > 0
+    ? configured
+    : HOPPIE_DEFAULT_MIN_ALTITUDE_FT;
+}
 
 // Determines whether an assigned stand qualifies for a Hoppie notification: both the stand
 // (Terminal) and the airport (Hoppie.MessageTemplate) must opt in via config. Absence of either
@@ -251,37 +266,61 @@ function getHoppieEligibility(standDef, airportConfig) {
   };
 }
 
-function buildHoppieMessage(messageTemplate, terminal, briefingUrl) {
+function buildTelexMessage(messageTemplate, terminal, briefingUrl) {
   return messageTemplate
     .replace(/{terminal}/g, terminal)
     .replace(/{briefingUrl}/g, briefingUrl);
 }
 
-// Confirms Hoppie presence and sends the TELEX. Never throws - best-effort, fire-and-forget.
-async function attemptHoppieNotification(callsign, state) {
+async function postTelex(callsign, message) {
+  const pinedeURL = process.env.PINEDE_INTERNAL_URL || "http://vaccfr-pinede-backend:3000";
+  const token = process.env.PINEDE_SERVICE_TOKEN;
+  if (!token) {
+    error("PINEDE_SERVICE_TOKEN is not set, cannot send Telex notification", { category: "Telex", callsign });
+    return false;
+  }
+
   try {
-    const connected = await hoppieService.isConnected(callsign);
-    if (!connected) {
-      return; // stays 'pending', retried on a later re-check window
+    const response = await fetch(`${pinedeURL}/v1/internal/telex`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: token,
+      },
+      body: JSON.stringify({ callsign, message }),
+      // Without this an unresponsive PINEDE leaves the request outstanding
+      // indefinitely while the caller keeps re-checking behind it.
+      signal: AbortSignal.timeout(TELEX_TIMEOUT_MS),
+    });
+    if (!response.ok) {
+      error(`Telex notification failed for ${callsign}: ${response.statusText}`, { category: "Telex", callsign });
+      return false;
     }
-    const message = buildHoppieMessage(
+    return true;
+  } catch (err) {
+    error(`Telex notification attempt failed for ${callsign}: ${err.message}`, { category: "Telex", callsign });
+    return false; // stays 'pending', retried on a later re-check window
+  }
+}
+
+// Confirms Hoppie presence and sends the TELEX. Never throws - best-effort, fire-and-forget.
+async function sendTelexNotification(callsign, state) {
+  try {
+    const message = buildTelexMessage(
       state.messageTemplate,
       state.terminal,
       state.briefingUrl
     );
-    const sent = await hoppieService.sendTelex(callsign, message);
+    const sent = await postTelex(callsign, message);
     if (sent) {
       state.status = "sent";
       info(
         `Hoppie gate-terminal notification sent to ${callsign} (Terminal ${state.terminal})`,
-        { category: "Hoppie", callsign }
+        { category: "Telex", callsign }
       );
     }
   } catch (err) {
-    error(`Hoppie notification attempt failed for ${callsign}: ${err.message}`, {
-      category: "Hoppie",
-      callsign,
-    });
+    error(`Hoppie notification attempt failed for ${callsign}: ${err.message}`, { category: "Telex", callsign });
   }
 }
 
@@ -304,7 +343,7 @@ function registerHoppieEligibility(callsign, standDef, airportConfig) {
 
 // Re-checked on every tick an already-assigned callsign is seen again; only actually evaluates
 // (altitude + Hoppie ping) every HOPPIE_RECHECK_TICKS ticks to bound Hoppie API call volume.
-function checkPendingHoppieNotification(ac) {
+function checkPendingHoppieNotification(ac, config) {
   const state = notificationState.get(ac.callsign);
   if (!state || state.status !== "pending") return;
 
@@ -312,8 +351,8 @@ function checkPendingHoppieNotification(ac) {
   if (state.ticksSinceCheck < HOPPIE_RECHECK_TICKS) return;
   state.ticksSinceCheck = 0;
 
-  if (typeof ac.altitude === "number" && ac.altitude >= HOPPIE_MIN_ALTITUDE_FT) {
-    attemptHoppieNotification(ac.callsign, state);
+  if (typeof ac.altitude === "number" && ac.altitude >= hoppieMinAltitudeFt(config)) {
+    sendTelexNotification(ac.callsign, state);
   }
 }
 
@@ -580,6 +619,23 @@ async function calculateRemainingDistance(ac) {
   return dist; // distance in meters
 }
 
+// One assignment envelope for every airport: what used to apply only to
+// extended_icaos is now simply the default, and that list no longer scopes
+// anything.
+//
+// These read max_alt / max_distance only, so the config repo must carry the
+// wider values there - max_alt_extended, max_distance_extended and
+// extended_icaos are no longer consulted at all. Until config.json is updated
+// the envelope is whatever max_alt / max_distance already say, which is the
+// narrow figure the non-extended airports used to get.
+function maxAltitudeFt(config) {
+  return config.max_alt ?? 20000; // default to 20,000 ft if not specified
+}
+
+function maxDistanceNm(config) {
+  return config.max_distance ?? 100; // default to 100 nautical miles if not specified
+}
+
 async function isConcernedArrival(ac, config, airportSet) {
   if (!ac || !ac.destination || !ac.longitude || !ac.latitude) {
     return false;
@@ -587,25 +643,13 @@ async function isConcernedArrival(ac, config, airportSet) {
   if (!airportSet.has(ac.destination)) {
     return false;
   }
-  if (config.extended_icaos && config.extended_icaos.includes(ac.destination)) {
-    if (ac.altitude > config.max_alt_extended) {
-      return false;
-    }
-    ac.remainingDistance = await calculateRemainingDistance(ac);
-    if (ac.remainingDistance * 0.00053996 > config.max_distance_extended) {
-      // convert to nautical miles
-      return false;
-    }
-    
-  } else {
-    if (ac.altitude > config.max_alt) {
-      return false;
-    }
-    ac.remainingDistance = await calculateRemainingDistance(ac);
-    if (ac.remainingDistance * 0.00053996 > config.max_distance) {
-      // convert to nautical miles
-      return false;
-    }
+  if (ac.altitude > maxAltitudeFt(config)) {
+    return false;
+  }
+  ac.remainingDistance = await calculateRemainingDistance(ac);
+  if (ac.remainingDistance * 0.00053996 > maxDistanceNm(config)) {
+    // convert to nautical miles
+    return false;
   }
   return true;
 }
@@ -756,7 +800,7 @@ function assignStand(airportConfig, config, ac) {
         for (const s of blockedStands) {
           s.timestamp = Date.now();
         }
-      checkPendingHoppieNotification(ac);
+      checkPendingHoppieNotification(ac, config);
       return;
     }
   }
@@ -887,10 +931,10 @@ function assignStand(airportConfig, config, ac) {
     }
 
     registerHoppieEligibility(ac.callsign, selectedStandDef, airportConfig);
-    if (typeof ac.altitude === "number" && ac.altitude >= HOPPIE_MIN_ALTITUDE_FT) {
+    if (typeof ac.altitude === "number" && ac.altitude >= hoppieMinAltitudeFt(config)) {
       const state = notificationState.get(ac.callsign);
       if (state && state.status === "pending") {
-        attemptHoppieNotification(ac.callsign, state);
+        sendTelexNotification(ac.callsign, state);
       }
     }
     return;
@@ -1226,6 +1270,8 @@ module.exports = {
   processDatafeed,
   assignStandToPilot,
   getGlobalOccupied,
+  maxAltitudeFt,
+  maxDistanceNm,
   getAllOccupied: () => registry.getAllOccupied(),
   getAllAssigned: () => registry.getAllAssigned(),
   getAllBlocked: () => registry.getAllBlocked(),
