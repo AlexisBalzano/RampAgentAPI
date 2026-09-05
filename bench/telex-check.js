@@ -68,8 +68,8 @@ const pinede = http.createServer((req, res) => {
     ICAO: "LFPG",
     Coordinates: "49.010965:2.560501:6000",
     Hoppie: {
-      MessageTemplate: "GATE INFO: TERMINAL {terminal} - {briefingUrl}",
-      BriefingUrl: "https://example.invalid/brief",
+      MessageTemplate: "GATE INFO TERMINAL {terminal}. BRIEFING {briefingUrl}",
+      BriefingUrl: "VACCFR.ORG-BRIEF-LFPG",
     },
     Stands: {
       A01: {
@@ -127,7 +127,7 @@ const pinede = http.createServer((req, res) => {
     posts[0] && posts[0].body.callsign);
   check(
     "template placeholders were substituted",
-    posts[0] && posts[0].body.message === "GATE INFO: TERMINAL 2E - https://example.invalid/brief",
+    posts[0] && posts[0].body.message === "GATE INFO TERMINAL 2E. BRIEFING VACCFR.ORG-BRIEF-LFPG",
     posts[0] && posts[0].body.message
   );
   check(

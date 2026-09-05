@@ -397,6 +397,28 @@ function buildTelexMessage(messageTemplate, terminal, briefingUrl) {
     .replace(/{briefingUrl}/g, briefingUrl);
 }
 
+// PINEDE validates the rendered text as /^[A-Z0-9 .,\-@]+$/, 1..220 characters -
+// the ACARS character set, which has no lower case, no colon and no slash.
+// Checking it here first turns a config mistake into one explicit log line
+// naming the offending characters, instead of a POST that PINEDE rejects and
+// that is then retried every recheck window for the rest of the flight.
+const TELEX_ALLOWED = /^[A-Z0-9 .,\-@]+$/;
+const TELEX_MAX_LENGTH = 220;
+
+function telexRejectionReason(message) {
+  if (!message) return "empty";
+  if (message.length > TELEX_MAX_LENGTH) {
+    return `too long (${message.length} > ${TELEX_MAX_LENGTH})`;
+  }
+  if (!TELEX_ALLOWED.test(message)) {
+    const offending = [
+      ...new Set([...message].filter((c) => !/[A-Z0-9 .,\-@]/.test(c))),
+    ].join("");
+    return `unsupported characters ${JSON.stringify(offending)}`;
+  }
+  return null;
+}
+
 async function postTelex(callsign, message) {
   const pinedeURL = process.env.PINEDE_INTERNAL_URL || "http://vaccfr-pinede-backend:3000";
   const token = process.env.PINEDE_SERVICE_TOKEN;
@@ -419,14 +441,16 @@ async function postTelex(callsign, message) {
     });
     if (!response.ok) {
       error(`Telex notification failed for ${callsign}: ${response.statusText}`, { category: "Telex", callsign });
-      return false;
+      // A 4xx means PINEDE will reject this message every time - retrying just
+      // repeats the same rejection once a minute until the aircraft lands.
+      return response.status >= 400 && response.status < 500 ? "rejected" : "failed";
     }
     // Returning nothing here left the caller thinking the send had failed, so the
     // callsign stayed 'pending' and was re-sent every recheck window until landing.
-    return true;
+    return "sent";
   } catch (err) {
     error(`Telex notification attempt failed for ${callsign}: ${err.message}`, { category: "Telex", callsign });
-    return false; // stays 'pending', retried on a later re-check window
+    return "failed"; // transient: stays 'pending', retried on a later window
   }
 }
 
@@ -438,14 +462,29 @@ async function sendTelexNotification(callsign, state) {
       state.terminal,
       state.briefingUrl
     );
-    const sent = await postTelex(callsign, message);
-    if (sent) {
+    const reason = telexRejectionReason(message);
+    if (reason) {
+      // Terminal: no retry can fix a message the config cannot express.
+      state.status = "invalid";
+      error(
+        `Telex for ${callsign} not sent - ${reason}. Check the Hoppie MessageTemplate ` +
+          `and Terminal for this airport; TELEX allows A-Z 0-9 space . , - @ only`,
+        { category: "Telex", callsign }
+      );
+      return;
+    }
+
+    const outcome = await postTelex(callsign, message);
+    if (outcome === "sent") {
       state.status = "sent";
       info(
         `Hoppie gate-terminal notification sent to ${callsign} (Terminal ${state.terminal})`,
         { category: "Telex", callsign }
       );
+    } else if (outcome === "rejected") {
+      state.status = "invalid"; // terminal, see postTelex
     }
+    // "failed" leaves it pending, to be retried on a later window
   } catch (err) {
     error(`Hoppie notification attempt failed for ${callsign}: ${err.message}`, { category: "Telex", callsign });
   }

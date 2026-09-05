@@ -3,6 +3,7 @@
 *.db
 
 data/
+node_modules/
 
 generateToken.js
 testAssign.js
