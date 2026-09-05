@@ -397,12 +397,18 @@ function buildTelexMessage(messageTemplate, terminal, briefingUrl) {
     .replace(/{briefingUrl}/g, briefingUrl);
 }
 
-// PINEDE validates the rendered text as /^[A-Z0-9 .,\-@]+$/, 1..220 characters -
-// the ACARS character set, which has no lower case, no colon and no slash.
+// Mirrors the rule PINEDE enforces on the rendered text: /^[A-Z0-9 .,\-@/]+$/,
+// 1..220 characters. It is a security control there, not just formatting -
+// PINEDE builds the Hoppie URL by concatenation and only runs encodeURI over
+// it, which leaves reserved characters alone, so "&" or "=" would inject query
+// parameters and "#" would truncate the packet. "/" delimits nothing inside a
+// query value and is allowed.
+//
 // Checking it here first turns a config mistake into one explicit log line
 // naming the offending characters, instead of a POST that PINEDE rejects and
 // that is then retried every recheck window for the rest of the flight.
-const TELEX_ALLOWED = /^[A-Z0-9 .,\-@]+$/;
+const TELEX_ALLOWED = /^[A-Z0-9 .,\-@/]+$/;
+const TELEX_ALLOWED_CHAR = /[A-Z0-9 .,\-@/]/;
 const TELEX_MAX_LENGTH = 220;
 
 function telexRejectionReason(message) {
@@ -412,7 +418,7 @@ function telexRejectionReason(message) {
   }
   if (!TELEX_ALLOWED.test(message)) {
     const offending = [
-      ...new Set([...message].filter((c) => !/[A-Z0-9 .,\-@]/.test(c))),
+      ...new Set([...message].filter((c) => !TELEX_ALLOWED_CHAR.test(c))),
     ].join("");
     return `unsupported characters ${JSON.stringify(offending)}`;
   }
@@ -468,7 +474,7 @@ async function sendTelexNotification(callsign, state) {
       state.status = "invalid";
       error(
         `Telex for ${callsign} not sent - ${reason}. Check the Hoppie MessageTemplate ` +
-          `and Terminal for this airport; TELEX allows A-Z 0-9 space . , - @ only`,
+          `and Terminal for this airport; TELEX allows A-Z 0-9 space . , - @ / only`,
         { category: "Telex", callsign }
       );
       return;
