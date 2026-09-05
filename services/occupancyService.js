@@ -407,8 +407,8 @@ function buildTelexMessage(messageTemplate, terminal, briefingUrl) {
 // Checking it here first turns a config mistake into one explicit log line
 // naming the offending characters, instead of a POST that PINEDE rejects and
 // that is then retried every recheck window for the rest of the flight.
-const TELEX_ALLOWED = /^[A-Z0-9 .,\-@/]+$/;
-const TELEX_ALLOWED_CHAR = /[A-Z0-9 .,\-@/]/;
+const TELEX_ALLOWED = /^[A-Z0-9 .,\-@/\n]+$/;
+const TELEX_ALLOWED_CHAR = /[A-Z0-9 .,\-@/\n]/;
 const TELEX_MAX_LENGTH = 220;
 
 // PINEDE applies the same shape to the callsign. General aviation callsigns
