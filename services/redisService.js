@@ -13,6 +13,8 @@ class RedisService {
   constructor() {
     this.client = null;
     this.isConnected = false;
+    // Last seen file mtime per airport, used to skip redundant version checks.
+    this.versionMtimes = new Map();
   }
 
   async connect() {
@@ -164,11 +166,24 @@ class RedisService {
         "airports",
         `${icao}.json`
       );
+
+      const key = `airport:${icao}`;
+
+      // This runs for every airport every 10 s. Reading and parsing each file
+      // (up to ~190 kB) to compare a version string is wasted work when the
+      // file has not been touched, so an unchanged mtime short-circuits it -
+      // provided the cache entry is still there to be compared against.
+      const stamp = fs.statSync(filePath, { throwIfNoEntry: false });
+      const mtime = stamp ? stamp.mtimeMs : null;
+      if (mtime !== null && this.versionMtimes.get(icao) === mtime) {
+        if (await this.client.exists(key)) return false;
+      }
+
       const fileData = this.loadFromFile(filePath);
       if (!fileData) return false;
 
-      const key = `airport:${icao}`;
       const cached = await this.client.get(key);
+      if (mtime !== null) this.versionMtimes.set(icao, mtime);
 
       if (!cached) {
         // Not cached yet, cache it

@@ -76,7 +76,25 @@
             <canvas id="reportsChart"></canvas>
           </div>
           <div class="per-airport-chart-wrap subContainer">
-            <h3>Occupied Stands per airport:</h3>
+            <h3>Stand occupancy per airport:</h3>
+            <div class="chart-mode-toggle">
+              <button
+                type="button"
+                data-occupancy-mode="share"
+                onclick="setOccupancyChartMode('share')"
+                title="Each airport scaled to 100% of its own stands"
+              >
+                % of stands
+              </button>
+              <button
+                type="button"
+                data-occupancy-mode="count"
+                onclick="setOccupancyChartMode('count')"
+                title="Absolute number of stands"
+              >
+                Count
+              </button>
+            </div>
             <canvas id="airportChart"></canvas>
           </div>
         </div>
