@@ -388,13 +388,19 @@ function getHoppieEligibility(standDef, airportConfig) {
     terminal: standDef.Terminal,
     briefingUrl: airportConfig.Hoppie.BriefingUrl || "",
     messageTemplate: airportConfig.Hoppie.MessageTemplate,
+    info: standDef.Info || ""
   };
 }
 
-function buildTelexMessage(messageTemplate, terminal, briefingUrl) {
+// `info` must be a parameter: without it the name resolves to the logger's
+// info() imported at the top of this file, and String.replace given a function
+// calls it - writing a junk log line and substituting its return value, so the
+// message came out as "STAND 2A undefined" and then failed the charset check.
+function buildTelexMessage(messageTemplate, terminal, briefingUrl, info) {
   return messageTemplate
     .replace(/{terminal}/g, terminal)
-    .replace(/{briefingUrl}/g, briefingUrl);
+    .replace(/{briefingUrl}/g, briefingUrl)
+    .replace(/{info}/g, info);
 }
 
 // Mirrors the rule PINEDE enforces on the rendered text: /^[A-Z0-9 .,\-@/]+$/,
@@ -476,7 +482,8 @@ async function sendTelexNotification(callsign, state) {
     const message = buildTelexMessage(
       state.messageTemplate,
       state.terminal,
-      state.briefingUrl
+      state.briefingUrl,
+      state.info
     );
     const reason = telexRejectionReason(callsign, message);
     if (reason) {
@@ -518,6 +525,7 @@ function registerHoppieEligibility(callsign, standDef, airportConfig) {
     terminal: eligibility.terminal,
     briefingUrl: eligibility.briefingUrl,
     messageTemplate: eligibility.messageTemplate,
+    info: eligibility.info || "",
     ticksSinceCheck: 0,
     missedCycles: 0,
   });
