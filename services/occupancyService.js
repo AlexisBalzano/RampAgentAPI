@@ -1,6 +1,7 @@
 const { info, warn, error } = require("../utils/logger");
 const airportService = require("./airportService");
 const airportIndex = require("./airportIndex");
+const redisService = require("./redisService");
 const { haversineMeters, withinRadius } = require("../utils/utils");
 
 // Caches that only exist to stop log flooding when the same condition repeats
@@ -358,6 +359,12 @@ const registry = new StandRegistry();
 // StandRegistry (a Stand object is replaced, not mutated, on reassignment, so a flag stored
 // on it would not survive a stand swap and could cause a resend).
 // status: 'pending' (below the altitude threshold) | 'sent'
+//
+// Process-local, so a restart used to wipe it: the registry came back empty,
+// every inbound aircraft was assigned a stand again, and nothing remembered its
+// pilot had already been told the gate. 'sent' entries are therefore mirrored
+// into Redis and read back before the first datafeed cycle - see
+// loadPersistedNotifications - so the repeat is prevented instead of sent.
 const notificationState = new Map();
 
 const HOPPIE_DEFAULT_MIN_ALTITUDE_FT = 10000;
@@ -500,6 +507,13 @@ async function sendTelexNotification(callsign, state) {
     const outcome = await postTelex(callsign, message);
     if (outcome === "sent") {
       state.status = "sent";
+      // Written straight after the POST, so the window in which a restart could
+      // lose the fact that this pilot has been notified is as small as it gets.
+      state.telexRecord = {
+        terminal: state.terminal,
+        sentAt: new Date().toISOString(),
+      };
+      await persistNotification(callsign, state);
       info(
         `Hoppie gate-terminal notification sent to ${callsign} (Terminal ${state.terminal})`,
         { category: "Telex", callsign }
@@ -528,6 +542,7 @@ function registerHoppieEligibility(callsign, standDef, airportConfig) {
     info: eligibility.info || "",
     ticksSinceCheck: 0,
     missedCycles: 0,
+    persistedAt: 0,
   });
 }
 
@@ -547,10 +562,36 @@ function registerHoppieEligibility(callsign, standDef, airportConfig) {
 // thing this guards against.
 const NOTIFICATION_ABSENT_CYCLES = 2;
 
+// The Redis record expires an hour after it was last written, and that hour is
+// meant to run from the end of the session rather than from the send - a pilot
+// who lands, parks and stays connected is still in session. Rewriting it at
+// half the TTL keeps it alive for one command per callsign per half hour,
+// instead of one per callsign per cycle.
+const NOTIFICATION_REFRESH_INTERVAL_MS =
+  (redisService.telexNotifiedTtlSeconds * 1000) / 2;
+
+// Writes the whole record rather than only pushing its expiry back, so the same
+// call also heals one that never landed - Redis unreachable at send time - or
+// that has since gone missing. Never rejects: the write reports failure by
+// returning false.
+async function persistNotification(callsign, state) {
+  state.persistedAt = Date.now(); // optimistic, so a slow write is not repeated
+  const written = await redisService.setTelexNotified(callsign, state.telexRecord);
+  if (!written) state.persistedAt = 0; // retry on the next cycle it is seen
+}
+
 function expireNotificationsNotSeen(seenCallsigns) {
+  const now = Date.now();
+
   for (const [callsign, state] of notificationState) {
     if (seenCallsigns.has(callsign)) {
       state.missedCycles = 0;
+      if (
+        state.status === "sent" &&
+        now - state.persistedAt >= NOTIFICATION_REFRESH_INTERVAL_MS
+      ) {
+        persistNotification(callsign, state);
+      }
       continue;
     }
     state.missedCycles += 1;
@@ -560,8 +601,66 @@ function expireNotificationsNotSeen(seenCallsigns) {
       registry.occupiedByCallsign.has(callsign) ||
       registry.assignedByCallsign.has(callsign) ||
       registry.blockedByCallsign.has(callsign);
-    if (!stillHoldsStands) notificationState.delete(callsign);
+    if (!stillHoldsStands) {
+      notificationState.delete(callsign);
+      // Redis mirrors the Map, so the session ending has to clear both -
+      // otherwise the record outlives the session and blocks the notification a
+      // genuinely new one is owed.
+      redisService.clearTelexNotified(callsign);
+    }
   }
+}
+
+/**
+ * Restores the 'sent' records from Redis into the in-process Map.
+ *
+ * Must complete before the first datafeed cycle, or the restart it exists to
+ * cover re-notifies in that cycle. Only 'sent' is persisted, so everything read
+ * back is 'sent': both registerHoppieEligibility and
+ * checkPendingHoppieNotification bail out on a record in that state, which is
+ * what turns the resend into a no-op. The eligibility fields go unread for such
+ * a record, but the shape is kept whole so nothing downstream has to special-
+ * case a restored one.
+ *
+ * From here the records live and die exactly like any other: absence from the
+ * datafeed for NOTIFICATION_ABSENT_CYCLES ends the session and clears both
+ * copies, so a restart does not leave anything pinned.
+ */
+async function loadPersistedNotifications() {
+  if (!redisService.isConnected) {
+    warn(
+      "Redis unavailable, Telex notification records not restored - a callsign " +
+        "notified before this restart may be notified again",
+      { category: "Telex" }
+    );
+    return 0;
+  }
+
+  const records = await redisService.getAllTelexNotified();
+  const now = Date.now();
+  let restored = 0;
+
+  for (const { callsign, record } of records) {
+    if (notificationState.has(callsign)) continue;
+    const restoredRecord = record && typeof record === "object" ? record : {};
+    notificationState.set(callsign, {
+      status: "sent",
+      terminal: restoredRecord.terminal || "",
+      briefingUrl: "",
+      messageTemplate: "",
+      info: "",
+      ticksSinceCheck: 0,
+      missedCycles: 0,
+      persistedAt: now,
+      telexRecord: restoredRecord,
+    });
+    restored++;
+  }
+
+  info(`Restored ${restored} Telex notification record(s) from Redis`, {
+    category: "Telex",
+  });
+  return restored;
 }
 
 // Re-checked on every tick an already-assigned callsign is seen again; only actually evaluates
@@ -1298,6 +1397,7 @@ module.exports = {
   Stand,
   registry,
   processDatafeed,
+  loadPersistedNotifications,
   assignStandToPilot,
   maxAltitudeFt,
   maxDistanceNm,

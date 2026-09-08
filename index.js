@@ -17,6 +17,7 @@ const statRoutes = require("./routes/stats");
 const redisService = require("./services/redisService");
 const airportService = require("./services/airportService");
 const airportIndex = require("./services/airportIndex");
+const occupancyService = require("./services/occupancyService");
 const healthRoutes = require("./routes/health");
 const authRoutes = require("./routes/auth");
 const apiKeyRoutes = require("./routes/APIkey");
@@ -152,6 +153,18 @@ app.use("/api/apikey", apiKeyRoutes);
 // Connect to Redis
 redisService
   .connect()
+  // A restart wipes the in-process record of which pilots have already been
+  // sent their gate TELEX, so it is read back from Redis before the datafeed
+  // starts - otherwise the first cycle notifies them a second time. Best-effort
+  // like every other use of Redis here: not being able to read it is a warning,
+  // not a reason to refuse to start.
+  .then(() =>
+    occupancyService.loadPersistedNotifications().catch((err) => {
+      logger.warn(`Failed to restore Telex records: ${err.message}`, {
+        category: "Telex",
+      });
+    })
+  )
   .then(() => {
     app.listen(config.port, () => {
       logger.info(`Server running at http://localhost:${config.port}`, {

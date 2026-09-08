@@ -5,10 +5,19 @@ const logger = require("../utils/logger");
 const crypto = require("crypto");
 const ADMIN_CIDS = require("../config/admins");
 
+const TELEX_NOTIFIED_PREFIX = "telex:notified:";
+
 class RedisService {
   // Default expiration times in seconds
   static KEY_EXPIRATION = 24 * 60 * 60 * 30; // 30 days
   static KEY_METADATA_EXPIRATION = 30 * 24 * 60 * 60 * 2; // 60 days
+
+  // How long a gate-TELEX "already notified" record survives. Records are
+  // deleted when the session ends, so this only sweeps up ones orphaned by a
+  // crash. occupancyService rewrites the record while the session is still
+  // live, so the hour runs from the last time the callsign was seen rather than
+  // from the send.
+  static TELEX_NOTIFIED_EXPIRATION = 60 * 60; // 1 hour
 
   constructor() {
     this.client = null;
@@ -262,6 +271,94 @@ class RedisService {
     if (this.client && this.isConnected) {
       await this.client.disconnect();
       logger.info("Redis Client Disconnected", { category: "System" });
+    }
+  }
+
+  // Gate-TELEX notification records.
+  //
+  // occupancyService keeps the working copy in a process-local Map, which a
+  // container restart wipes: the registry came back empty, every inbound
+  // aircraft was assigned a stand again, and nothing remembered its pilot had
+  // already been told the gate - so it was told a second time. These keys are
+  // that Map's durable mirror, read back at boot before the first datafeed
+  // cycle so a repeat is prevented rather than sent.
+  //
+  // Only messages that actually went out are recorded. A message rejected as
+  // invalid never reached the pilot, and re-evaluating it after a restart costs
+  // one log line and picks up a corrected MessageTemplate.
+
+  /** Seconds a record survives without being rewritten. */
+  get telexNotifiedTtlSeconds() {
+    return RedisService.TELEX_NOTIFIED_EXPIRATION;
+  }
+
+  telexNotifiedKey(callsign) {
+    return `${TELEX_NOTIFIED_PREFIX}${callsign}`;
+  }
+
+  async setTelexNotified(callsign, record) {
+    if (!this.isConnected) return false;
+
+    try {
+      await this.client.set(
+        this.telexNotifiedKey(callsign),
+        JSON.stringify(record),
+        { EX: RedisService.TELEX_NOTIFIED_EXPIRATION }
+      );
+      return true;
+    } catch (err) {
+      logger.warn(
+        `Failed to persist Telex record for ${callsign}: ${err.message}`,
+        { category: "Telex", callsign }
+      );
+      return false;
+    }
+  }
+
+  async clearTelexNotified(callsign) {
+    if (!this.isConnected) return false;
+
+    try {
+      await this.client.del(this.telexNotifiedKey(callsign));
+      return true;
+    } catch (err) {
+      logger.warn(
+        `Failed to clear Telex record for ${callsign}: ${err.message}`,
+        { category: "Telex", callsign }
+      );
+      return false;
+    }
+  }
+
+  /** Every persisted record, as `{ callsign, record }` pairs. */
+  async getAllTelexNotified() {
+    if (!this.isConnected) return [];
+
+    try {
+      const keys = await this.client.keys(`${TELEX_NOTIFIED_PREFIX}*`);
+      if (keys.length === 0) return [];
+
+      const values = await this.client.mGet(keys);
+      const records = [];
+      for (let i = 0; i < keys.length; i++) {
+        const callsign = keys[i].slice(TELEX_NOTIFIED_PREFIX.length);
+        if (!callsign) continue;
+
+        let record = {};
+        try {
+          if (values[i]) record = JSON.parse(values[i]);
+        } catch (err) {
+          // The key existing is the fact that matters; its contents are only
+          // there for diagnostics, so a damaged body is not worth dropping it.
+        }
+        records.push({ callsign, record });
+      }
+      return records;
+    } catch (err) {
+      logger.warn(`Failed to read Telex records: ${err.message}`, {
+        category: "Telex",
+      });
+      return [];
     }
   }
 
