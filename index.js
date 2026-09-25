@@ -97,7 +97,7 @@ function viewerAssetVersion() {
   return Math.round(newest).toString(36);
 }
 
-app.get("/", (req, res) => {
+function sendViewerShell(res) {
   try {
     const version = viewerAssetVersion();
     if (!shellCache || shellCache.version !== version) {
@@ -115,7 +115,9 @@ app.get("/", (req, res) => {
     });
     res.sendFile(path.join(VIEWER_DIR, "viewer.html"));
   }
-});
+}
+
+app.get("/", (req, res) => sendViewerShell(res));
 
 app.use(
   "/",
@@ -149,6 +151,22 @@ app.use("/api/occupancy", occupancyRoutes);
 
 // API endpoint for API key management
 app.use("/api/apikey", apiKeyRoutes);
+
+// Per-airport deep links: /LFPG serves the same single-page shell, which then
+// reads the ICAO out of the path. Registered after every API route and after
+// the static handler so it can only ever catch what nothing else claimed, and
+// matched by hand rather than with a path pattern because Express 5 no longer
+// accepts an inline regex in the route string.
+//
+// The code is not checked against the airport list here. That list follows the
+// config repo, so validating it server-side would need a reload on every config
+// push; the page resolves it against /api/airports instead and says so when it
+// does not exist, which means a newly added airport works with no deploy.
+app.use((req, res, next) => {
+  if (req.method !== "GET" && req.method !== "HEAD") return next();
+  if (!/^\/[A-Za-z]{4}\/?$/.test(req.path)) return next();
+  sendViewerShell(res);
+});
 
 // Connect to Redis
 redisService

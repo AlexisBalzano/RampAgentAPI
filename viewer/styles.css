@@ -226,6 +226,137 @@ body.dark-mode .subContainer {
   gap: 20px;
 }
 
+/* Airport picker ------------------------------------------------------------
+   The status page is a wall of buttons, one per configured airport, and the
+   list is filled from /api/airports - so an airport added to the config repo
+   shows up here on its own, with nothing to change in this stylesheet. */
+.page-hint {
+  margin: 0 0 12px;
+  color: #4a5765;
+  font-size: 0.9rem;
+}
+
+body.dark-mode .page-hint {
+  color: #c6c6c6;
+}
+
+.airport-picker {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 12px;
+}
+
+.airport-button {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  min-height: 74px;
+  padding: 12px 10px;
+  border: 1px solid #ccc;
+  border-radius: 10px;
+  background-color: #ffffff;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+  color: inherit;
+  text-decoration: none;
+  transition: transform 0.08s ease, box-shadow 0.15s ease, border-color 0.15s ease;
+}
+
+.airport-button:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.18);
+  border-color: #6f8fb5;
+}
+
+.airport-button:active {
+  transform: none;
+}
+
+.airport-button-code {
+  font-family: "Fira Code", monospace;
+  font-size: 1.35rem;
+  font-weight: 700;
+  letter-spacing: 1px;
+}
+
+.airport-button-count {
+  font-size: 0.75rem;
+  color: #4a5765;
+  text-align: center;
+}
+
+/* A quiet airport stays flat; one with traffic on it is marked so the busy
+   fields are findable without reading every label. */
+.airport-button.is-busy {
+  border-color: #2f6f3f;
+  box-shadow: inset 3px 0 0 #2f6f3f, 0 2px 5px rgba(0, 0, 0, 0.1);
+}
+
+.airport-button.is-busy .airport-button-count {
+  color: #1f5c33;
+  font-weight: 600;
+}
+
+body.dark-mode .airport-button {
+  background-color: #5f5f5f;
+  border-color: #444;
+  color: #e6e6e6;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.4);
+}
+
+body.dark-mode .airport-button-count {
+  color: #c6c6c6;
+}
+
+body.dark-mode .airport-button.is-busy .airport-button-count {
+  color: #a7e8bd;
+}
+
+body.dark-mode .airport-button:hover {
+  border-color: #9ab6d8;
+}
+
+body.dark-mode .airport-button.is-busy {
+  border-color: #7fd39a;
+  box-shadow: inset 3px 0 0 #7fd39a, 0 2px 5px rgba(0, 0, 0, 0.4);
+}
+
+/* One airport's page ------------------------------------------------------ */
+.airport-page-head {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+.airport-page-head h2 {
+  margin: 0;
+}
+
+.back-link {
+  color: #4a5765;
+  text-decoration: none;
+  font-size: 0.9rem;
+}
+
+.back-link:hover {
+  text-decoration: underline;
+}
+
+body.dark-mode .back-link {
+  color: #c6c6c6;
+}
+
+.airport-summary {
+  color: #4a5765;
+  font-size: 0.85rem;
+}
+
+body.dark-mode .airport-summary {
+  color: #c6c6c6;
+}
+
 .log-container {
   min-height: 100px;
   /* VH - 277 */
@@ -1933,22 +2064,22 @@ body.dark-mode .letter::after {
     transform: rotateX(0deg);
   }
   20% {
-    content: "3";
+    content: "O";
     transform: rotateX(360deg);
   }
   40% {
     color: #afafaf;
-    content: "O";
+    content: "4";
     transform: rotateX(0deg);
   }
   60% {
     color: #afafaf;
-    content: "I";
+    content: "6";
     transform: rotateX(360deg);
   }
   80% {
     color: #afafaf;
-    content: "3";
+    content: "K";
     transform: rotateX(0deg);
   }
   100% {
@@ -2378,6 +2509,9 @@ body.dark-mode #apiKeyListTable tbody tr .swipe-indicator.right {
   }
   .status-container {
     grid-template: none;
+  }
+  .airport-picker {
+    grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
   }
   .airport-display {
     max-width: 310px;

@@ -22,12 +22,19 @@ setInterval(() => {
  */
 const payloadCache = new Map(); // name -> { version, body }
 
+// The per-airport entries are keyed on a path parameter, so a caller asking for
+// made-up codes would otherwise mint an entry each time. A few dozen airports
+// plus the fixed endpoints fit well inside this; past it the cache is dropped
+// and refilled rather than allowed to grow on request.
+const MAX_CACHED_PAYLOADS = 128;
+
 function cachedPayload(name, build) {
   const version = occupancyService.registry.version;
   const entry = payloadCache.get(name);
   if (entry && entry.version === version) return entry.body;
 
   const body = JSON.stringify(build());
+  if (payloadCache.size >= MAX_CACHED_PAYLOADS) payloadCache.clear();
   payloadCache.set(name, { version, body });
   return body;
 }
@@ -42,6 +49,7 @@ const toStand = (s) => ({
   callsign: s.callsign || null,
   remark: s.remark || null,
   apronSize: s.apronSize || 0,
+  movement: s.movement || null,
 });
 
 function countRequest(req) {
@@ -133,6 +141,46 @@ exports.getAllStandsStatus = (req, res) => {
     );
   } catch (err) {
     res.status(500).json({ error: "Failed to retrieve all stands status" });
+  }
+};
+
+/**
+ * One airport's stands, for the per-airport page.
+ *
+ * The viewer used to pull every airport's stands to draw one board per airport;
+ * a page that shows a single airport should fetch a single airport, which is a
+ * fraction of the payload and of the rendering behind it.
+ */
+exports.getAirportStatus = (req, res) => {
+  try {
+    countRequest(req);
+
+    const icao = String(req.params.icao || "").toUpperCase();
+    if (!/^[A-Z0-9]{4}$/.test(icao)) {
+      return res.status(400).json({ error: "Invalid ICAO" });
+    }
+
+    // An ICAO with no stands is answered with empty lists rather than a 404:
+    // the airport list follows the config repo, so this endpoint has no
+    // authoritative view of which codes exist. The page resolves that against
+    // /api/airports.
+    sendJson(
+      res,
+      cachedPayload(`airport:${icao}`, () => {
+        const registry = occupancyService.registry;
+        const forIcao = (list) =>
+          list.filter((s) => s.icao === icao).map(toStand);
+
+        return {
+          icao,
+          occupied: forIcao(registry.getAllOccupied()),
+          assigned: forIcao(registry.getAllAssigned()),
+          blocked: forIcao(registry.getAllBlocked()),
+        };
+      })
+    );
+  } catch (err) {
+    res.status(500).json({ error: "Failed to retrieve airport status" });
   }
 };
 

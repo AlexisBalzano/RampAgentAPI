@@ -196,17 +196,26 @@ function generateSeparator() {
 function padStandName(name) {
   return name.padStart(3, " ");
 }
-function padAirportIcao(name) {
-  return name.padStart(9, " ");
-}
-
 // Page visibility ---------------------------------------------------------
 // Every page used to poll on its own timer regardless of what was on screen,
 // so sitting on the status page also paid for the map, the log tail and the
 // stats charts. Pollers now run only for the page actually being looked at,
 // and fire immediately when you navigate to it.
 
-let activePage = location.hash.replace("#", "") || "status";
+// An airport is addressed by path (/LFPG) so it can be linked and refreshed,
+// while the other pages stay on the hash they have always used. Both are read
+// here so the two schemes cannot disagree about what is on screen.
+const AIRPORT_PATH = /^\/([A-Za-z]{4})\/?$/;
+
+function readRoute() {
+  const match = AIRPORT_PATH.exec(location.pathname);
+  if (match) return { page: "airport", icao: match[1].toUpperCase() };
+  return { page: location.hash.replace("#", "") || "status", icao: null };
+}
+
+const initialRoute = readRoute();
+let activePage = initialRoute.page;
+let activeIcao = initialRoute.icao;
 const pageEnterHandlers = new Map(); // page -> [fn]
 
 function isPageActive(page) {
@@ -220,11 +229,29 @@ function pollOnPage(page, fn, ms) {
   }, ms);
 }
 
+// True once the router has resolved the first URL.
+//
+// A deferred script runs with the document already "interactive", so the
+// router starts before the later registrations are made and their page's
+// arrival has already been missed by the time they land. Anything registered
+// for the page currently on screen therefore runs on the spot - without it a
+// deep link renders an empty section until the first poll ten seconds later.
+let navigationReady = false;
+
 /** Runs fn each time `page` becomes the active page. */
 function onPageEnter(page, fn) {
   const handlers = pageEnterHandlers.get(page);
   if (handlers) handlers.push(fn);
   else pageEnterHandlers.set(page, [fn]);
+  if (navigationReady && page === activePage) runPageEnter(page, fn);
+}
+
+function runPageEnter(page, fn) {
+  try {
+    fn();
+  } catch (err) {
+    console.error("page enter handler failed for " + page, err);
+  }
 }
 
 // Runs on navigation regardless of document visibility: arriving at a page
@@ -232,13 +259,7 @@ function onPageEnter(page, fn) {
 function firePageEnter(page) {
   const handlers = pageEnterHandlers.get(page);
   if (!handlers) return;
-  for (const fn of handlers) {
-    try {
-      fn();
-    } catch (err) {
-      console.error("page enter handler failed for " + page, err);
-    }
-  }
+  for (const fn of handlers) runPageEnter(page, fn);
 }
 
 // Coming back to a backgrounded tab should refresh whatever is on screen.
@@ -246,16 +267,19 @@ document.addEventListener("visibilitychange", () => {
   if (!document.hidden) firePageEnter(activePage);
 });
 
-// One persistent panel per airport. Rows are reconciled against what is
-// already on screen and keyed by their rendered text, so an unchanged row is
-// never touched: no DOM work, and no flap animation. Only rows that actually
-// appeared flip, which is both far cheaper and closer to how a real split-flap
-// board behaves.
-const statusPanels = new Map(); // ICAO -> { root, sections: { kind -> sectionState } }
-const STATUS_SECTIONS = [
-  ["occupied", "Occupied Stands"],
-  ["assigned", "Assigned Stands"],
-  ["blocked", "Blocked Stands"],
+// The status page is a picker, and one airport's stands are drawn at a time.
+// Drawing every airport at once meant six hundred split-flap rows and nine
+// thousand letter elements on screen; one airport is a few dozen, and the board
+// only has to be built for the airport actually being looked at.
+//
+// Rows are still reconciled against what is already on screen and keyed by
+// their rendered text, so an unchanged row is never touched: no DOM work, and
+// no flap animation. Only rows that actually appeared flip.
+const AIRPORT_SECTIONS = [
+  ["departures", "Departures"],
+  ["arrivals", "Arrivals"],
+  ["onStand", "On Stand"],
+  ["blocked", "Blocked"],
 ];
 
 function standLine(stand) {
@@ -268,29 +292,6 @@ function makeBoard(text, animate) {
   const board = generateSpanforText(text);
   if (!animate) board.classList.add("no-flip");
   return board;
-}
-
-function createAirportPanel(icao) {
-  const root = document.createElement("div");
-  root.className = "airport-display subContainer";
-  root.id = "airport-" + icao;
-  root.appendChild(makeBoard(padAirportIcao(icao), false));
-
-  const sections = {};
-  for (const [kind, title] of STATUS_SECTIONS) {
-    root.appendChild(generateSeparator());
-    root.appendChild(makeBoard(title, false));
-    root.appendChild(generateSeparator());
-
-    // display:contents, so the wrapper groups rows for reconciliation without
-    // affecting the panel's flex layout.
-    const body = document.createElement("div");
-    body.className = "status-rows";
-    root.appendChild(body);
-    sections[kind] = { body, rows: new Map(), primed: false };
-  }
-
-  return { root, sections };
 }
 
 /**
@@ -339,6 +340,199 @@ function reconcileRows(section, texts) {
 const byStandName = (a, b) =>
   a.name < b.name ? -1 : a.name > b.name ? 1 : 0;
 
+// ---------------------------------------------------------------- picker ---
+
+// Buttons are keyed by ICAO and reconciled, so the list follows the config repo
+// on its own: an airport added there appears at the next poll, and one removed
+// disappears, with no redeploy and nothing hard-coded here.
+const airportButtons = new Map(); // ICAO -> { root, count }
+
+function buildAirportButton(icao) {
+  const root = document.createElement("a");
+  root.className = "airport-button";
+  root.href = "/" + icao;
+  root.dataset.icao = icao;
+
+  const code = document.createElement("span");
+  code.className = "airport-button-code";
+  code.textContent = icao;
+
+  const count = document.createElement("span");
+  count.className = "airport-button-count";
+
+  root.append(code, count);
+  return { root, count };
+}
+
+async function renderAirportPicker() {
+  try {
+    const headers = { "X-Internal-Request": "1" };
+    const json = (path, fallback) =>
+      fetch(API_BASE_URL + path, { headers })
+        .then((res) => res.json())
+        .catch(() => fallback);
+
+    // Two reads rather than four: the combined endpoint already carries all
+    // three lists, and the picker only needs totals from them.
+    const [airportList, status] = await Promise.all([
+      json("/api/airports", []),
+      json("/api/occupancy", { occupiedStands: [], assignedStands: [], blockedStands: [] }),
+    ]);
+
+    const container = document.getElementById("airport-picker");
+    if (!container) return;
+
+    const counts = new Map();
+    const tally = (list, key) => {
+      for (const stand of list || []) {
+        let entry = counts.get(stand.icao);
+        if (!entry) counts.set(stand.icao, (entry = { occupied: 0, assigned: 0 }));
+        entry[key] += 1;
+      }
+    };
+    tally(status.occupiedStands, "occupied");
+    tally(status.assignedStands, "assigned");
+
+    const wanted = (airportList || [])
+      .map((a) => a.name)
+      .filter(Boolean)
+      .sort();
+
+    for (const [icao, button] of airportButtons) {
+      if (!wanted.includes(icao)) {
+        button.root.remove();
+        airportButtons.delete(icao);
+      }
+    }
+
+    for (const icao of wanted) {
+      let button = airportButtons.get(icao);
+      if (!button) {
+        button = buildAirportButton(icao);
+        airportButtons.set(icao, button);
+        container.appendChild(button.root);
+      }
+      const entry = counts.get(icao) || { occupied: 0, assigned: 0 };
+      const busy = entry.occupied + entry.assigned;
+      const label = busy === 0 ? "quiet" : `${entry.occupied} on stand · ${entry.assigned} inbound`;
+      if (button.count.textContent !== label) button.count.textContent = label;
+      button.root.classList.toggle("is-busy", busy > 0);
+    }
+
+    // Keep the buttons in ICAO order even after one is inserted in the middle.
+    for (const icao of wanted) {
+      const button = airportButtons.get(icao);
+      if (button) container.appendChild(button.root);
+    }
+
+    checkVolumeAndTogglePerformanceMode(
+      (status.occupiedStands || []).length + (status.assignedStands || []).length
+    );
+  } catch (error) {
+    console.error("renderAirportPicker: Error", error);
+  }
+}
+
+// ------------------------------------------------------------ one airport ---
+
+let airportBoard = null; // { icao, sections: { kind -> sectionState } }
+
+function buildAirportBoard(icao) {
+  const container = document.getElementById("airport-container");
+  container.textContent = "";
+
+  const sections = {};
+  for (const [kind, title] of AIRPORT_SECTIONS) {
+    const panel = document.createElement("div");
+    panel.className = "airport-display subContainer";
+    panel.dataset.section = kind;
+    panel.appendChild(makeBoard(title, false));
+    panel.appendChild(generateSeparator());
+
+    // display:contents, so the wrapper groups rows for reconciliation without
+    // affecting the panel's flex layout.
+    const body = document.createElement("div");
+    body.className = "status-rows";
+    panel.appendChild(body);
+
+    container.appendChild(panel);
+    sections[kind] = { body, rows: new Map(), primed: false };
+  }
+
+  return { icao, sections };
+}
+
+/**
+ * Occupancy alone cannot say whether an aircraft on a stand is going out or has
+ * just come in, so the service records the direction from its flight plan.
+ * Anything without one falls into "on stand" rather than being guessed at.
+ */
+function splitAirportStands(payload) {
+  const occupied = payload.occupied || [];
+  return {
+    arrivals: payload.assigned || [],
+    departures: occupied.filter((s) => s.movement === "departure"),
+    onStand: occupied.filter((s) => s.movement !== "departure"),
+    blocked: payload.blocked || [],
+  };
+}
+
+async function renderAirportPage() {
+  const icao = activeIcao;
+  if (!icao) return;
+
+  const title = document.getElementById("airport-title");
+  const summary = document.getElementById("airport-summary");
+
+  try {
+    const headers = { "X-Internal-Request": "1" };
+    const [payload, airportList] = await Promise.all([
+      fetch(`${API_BASE_URL}/api/occupancy/airport/${icao}`, { headers })
+        .then((res) => (res.ok ? res.json() : null))
+        .catch(() => null),
+      fetch(API_BASE_URL + "/api/airports", { headers })
+        .then((res) => res.json())
+        .catch(() => []),
+    ]);
+
+    // The airport list comes from the config repo, so this recognises a newly
+    // added ICAO without any change here.
+    const known = (airportList || []).some((a) => a.name === icao);
+    if (title) title.textContent = icao;
+    if (!known) {
+      if (summary) summary.textContent = "not a configured airport";
+      const container = document.getElementById("airport-container");
+      if (container) container.textContent = "";
+      airportBoard = null;
+      return;
+    }
+
+    if (!airportBoard || airportBoard.icao !== icao) {
+      airportBoard = buildAirportBoard(icao);
+    }
+
+    const groups = splitAirportStands(payload || {});
+    if (summary) {
+      summary.textContent =
+        `${groups.arrivals.length} inbound · ` +
+        `${groups.departures.length} outbound · ` +
+        `${groups.onStand.length} on stand`;
+    }
+
+    for (const [kind] of AIRPORT_SECTIONS) {
+      // Sorted by stand name so rows keep a stable position between polls - an
+      // arrival in the middle then moves one row instead of shifting all.
+      const texts =
+        groups[kind].length === 0
+          ? ["None"]
+          : groups[kind].slice().sort(byStandName).map(standLine);
+      reconcileRows(airportBoard.sections[kind], texts);
+    }
+  } catch (error) {
+    console.error("renderAirportPage: Error", error);
+  }
+}
+
 /**
  * One snapshot of every airport with its stands bucketed by state. Shared by
  * the status board and the statistics chart, which never run at the same time
@@ -383,50 +577,6 @@ async function fetchOccupancySnapshot() {
     airports,
     total: occupiedStands.length + assignedStands.length + blockedStands.length,
   };
-}
-
-async function renderAirportsStatus() {
-  try {
-    const { airports, total } = await fetchOccupancySnapshot();
-
-    // Check volume and toggle performance mode
-    checkVolumeAndTogglePerformanceMode(total);
-
-    const statusContainer = document.getElementById("status-container");
-    if (!statusContainer) {
-      console.error("renderAirportsStatus: status-container not found");
-      return;
-    }
-
-    // Drop panels for airports that are no longer served.
-    for (const [icao, panel] of statusPanels) {
-      if (!airports[icao]) {
-        panel.root.remove();
-        statusPanels.delete(icao);
-      }
-    }
-
-    for (const [icao, stands] of Object.entries(airports)) {
-      let panel = statusPanels.get(icao);
-      if (!panel) {
-        panel = createAirportPanel(icao);
-        statusPanels.set(icao, panel);
-        statusContainer.appendChild(panel.root);
-      }
-
-      for (const [kind] of STATUS_SECTIONS) {
-        // Sorted by stand name so rows keep a stable position between polls -
-        // an arrival in the middle then moves one row instead of shifting all.
-        const texts =
-          stands[kind].length === 0
-            ? ["None"]
-            : stands[kind].slice().sort(byStandName).map(standLine);
-        reconcileRows(panel.sections[kind], texts);
-      }
-    }
-  } catch (error) {
-    console.error("renderAirportsStatus: Error", error);
-  }
 }
 
 // Statistics chart
@@ -1262,17 +1412,9 @@ function scrollToBottom() {
 
 // Initial render and periodic refresh
 document.addEventListener("DOMContentLoaded", () => {
-  // Paint the board once if it is the landing page. Only polling is gated on
-  // document visibility - a first render still has to happen for a tab that
-  // opens in the background.
-  if (activePage === "status") renderAirportsStatus();
+  // The landing page is painted by route(), which fires the page-enter
+  // handlers registered below once navigation is initialised.
   renderConfigButtons();
-
-  // Initial log setup (the log page is admin-only; arriving there loads these)
-  if (activePage === "log") {
-    populateLogFilters();
-    fetchFilteredLogs();
-  }
 
   // Set up infinite scroll on logContainer
   const logContainer = document.getElementById("logContainer");
@@ -1322,8 +1464,11 @@ document.addEventListener("DOMContentLoaded", () => {
   if (categorySelect)
     categorySelect.addEventListener("change", () => fetchFilteredLogs(true));
 
-  pollOnPage("status", renderAirportsStatus, 10000);
-  onPageEnter("status", renderAirportsStatus);
+  pollOnPage("status", renderAirportPicker, 10000);
+  onPageEnter("status", renderAirportPicker);
+
+  pollOnPage("airport", renderAirportPage, 10000);
+  onPageEnter("airport", renderAirportPage);
 
   pollOnPage("log", populateLogFilters, 5000);
   onPageEnter("log", () => {
@@ -1400,14 +1545,59 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     function route() {
-      const hash = location.hash.replace("#", "") || "status";
-      activePage = hash;
-      showPage(hash);
-      firePageEnter(hash);
+      const next = readRoute();
+      activePage = next.page;
+      activeIcao = next.icao;
+      showPage(next.page);
+      firePageEnter(next.page);
+      navigationReady = true;
     }
+
+    // pushState rather than a link the browser follows, so moving between an
+    // airport and the rest of the dashboard reuses the loaded shell instead of
+    // fetching it again - the airport page then paints from one small fetch.
+    function navigate(url) {
+      if (location.pathname + location.hash !== url) {
+        history.pushState(null, "", url);
+      }
+      route();
+    }
+
+    // Delegated, so the buttons the picker creates later need no rebinding, and
+    // a middle-click or ctrl-click still opens the real URL in a new tab.
+    document.addEventListener("click", (event) => {
+      if (event.defaultPrevented || event.button !== 0) return;
+      if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+
+      const link = event.target && event.target.closest
+        ? event.target.closest("a")
+        : null;
+      if (!link || link.target === "_blank") return;
+
+      if (link.dataset.icao) {
+        event.preventDefault();
+        navigate("/" + link.dataset.icao);
+        return;
+      }
+
+      if (link.hasAttribute("data-nav-root")) {
+        event.preventDefault();
+        navigate("/#status");
+        return;
+      }
+
+      // A sidenav hash link clicked from /LFPG resolves to /LFPG#status, which
+      // would leave the path - and so the airport page - in place.
+      const href = link.getAttribute("href") || "";
+      if (href.startsWith("#") && location.pathname !== "/") {
+        event.preventDefault();
+        navigate("/" + href);
+      }
+    });
 
     // initialize
     window.addEventListener("hashchange", route);
+    window.addEventListener("popstate", route);
     route(); // Call route immediately after setup
   }
 
