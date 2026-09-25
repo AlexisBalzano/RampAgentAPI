@@ -62,7 +62,16 @@
       </div>
       <section id="status" data-page="status">
         <h2>Status</h2>
-        <div id="status-container" class="status-container container"></div>
+        <p class="page-hint">Pick an airport to see its stands.</p>
+        <div id="airport-picker" class="airport-picker"></div>
+      </section>
+      <section id="airport" data-page="airport">
+        <div class="airport-page-head">
+          <a href="/" class="back-link" data-nav-root>&larr; All airports</a>
+          <h2><span id="airport-title">&mdash;</span></h2>
+          <span id="airport-summary" class="airport-summary"></span>
+        </div>
+        <div id="airport-container" class="status-container container"></div>
       </section>
       <section id="statistics" data-page="statistics">
         <h2>Statistics</h2>

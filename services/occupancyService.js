@@ -22,12 +22,17 @@ const MAX_DISTANCE = Number.MAX_SAFE_INTEGER;
 const METERS_TO_NM = 0.00053996;
 
 class Stand {
-  constructor(name, icao, callsign, remark = "", apronSize = 0) {
+  // `movement` is "departure" or "arrival" for an aircraft physically on the
+  // stand, taken from its flight plan - occupancy alone cannot tell the two
+  // apart, and a per-airport board wants them in separate columns. Null when
+  // unknown, and unused for assigned and blocked stands.
+  constructor(name, icao, callsign, remark = "", apronSize = 0, movement = null) {
     this.name = name;
     this.icao = icao;
     this.callsign = callsign;
     this.remark = remark;
     this.apronSize = apronSize;
+    this.movement = movement;
     this.timestamp = Date.now();
 
     // Identity fields never change after construction, so both keys are built
@@ -1226,13 +1231,25 @@ const processDatafeed = async (aircrafts) => {
       aircraftCode = getAircraftCode(getAircraftWingspan(derived, aircraftType));
     }
 
+    // Which way this aircraft is going, read off the flight plan it filed: the
+    // airport it is parked at appears as either the departure or the arrival.
+    const plan = ac.flight_plan;
+    const movement = !plan
+      ? null
+      : plan.departure === ac.origin
+        ? "departure"
+        : plan.arrival === ac.origin
+          ? "arrival"
+          : null;
+
     registry.addOccupied(
       new Stand(
         standName,
         ac.origin || "UNKNOWN",
         ac.callsign,
         resolveRemark(stand.def, aircraftCode),
-        stand.apronSize
+        stand.apronSize,
+        movement
       )
     );
     blockStands(stand, ac.origin, ac.callsign);
