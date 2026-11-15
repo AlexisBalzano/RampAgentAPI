@@ -3,7 +3,6 @@ const fs = require("fs");
 const path = require("path");
 const logger = require("../utils/logger");
 const crypto = require("crypto");
-const ADMIN_CIDS = require("../config/admins");
 
 const TELEX_NOTIFIED_PREFIX = "telex:notified:";
 const TELEX_COUNT_PREFIX = "telex:count:";
@@ -504,30 +503,6 @@ class RedisService {
     return VALID_ROLES.includes(role);
   }
 
-  async ensureAdminRoles() {
-    if (!this.isConnected) return;
-
-    try {
-      // Ensure all admin CIDs have admin role
-      for (const cid of ADMIN_CIDS) {
-        const user = await this.getLocalUser(cid);
-        if (!user.roles || !user.roles.includes("admin")) {
-          await this.updateLocalUser(cid, {
-            roles: [...(user.roles || []), "admin"],
-            updated_at: new Date().toISOString(),
-          });
-          logger.info(`Admin role granted to CID: ${cid}`, {
-            category: "System",
-          });
-        }
-      }
-    } catch (err) {
-      logger.error(`Failed to ensure admin roles: ${err.message}`, {
-        category: "System",
-      });
-    }
-  }
-
   async updateLocalUser(cid, settings) {
     if (!this.isConnected) return false;
 
@@ -545,17 +520,6 @@ class RedisService {
     try {
       const key = `user:${cid}:settings`;
       const existing = await this.getLocalUser(cid);
-
-      // Check if this is first login for an admin (only if roles are missing or empty)
-      if (
-        ADMIN_CIDS.includes(cid) &&
-        (!existing.roles || existing.roles.length === 0)
-      ) {
-        settings.roles = ["admin"];
-        logger.info(`First login: admin role granted to CID: ${cid}`, {
-          category: "System",
-        });
-      }
 
       // Validate roles if they're being updated
       if (settings.roles) {

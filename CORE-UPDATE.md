@@ -93,7 +93,16 @@ from core". **Core must be merged and deployed first.**
 
 ---
 
-## 2. Roles are available if RampAgent ever needs them
+## 2. Roles — core admins are RampAgent admins (done)
+
+Core `isAdmin` / `isSysAdmin` now grant RampAgent's `admin` role, which gates
+the Logs and Configs pages and `/api/logs` (that API used to be open to
+anyone). The flag is stored on the local user as `core_admin`, set at login and
+refreshed on every `/api/auth/session` call, kept apart from `roles` so a
+revocation in core takes effect without touching admins granted locally
+from the dashboard. The hardcoded `config/admins.js` list is gone: core is
+where admins are set now.
+
 
 Core is now the source of truth for vACC roles, and the member endpoint above
 carries them: `isApprovedAtc`, `isStaff`, `isEventsTeam`, the LFPG/LFMN position
@@ -152,6 +161,7 @@ exactly as before.
 ## Suggested order
 
 1. ~~**Member endpoint**~~ — done, see above; needs core merged first
-2. **`CORE_API_VERSION`** — whenever that file is next open
+2. ~~**Core roles → admin**~~ — done, see section 2
+3. **`CORE_API_VERSION`** — whenever that file is next open
 
 What remains is optional and blocks nothing.
