@@ -244,6 +244,7 @@ function readSuggestBody(req, res) {
 /** Turns an evaluation into the response body. Pure, so it is unit-tested directly. */
 function buildSuggestion(icao, evaluation, now = new Date()) {
   const { profile, fitCount, candidates } = evaluation;
+  const free = evaluation.free || candidates;
 
   let suggested = null;
   let alternatives = [];
@@ -252,8 +253,10 @@ function buildSuggestion(icao, evaluation, now = new Date()) {
     // pickTightest, as the engine uses it: random among the tightest equals.
     const chosen = occupancyService.pickTightest(candidates);
     suggested = chosen.name;
+    // The rest of the best tier first, then the lower tiers in Priority order:
+    // a lone stand in its tier still leaves the pilot somewhere to go.
     alternatives = occupancyService
-      .orderByTightness(candidates)
+      .orderByPreference(free)
       .filter((stand) => stand !== chosen)
       .slice(0, MAX_ALTERNATIVES)
       .map((stand) => stand.name);

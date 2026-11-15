@@ -86,7 +86,8 @@ test("POST /airports/:icao/suggest", async () => {
   assert.equal(ok.status, 200);
   const body = await ok.json();
   assert.equal(body.suggested, "C1");
-  assert.deepEqual(body.alternatives, ["C2"]);
+  // Same tier first, then the unrestricted stand from the lower tier.
+  assert.deepEqual(body.alternatives, ["C2", "BAD"]);
   assert.equal(body.profile.typeKnown, true);
   assert.equal(svc.registry.getAllAssigned().length, 0, "nothing assigned");
 

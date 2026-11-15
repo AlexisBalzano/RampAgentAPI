@@ -145,12 +145,25 @@ test("no compatible stand at all", () => {
   assert.equal(s.reason, "no_compatible_stand");
 });
 
-test("suggestion: tightest first, alternatives at the same tier, nothing written", () => {
+test("suggestion: a stand alone in its tier still lists the lower tiers", () => {
+  // A non-Schengen A320 fits N1 (tier 1, alone) and the remotes (tier 2).
+  const s = v1._internal.buildSuggestion("LFXX", evaluate({ callsign: "BAW1", aircraftType: "A320", origin: "EGLL" }));
+  assert.equal(s.suggested, "N1");
+  assert.deepEqual(s.alternatives, ["R1", "R2"]);
+});
+
+test("suggestion: taken stands are never listed as alternatives", () => {
+  registry.addOccupied(new Stand("R1", "LFXX", "XYZ123"));
+  const s = v1._internal.buildSuggestion("LFXX", evaluate({ callsign: "BAW1", aircraftType: "A320", origin: "EGLL" }));
+  assert.deepEqual(s.alternatives, ["R2"]);
+});
+
+test("suggestion: tightest first, alternatives by priority, nothing written", () => {
   const before = registry.version;
   const s = v1._internal.buildSuggestion("LFXX", evaluate({ callsign: "AFR123", aircraftType: "A320" }));
-  // C2 is code C only (tightest), C1 is C-D.
+  // C2 is code C only (tightest), C1 is C-D; then the tier-2 remotes.
   assert.equal(s.suggested, "C2");
-  assert.deepEqual(s.alternatives, ["C1"]);
+  assert.deepEqual(s.alternatives, ["C1", "R1", "R2"]);
   assert.equal(s.reason, null);
   assert.equal(s.profile.company, "AFR");
   assert.equal(s.profile.otherCountry, "LE");

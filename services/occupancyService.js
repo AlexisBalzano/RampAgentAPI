@@ -1289,10 +1289,11 @@ function checkStandFor(airport, derived, input, standName) {
 /**
  * Which stands `profile` could be given right now, without assigning anything.
  *
- * Returns { fitCount, candidates }: how many stands admit the profile at all,
- * and the free ones among them at the best Priority tier - the set greedy
- * assignment picks from with pickTightest. Pure: reads the registry, writes
- * nothing, logs nothing.
+ * Returns { fitCount, candidates, free }: how many stands admit the profile at
+ * all, the free ones among them at the best Priority tier - the set greedy
+ * assignment picks from with pickTightest - and every free one at any tier,
+ * which the stand finder lists as fallbacks (the engine ignores it). Pure:
+ * reads the registry, writes nothing, logs nothing.
  */
 function evaluateProfile(airport, profile) {
   const icao = airport.icao;
@@ -1313,7 +1314,24 @@ function evaluateProfile(airport, profile) {
 
   const candidates = [];
   for (const stand of free) if (tierOf(stand) === bestTier) candidates.push(stand);
-  return { fitCount, candidates };
+  return { fitCount, candidates, free };
+}
+
+/**
+ * Free fitting stands in preference order: best Priority tier first, and
+ * within a tier the order pickTightest prefers. What a pilot should try next
+ * when the suggested stand is not wanted or gets taken.
+ */
+function orderByPreference(stands) {
+  const byTier = new Map();
+  for (const stand of stands) {
+    const tier = tierOf(stand);
+    if (!byTier.has(tier)) byTier.set(tier, []);
+    byTier.get(tier).push(stand);
+  }
+  return [...byTier.keys()]
+    .sort((a, b) => a - b)
+    .flatMap((tier) => orderByTightness(byTier.get(tier)));
 }
 
 /**
@@ -2146,6 +2164,7 @@ module.exports = {
   checkStandFor,
   blockStandsFor: blockStands,
   orderByTightness,
+  orderByPreference,
   pickTightest,
   getLastCycleAt: () => lastCycleAt,
   // Exposed for the bench scripts only.

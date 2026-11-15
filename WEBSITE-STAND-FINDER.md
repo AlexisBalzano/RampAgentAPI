@@ -200,9 +200,11 @@ Response:
     81 m fallback ruled everything out. Set `typeKnown: false` whenever the
     fallback was used, even if a stand was found, so the website can warn the
     pilot.
-- `alternatives` holds up to 5 other free, fitting stands at the **same
-  priority tier**, ordered the way `pickTightest` would order them. The map
-  highlights them as second choices.
+- `alternatives` holds up to 5 other free, fitting stands **in preference
+  order**: the rest of the suggested stand's priority tier first (ordered the
+  way `pickTightest` would order them), then the lower tiers by `Priority`.
+  A stand alone in its tier therefore still leaves the pilot fallbacks. The
+  map highlights them as second choices.
 
 Implementation:
 - **Extract a pure function** in `occupancyService.js`:
