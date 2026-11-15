@@ -278,8 +278,17 @@ exports.getUniqueCategories = () => {
   }));
 };
 
-// Cleanup old logs (keep last 100k)
+// Logs name callsigns, so they are personal data: the vACC's privacy policy
+// keeps them a year at most, whatever the row count.
+const LOG_RETENTION_SECONDS = 365 * 24 * 60 * 60;
+exports.LOG_RETENTION_SECONDS = LOG_RETENTION_SECONDS;
+
+// Cleanup old logs: older than a year, and beyond the last 100k
 exports.cleanupOldLogs = () => {
+  db.run(
+    "DELETE FROM logs WHERE created_at < CAST(strftime('%s', 'now') AS INTEGER) - ?",
+    [LOG_RETENTION_SECONDS]
+  );
   // Resolving the cut-off id via OFFSET avoids rescanning 100k rows for a NOT IN.
   db.run(
     'DELETE FROM logs WHERE id <= (SELECT id FROM logs ORDER BY id DESC LIMIT 1 OFFSET ?)',
