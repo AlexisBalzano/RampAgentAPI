@@ -1053,6 +1053,17 @@ function maxDistanceNm(config) {
   return config.max_distance ?? 100; // default to 100 nautical miles if not specified
 }
 
+// Below this ground speed an aircraft is on the ground (parked, pushing back,
+// taxiing), not flying towards us.
+function minAirborneGroundSpeedKt(config) {
+  return config.min_airborne_gs ?? 50;
+}
+
+// ...unless it is this close to the destination: then it is taxiing in here.
+function groundNearDestinationNm(config) {
+  return config.ground_near_destination_nm ?? 20;
+}
+
 function isConcernedArrival(ac, config, derived, destination) {
   if (!ac || !ac.destination || !ac.longitude || !ac.latitude) {
     return false;
@@ -1068,8 +1079,18 @@ function isConcernedArrival(ac, config, derived, destination) {
     return false;
   }
   ac.remainingDistance = calculateRemainingDistance(ac, destination);
-  if (ac.remainingDistance * METERS_TO_NM > maxDistance) {
-    // convert to nautical miles
+  const remainingNm = ac.remainingDistance * METERS_TO_NM;
+  if (remainingNm > maxDistance) {
+    return false;
+  }
+  // Still on the ground at its origin: a departure from a nearby airport (LFLL
+  // is 165 nm from LFMN) would otherwise hold a stand here from the gate on,
+  // with an ETA of days at taxi speed. It is picked up once airborne.
+  if (
+    typeof ac.groundspeed === "number" &&
+    ac.groundspeed < minAirborneGroundSpeedKt(config) &&
+    remainingNm > groundNearDestinationNm(config)
+  ) {
     return false;
   }
   return true;
@@ -2160,6 +2181,7 @@ module.exports = {
   Stand,
   registry,
   processDatafeed,
+  isConcernedArrival,
   evaluateStand,
   checkStandFor,
   blockStandsFor: blockStands,
