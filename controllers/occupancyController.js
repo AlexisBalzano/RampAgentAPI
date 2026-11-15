@@ -50,6 +50,10 @@ const toStand = (s) => ({
   remark: s.remark || null,
   apronSize: s.apronSize || 0,
   movement: s.movement || null,
+  // Assigned stands only: "provisional" may still change, "firm" will not.
+  status: s.status || null,
+  eta: s.eta ?? null,
+  telexStale: !!s.telexStale,
 });
 
 function countRequest(req) {
@@ -130,6 +134,9 @@ exports.getAllStandsStatus = (req, res) => {
             name: s.name,
             icao: s.icao,
             callsign: s.callsign || null,
+            status: s.status || null,
+            eta: s.eta ?? null,
+            telexStale: !!s.telexStale,
           })),
           blockedStands: registry.getAllBlocked().map((s) => ({
             name: s.name,

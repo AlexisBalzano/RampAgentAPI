@@ -39,6 +39,15 @@ class Stand {
     // once here rather than on every registry lookup.
     this.slot = `${icao}:${name}`;
     this._key = apronSize > 0 ? `${this.slot}:${callsign}` : this.slot;
+
+    // Assigned stands only. status is "provisional" (another aircraft with an
+    // earlier ETA may still take it) or "firm" (never taken); null otherwise.
+    // eta is in minutes. telexStale means the pilot was sent a TELEX naming
+    // something other than this stand and no correction could be sent.
+    this.status = null;
+    this.eta = null;
+    this.manual = false;
+    this.telexStale = false;
   }
 
   // Hash function for the Stand class
@@ -63,6 +72,9 @@ class Stand {
       remark: this.remark,
       apronSize: this.apronSize,
       timestamp: this.timestamp,
+      status: this.status,
+      eta: this.eta,
+      telexStale: this.telexStale,
     };
   }
 }
@@ -118,6 +130,16 @@ class StandRegistry {
     // Bumped on every mutation so read endpoints can cache their serialised
     // payload and skip rebuilding it between datafeed cycles.
     this.version = 0;
+  }
+
+  /** Marks a change made in place on a held Stand, so cached payloads rebuild. */
+  touch() {
+    this.version++;
+  }
+
+  /** The stand assigned on a non-apron slot, or undefined. */
+  assignedAt(icao, name) {
+    return this.assigned.get(`${icao}:${name}`);
   }
 
   _index(stand, byCallsign, simple, apron) {
@@ -396,12 +418,60 @@ function getHoppieEligibility(standDef, airportConfig) {
   if (!airportConfig || !airportConfig.Hoppie || !airportConfig.Hoppie.MessageTemplate) {
     return null;
   }
+  const hoppie = airportConfig.Hoppie;
   return {
     terminal: standDef.Terminal,
-    briefingUrl: airportConfig.Hoppie.BriefingUrl || "",
-    messageTemplate: airportConfig.Hoppie.MessageTemplate,
-    info: standDef.Info || ""
+    briefingUrl: hoppie.BriefingUrl || "",
+    messageTemplate: hoppie.MessageTemplate,
+    info: standDef.Info || "",
+    maxMessages: hoppieMaxMessages(hoppie),
   };
+}
+
+// Hard cap on TELEX messages per callsign per session: the first message plus
+// at most MaxMessages - 1 corrections. 1 turns corrections off.
+const HOPPIE_DEFAULT_MAX_MESSAGES = 2;
+
+function hoppieMaxMessages(hoppie) {
+  const configured = hoppie && hoppie.MaxMessages;
+  return Number.isInteger(configured) && configured >= 1
+    ? configured
+    : HOPPIE_DEFAULT_MAX_MESSAGES;
+}
+
+// No correction once the aircraft is this close: the pilot is busy with the
+// approach and ground gives the stand by voice anyway.
+const HOPPIE_DEFAULT_CORRECTION_CUTOFF_MINUTES = 15;
+
+function hoppieCorrectionCutoffMinutes(hoppie) {
+  const configured = hoppie && hoppie.CorrectionCutoffMinutes;
+  return typeof configured === "number" && configured >= 0
+    ? configured
+    : HOPPIE_DEFAULT_CORRECTION_CUTOFF_MINUTES;
+}
+
+// A correction is only sent once the new stand has held this long, so a burst
+// of changes (a wave of pilots connecting onto stands) costs one message.
+const CORRECTION_SETTLE_MS = 2 * 60 * 1000;
+
+/** The message a stand would produce for this airport, or null if it produces none. */
+function renderTelexFor(standDef, airportConfig) {
+  const eligibility = getHoppieEligibility(standDef, airportConfig);
+  if (!eligibility) return null;
+  return buildTelexMessage(
+    eligibility.messageTemplate,
+    eligibility.terminal,
+    eligibility.briefingUrl,
+    eligibility.info
+  );
+}
+
+function correctionText(hoppie, message) {
+  const template =
+    hoppie && typeof hoppie.CorrectionTemplate === "string" && hoppie.CorrectionTemplate
+      ? hoppie.CorrectionTemplate
+      : "REVISED {message}";
+  return template.replace(/{message}/g, message);
 }
 
 // `info` must be a parameter: without it the name resolves to the logger's
@@ -509,13 +579,34 @@ async function sendTelexNotification(callsign, state) {
       return;
     }
 
-    const outcome = await postTelex(callsign, message);
+    if (state.inFlight) return;
+    state.inFlight = true;
+    let outcome;
+    try {
+      if (!(await reserveTelexSlot(callsign, state))) {
+        state.status = "capped";
+        warn(`Telex for ${callsign} not sent - message cap reached`, {
+          category: "Telex",
+          callsign,
+        });
+        return;
+      }
+      outcome = await postTelex(callsign, message);
+      if (outcome !== "sent") await releaseTelexSlot(callsign, state);
+    } finally {
+      state.inFlight = false;
+    }
+
     if (outcome === "sent") {
       state.status = "sent";
+      state.sentMessage = message;
       // Written straight after the POST, so the window in which a restart could
       // lose the fact that this pilot has been notified is as small as it gets.
       state.telexRecord = {
         terminal: state.terminal,
+        stand: state.standName || "",
+        message,
+        count: state.sentCount,
         sentAt: new Date().toISOString(),
       };
       await persistNotification(callsign, state);
@@ -532,9 +623,92 @@ async function sendTelexNotification(callsign, state) {
   }
 }
 
+// Takes one of the callsign's TELEX slots, or returns false when the cap is
+// reached. Every send goes through here, so nothing upstream - a bug, a restart,
+// a storm of stand changes - can take a pilot past Hoppie.MaxMessages. The
+// in-process count covers Redis being down; the Redis count covers a restart.
+async function reserveTelexSlot(callsign, state) {
+  const max = state.maxMessages || HOPPIE_DEFAULT_MAX_MESSAGES;
+  if ((state.sentCount || 0) >= max) return false;
+
+  const shared = await redisService.incrTelexCount(callsign);
+  if (shared !== null && shared > max) {
+    await redisService.decrTelexCount(callsign);
+    state.sentCount = max;
+    return false;
+  }
+  state.sentCount = Math.max((state.sentCount || 0) + 1, shared || 0);
+  return true;
+}
+
+async function releaseTelexSlot(callsign, state) {
+  state.sentCount = Math.max(0, (state.sentCount || 0) - 1);
+  await redisService.decrTelexCount(callsign);
+}
+
+// Sends one correction naming the aircraft's new stand. Same rules as the first
+// message: capped, validated, and recorded so a restart does not resend it.
+async function sendTelexCorrection(callsign, state, message, hoppie) {
+  if (state.inFlight) return;
+  const standName = state.correction ? state.correction.standName : "";
+  const text = correctionText(hoppie, message);
+  const reason = telexRejectionReason(callsign, text);
+  if (reason) {
+    state.correction = null;
+    state.correctionBlocked = true;
+    error(`Telex correction for ${callsign} not sent - ${reason}`, {
+      category: "Telex",
+      callsign,
+    });
+    return;
+  }
+
+  state.inFlight = true;
+  let outcome;
+  try {
+    if (!(await reserveTelexSlot(callsign, state))) {
+      state.correction = null;
+      state.correctionBlocked = true;
+      info(`Telex correction for ${callsign} not sent - message cap reached`, {
+        category: "Telex",
+        callsign,
+      });
+      return;
+    }
+    outcome = await postTelex(callsign, text);
+    if (outcome !== "sent") await releaseTelexSlot(callsign, state);
+  } finally {
+    state.inFlight = false;
+  }
+
+  if (outcome === "sent") {
+    state.sentMessage = message;
+    state.standName = standName;
+    state.correction = null;
+    state.telexRecord = {
+      ...(state.telexRecord || {}),
+      stand: standName,
+      message,
+      count: state.sentCount,
+      correctedAt: new Date().toISOString(),
+    };
+    const held = registry.firstAssignedOf(callsign);
+    if (held && held.name === standName) setTelexStale(held, false);
+    await persistNotification(callsign, state);
+    info(`Telex correction sent to ${callsign} (stand ${standName})`, {
+      category: "Telex",
+      callsign,
+    });
+  } else if (outcome === "rejected") {
+    state.correction = null;
+    state.correctionBlocked = true;
+  }
+  // "failed" keeps the correction pending for a later cycle
+}
+
 // Registers a callsign as eligible for a Hoppie notification the first time it's automatically
 // assigned a Terminal-bearing stand.
-function registerHoppieEligibility(callsign, standDef, airportConfig) {
+function registerHoppieEligibility(callsign, standDef, airportConfig, standName) {
   if (notificationState.has(callsign)) return; // already tracked this session
   const eligibility = getHoppieEligibility(standDef, airportConfig);
   if (!eligibility) return;
@@ -545,10 +719,38 @@ function registerHoppieEligibility(callsign, standDef, airportConfig) {
     briefingUrl: eligibility.briefingUrl,
     messageTemplate: eligibility.messageTemplate,
     info: eligibility.info || "",
+    maxMessages: eligibility.maxMessages,
+    standName: standName || "",
+    sentCount: 0,
     ticksSinceCheck: 0,
     missedCycles: 0,
     persistedAt: 0,
   });
+}
+
+// Provisional mode: the message must describe the stand the aircraft holds when
+// it is sent, so a not-yet-sent record follows the firm stand around instead of
+// staying pinned to whichever stand registered it first. A record for a stand
+// that no longer produces a message is dropped.
+function syncPendingEligibility(callsign, standDef, airportConfig, standName) {
+  const state = notificationState.get(callsign);
+  if (!state) {
+    registerHoppieEligibility(callsign, standDef, airportConfig, standName);
+    return;
+  }
+  if (state.status !== "pending") return;
+
+  const eligibility = getHoppieEligibility(standDef, airportConfig);
+  if (!eligibility) {
+    notificationState.delete(callsign);
+    return;
+  }
+  state.terminal = eligibility.terminal;
+  state.briefingUrl = eligibility.briefingUrl;
+  state.messageTemplate = eligibility.messageTemplate;
+  state.info = eligibility.info || "";
+  state.maxMessages = eligibility.maxMessages;
+  state.standName = standName || "";
 }
 
 // A session ends when the callsign stops appearing in the datafeed, not when it
@@ -654,6 +856,13 @@ async function loadPersistedNotifications() {
       briefingUrl: "",
       messageTemplate: "",
       info: "",
+      // Records written before these fields existed carry none of them: no
+      // message means corrections are never attempted for that session, and a
+      // missing count is taken as the one message the record proves was sent.
+      standName: restoredRecord.stand || "",
+      sentMessage: restoredRecord.message,
+      sentCount: Number.isInteger(restoredRecord.count) ? restoredRecord.count : 1,
+      maxMessages: HOPPIE_DEFAULT_MAX_MESSAGES,
       ticksSinceCheck: 0,
       missedCycles: 0,
       persistedAt: now,
@@ -994,7 +1203,51 @@ function getAircraftUse(derived, callsign, aircraftType, remarks) {
   return "A"; // default to airliner
 }
 
+/** What the stand filters need to know about an aircraft, computed once per search. */
+function aircraftProfile(derived, ac) {
+  const aircraftType = ac.flight_plan.aircraft_short;
+  const wingspan = getAircraftWingspan(derived, aircraftType);
+  const callsign = ac.callsign.toUpperCase();
+  return {
+    aircraftType,
+    schengen: isSchengen(ac.origin, ac.destination),
+    wingspan,
+    code: getAircraftCode(wingspan),
+    use: getAircraftUse(derived, ac.callsign, aircraftType, ac.flight_plan.remarks),
+    originPrefix: ac.origin ? ac.origin.substring(0, 2).toUpperCase() : "",
+    callsign,
+    compagnyPrefix: callsign.substring(0, 3),
+  };
+}
+
+/** Whether a stand's configured restrictions admit this aircraft. */
+function standFits(stand, p) {
+  if (stand.use && stand.use.includes(p.use) === false) return false;
+  if (stand.code && stand.code.includes(p.code) === false) return false;
+  if (stand.schengen !== undefined && stand.schengen !== p.schengen) return false;
+  if (stand.wingspan && stand.wingspan < p.wingspan) return false;
+  if (stand.countries && !stand.countries.has(p.originPrefix)) return false;
+  if (stand.callsigns && !stand.matchesCallsign(p.callsign)) return false;
+  return true;
+}
+
+function logSearchOnce(ac, airport, p) {
+  // Logged once per callsign: with a wide assignment radius this line would
+  // otherwise repeat every cycle for every aircraft that cannot be placed.
+  if (searchLoggedCache.has(ac.callsign)) return;
+  searchLoggedCache.add(ac.callsign);
+  info(
+    `Searching stand for ${ac.callsign} at ${ac.destination} (Use: ${p.use}, Code: ${p.code}, Schengen: ${p.schengen}, Compagny: ${p.compagnyPrefix}, Origin Country: ${p.originPrefix}, Wingspan: ${p.wingspan}m, AircraftType: ${p.aircraftType})`,
+    { category: "Assignation", callsign: ac.callsign, icao: airport.icao }
+  );
+}
+
 function assignStand(airport, derived, ac) {
+  if (airport.assignment && airport.assignment.provisional) {
+    assignStandProvisional(airport, derived, ac, airport.assignment);
+    return;
+  }
+
   // Check if aircraft already has a stand assigned
   const assignedStand = registry.firstAssignedOf(ac.callsign);
   if (assignedStand) {
@@ -1015,29 +1268,8 @@ function assignStand(airport, derived, ac) {
     }
   }
 
-  const aircraftType = ac.flight_plan.aircraft_short;
-  const schengen = isSchengen(ac.origin, ac.destination);
-  const wingspan = getAircraftWingspan(derived, aircraftType);
-  const code = getAircraftCode(wingspan);
-  const use = getAircraftUse(
-    derived,
-    ac.callsign,
-    aircraftType,
-    ac.flight_plan.remarks
-  );
-  const originPrefix = ac.origin ? ac.origin.substring(0, 2).toUpperCase() : "";
-  const callsign = ac.callsign.toUpperCase();
-  const compagnyPrefix = callsign.substring(0, 3);
-
-  // Logged once per callsign: with a wide assignment radius this line would
-  // otherwise repeat every cycle for every aircraft that cannot be placed.
-  if (!searchLoggedCache.has(ac.callsign)) {
-    searchLoggedCache.add(ac.callsign);
-    info(
-      `Searching stand for ${ac.callsign} at ${ac.destination} (Use: ${use}, Code: ${code}, Schengen: ${schengen}, Compagny: ${compagnyPrefix}, Origin Country: ${originPrefix}, Wingspan: ${wingspan}m, AircraftType: ${aircraftType})`,
-      { category: "Assignation", callsign: ac.callsign, icao: airport.icao }
-    );
-  }
+  const profile = aircraftProfile(derived, ac);
+  logSearchOnce(ac, airport, profile);
 
   const available = availableScratch;
   available.length = 0;
@@ -1049,13 +1281,7 @@ function assignStand(airport, derived, ac) {
   for (let i = 0; i < stands.length; i++) {
     const stand = stands[i];
 
-    // Implements checks
-    if (stand.use && stand.use.includes(use) === false) continue;
-    if (stand.code && stand.code.includes(code) === false) continue;
-    if (stand.schengen !== undefined && stand.schengen !== schengen) continue;
-    if (stand.wingspan && stand.wingspan < wingspan) continue;
-    if (stand.countries && !stand.countries.has(originPrefix)) continue;
-    if (stand.callsigns && !stand.matchesCallsign(callsign)) continue;
+    if (!standFits(stand, profile)) continue;
 
     if (!stand.hasApron) {
       if (registry.isOccupied(ac.destination, stand.name)) continue;
@@ -1086,47 +1312,11 @@ function assignStand(airport, derived, ac) {
   }
 
   if (count === 0) {
-    if (!noStandFoundCache.has(ac.callsign)) {
-      warn(`No available stands found for ${ac.callsign} at ${ac.destination}`, {
-        category: "Assignation",
-        callsign: ac.callsign,
-        icao: airport.icao,
-      });
-      noStandFoundCache.add(ac.callsign);
-    }
+    warnNoStandOnce(ac, airport);
     return;
   }
 
-  // Prefer the tightest-fitting stand: the lowest "highest code letter" on
-  // offer, picked at random among equals. Anything at or above code F is no
-  // better than an arbitrary pick, which is what the shuffle used to give.
-  let bestMaxCode = "F";
-  let hasBetter = false;
-  for (let i = 0; i < count; i++) {
-    const maxCode = available[i].maxCode;
-    if (maxCode !== null && maxCode < bestMaxCode) {
-      bestMaxCode = maxCode;
-      hasBetter = true;
-    }
-  }
-
-  let selected;
-  if (hasBetter) {
-    let ties = 0;
-    for (let i = 0; i < count; i++) {
-      if (available[i].maxCode === bestMaxCode) ties++;
-    }
-    let pick = (Math.random() * ties) | 0;
-    for (let i = 0; i < count; i++) {
-      if (available[i].maxCode !== bestMaxCode) continue;
-      if (pick-- === 0) {
-        selected = available[i];
-        break;
-      }
-    }
-  } else {
-    selected = available[(Math.random() * count) | 0];
-  }
+  const selected = pickTightest(available);
 
   const stand = new Stand(
     selected.name,
@@ -1135,6 +1325,7 @@ function assignStand(airport, derived, ac) {
     "",
     selected.apronSize
   );
+  stand.status = "firm"; // greedy mode never takes a stand back
   info(`Assigning Stand ${selected.name} to ${ac.callsign}`, {
     category: "Assignation",
     callsign: ac.callsign,
@@ -1147,7 +1338,7 @@ function assignStand(airport, derived, ac) {
   // Only the automatic engine path notifies; manual assignment via /api/assign
   // deliberately does not. Fires at most once per session however many times the
   // assigned stand later changes.
-  registerHoppieEligibility(ac.callsign, selected.def, airport.raw);
+  registerHoppieEligibility(ac.callsign, selected.def, airport.raw, selected.name);
   if (
     typeof ac.altitude === "number" &&
     ac.altitude >= hoppieMinAltitudeFt(derived.config)
@@ -1157,6 +1348,387 @@ function assignStand(airport, derived, ac) {
       sendTelexNotification(ac.callsign, state);
     }
   }
+}
+
+function warnNoStandOnce(ac, airport) {
+  if (noStandFoundCache.has(ac.callsign)) return;
+  warn(`No available stands found for ${ac.callsign} at ${ac.destination}`, {
+    category: "Assignation",
+    callsign: ac.callsign,
+    icao: airport.icao,
+  });
+  noStandFoundCache.add(ac.callsign);
+}
+
+// Prefer the tightest-fitting stand: the lowest "highest code letter" on
+// offer, picked at random among equals. Anything at or above code F is no
+// better than an arbitrary pick, which is what the shuffle used to give.
+// `standOf` maps a list item to its compiled stand, for lists of wrappers.
+function pickTightest(list, standOf = (item) => item) {
+  const count = list.length;
+  let bestMaxCode = "F";
+  let hasBetter = false;
+  for (let i = 0; i < count; i++) {
+    const maxCode = standOf(list[i]).maxCode;
+    if (maxCode !== null && maxCode < bestMaxCode) {
+      bestMaxCode = maxCode;
+      hasBetter = true;
+    }
+  }
+
+  if (!hasBetter) return list[(Math.random() * count) | 0];
+
+  let ties = 0;
+  for (let i = 0; i < count; i++) {
+    if (standOf(list[i]).maxCode === bestMaxCode) ties++;
+  }
+  let pick = (Math.random() * ties) | 0;
+  for (let i = 0; i < count; i++) {
+    if (standOf(list[i]).maxCode !== bestMaxCode) continue;
+    if (pick-- === 0) return list[i];
+  }
+  return undefined;
+}
+
+/*
+ * Provisional mode
+ * ================
+ *
+ * Greedy mode hands stands out in the order aircraft are first seen, so with a
+ * wide radius a long-haul seen an hour out takes the best stand ahead of a short
+ * hop that lands first. In provisional mode an assignment stays "provisional"
+ * until the holder's ETA drops under FreezeMinutes, and until then an aircraft
+ * arriving at least PreemptMarginMinutes earlier may take it if it is a strictly
+ * better tier (Priority) than anything free. The displaced aircraft is searched
+ * again in the same cycle - aircraft are processed in ETA order, so it is always
+ * still to come.
+ *
+ * At the freeze the stand becomes "firm": it is never taken again, and that is
+ * when the TELEX goes out, so the message (which may name the gate) describes a
+ * stand that will hold. A firm stand can still be lost to an aircraft parking on
+ * it; the pilot then gets at most Hoppie.MaxMessages - 1 corrections, each only
+ * after the new stand has held for CORRECTION_SETTLE_MS, never inside
+ * CorrectionCutoffMinutes of arrival, and only when the text actually differs.
+ */
+
+/** Lower is better; a stand with no Priority ranks after every stand that has one. */
+function tierOf(compiledStand) {
+  return compiledStand.priority > 0 ? compiledStand.priority : MAX_DISTANCE;
+}
+
+/** Minutes to destination at the current ground speed, or null when unknown. */
+function etaMinutes(ac) {
+  const gs = ac.groundspeed;
+  const distance = ac.remainingDistance;
+  if (!(gs > 0) || !Number.isFinite(distance) || distance >= MAX_DISTANCE) return null;
+  return ((distance * METERS_TO_NM) / gs) * 60;
+}
+
+function roundEta(eta) {
+  return eta === null ? null : Math.round(eta * 10) / 10;
+}
+
+function isFrozen(ac, settings) {
+  return ac.eta !== null && ac.eta <= settings.freezeMinutes;
+}
+
+/** Whether an aircraft with `eta` may take `holder`'s stand. */
+function canPreempt(holder, eta, settings) {
+  if (!holder || holder.status !== "provisional" || holder.manual) return false;
+  if (holder.apronSize > 0) return false; // aprons share capacity, there is no one holder
+  if (holder.eta === null || eta === null) return false;
+  if (holder.eta < eta + settings.preemptMarginMinutes) return false;
+  const state = notificationState.get(holder.callsign);
+  return !(state && state.status === "sent");
+}
+
+function addDisplace(list, stand) {
+  for (let i = 0; i < list.length; i++) {
+    if (list[i].callsign === stand.callsign) return;
+  }
+  list.push(stand);
+}
+
+/**
+ * Whether `callsign` could hold stand `name`, collecting into `displace` the
+ * provisional holders that would have to give way. False when the stand, or a
+ * stand it blocks, is held by someone who cannot be moved.
+ */
+function claimable(icao, compiled, callsign, eta, settings, displace) {
+  const name = compiled.name;
+  if (registry.isOccupied(icao, name)) return false;
+
+  const blocking = registry.getBlocked(icao, name);
+  if (blocking && blocking.callsign !== callsign) {
+    // Blocked by a neighbour's holder: only free if that holder can be moved.
+    // A stand blocked by a parked aircraft has no assigned holder, so it stays out.
+    const blocker = registry.firstAssignedOf(blocking.callsign);
+    if (!blocker || blocker.icao !== icao || !canPreempt(blocker, eta, settings)) {
+      return false;
+    }
+    addDisplace(displace, blocker);
+  }
+
+  const holder = registry.assignedAt(icao, name);
+  if (holder && holder.callsign !== callsign) {
+    if (!canPreempt(holder, eta, settings)) return false;
+    addDisplace(displace, holder);
+  }
+
+  // Taking this stand blocks its neighbours, which must not knock a firm
+  // assignment off its stand - that is exactly a lost firm stand.
+  if (compiled.block) {
+    for (let i = 0; i < compiled.block.length; i++) {
+      const neighbour = compiled.block[i];
+      if (neighbour === name) continue;
+      const neighbourHolder = registry.assignedAt(icao, neighbour);
+      if (!neighbourHolder || neighbourHolder.callsign === callsign) continue;
+      if (!canPreempt(neighbourHolder, eta, settings)) return false;
+      addDisplace(displace, neighbourHolder);
+    }
+  }
+  return true;
+}
+
+/**
+ * Best stand for `ac` in provisional mode, as { stand, tier, displace }, or null.
+ *
+ * Only stands of a tier strictly better than `mustBeat` are considered. A stand
+ * is only taken from another aircraft when that gives a strictly better tier
+ * than the best free one, so nobody is moved for a sideways swap. With
+ * `sentState` (the pilot was already sent a TELEX) the stand it named, then
+ * any stand producing the same message, are preferred over everything else.
+ */
+function findStandProvisional(airport, derived, ac, settings, mustBeat, sentState) {
+  const profile = aircraftProfile(derived, ac);
+  logSearchOnce(ac, airport, profile);
+
+  const icao = airport.icao;
+  let entries = [];
+  const stands = airport.stands;
+  for (let i = 0; i < stands.length; i++) {
+    const stand = stands[i];
+    if (!standFits(stand, profile)) continue;
+    const tier = tierOf(stand);
+    if (tier >= mustBeat) continue;
+
+    if (stand.hasApron) {
+      if (registry.getApronOccupancyLevel(stand.name, icao) >= stand.apronSize) continue;
+      entries.push({ stand, tier, displace: [] });
+      continue;
+    }
+
+    const displace = [];
+    if (!claimable(icao, stand, ac.callsign, ac.eta, settings, displace)) continue;
+    entries.push({ stand, tier, displace });
+  }
+
+  if (sentState) {
+    const named = entries.filter((e) => e.stand.name === sentState.standName);
+    if (named.length > 0) {
+      entries = named;
+    } else if (sentState.sentMessage !== undefined) {
+      const same = entries.filter(
+        (e) => renderTelexFor(e.stand.def, airport.raw) === sentState.sentMessage
+      );
+      if (same.length > 0) entries = same;
+    }
+  }
+
+  if (entries.length === 0) return null;
+
+  let bestFree = MAX_DISTANCE + 1;
+  let bestAny = MAX_DISTANCE + 1;
+  for (const e of entries) {
+    if (e.tier < bestAny) bestAny = e.tier;
+    if (e.displace.length === 0 && e.tier < bestFree) bestFree = e.tier;
+  }
+
+  let pool;
+  if (bestAny < bestFree) {
+    // Taking a stand: among the best tier, disturb as few aircraft as possible.
+    pool = entries.filter((e) => e.tier === bestAny);
+    let fewest = Infinity;
+    for (const e of pool) if (e.displace.length < fewest) fewest = e.displace.length;
+    pool = pool.filter((e) => e.displace.length === fewest);
+  } else {
+    pool = entries.filter((e) => e.tier === bestFree && e.displace.length === 0);
+  }
+  return pickTightest(pool, (e) => e.stand);
+}
+
+function releaseAll(callsign) {
+  registry.removeAllAssignedOf(callsign);
+  registry.removeAllBlockedOf(callsign);
+}
+
+function placeProvisional(airport, ac, settings, choice, telexSent) {
+  const icao = airport.icao;
+  for (const holder of choice.displace) {
+    releaseAll(holder.callsign);
+    info(
+      `Stand ${holder.name} taken from ${holder.callsign} (ETA ${holder.eta} min) ` +
+        `for ${ac.callsign} (ETA ${roundEta(ac.eta)} min)`,
+      { category: "Assignation", callsign: holder.callsign, icao }
+    );
+  }
+
+  releaseAll(ac.callsign);
+  const selected = choice.stand;
+  const stand = new Stand(selected.name, icao, ac.callsign, "", selected.apronSize);
+  stand.eta = roundEta(ac.eta);
+  // A pilot already told where to go keeps a firm stand: after a restart, or
+  // when the one they were told about was lost.
+  stand.status = telexSent || isFrozen(ac, settings) ? "firm" : "provisional";
+  registry.addAssigned(stand);
+  blockStands(selected, icao, ac.callsign);
+  noStandFoundCache.delete(ac.callsign);
+  info(
+    `Assigning Stand ${selected.name} to ${ac.callsign} (${stand.status}, ETA ${stand.eta} min)`,
+    { category: "Assignation", callsign: ac.callsign, icao }
+  );
+  return stand;
+}
+
+/** A held stand is lost once someone parks on it or another holder blocks it. */
+function standLost(stand, callsign) {
+  if (registry.isOccupied(stand.icao, stand.name)) return true;
+  const blocking = registry.getBlocked(stand.icao, stand.name);
+  return !!blocking && blocking.callsign !== callsign;
+}
+
+function setTelexStale(stand, value) {
+  if (stand.telexStale === value) return;
+  stand.telexStale = value;
+  registry.touch();
+}
+
+function assignStandProvisional(airport, derived, ac, settings) {
+  const callsign = ac.callsign;
+  ac.eta = etaMinutes(ac);
+  const state = notificationState.get(callsign);
+  const telexSent = !!state && state.status === "sent";
+
+  let current = registry.firstAssignedOf(callsign);
+  if (current && current.icao !== airport.icao) {
+    releaseAll(callsign); // destination changed
+    current = undefined;
+  }
+  if (current && standLost(current, callsign)) {
+    info(`Stand ${current.name} for ${callsign} is no longer available`, {
+      category: "Assignation",
+      callsign,
+      icao: airport.icao,
+    });
+    releaseAll(callsign);
+    current = undefined;
+  }
+
+  if (current) {
+    const now = Date.now();
+    current.timestamp = now;
+    const blockedStands = registry.blockedOf(callsign);
+    if (blockedStands) for (const stand of blockedStands) stand.timestamp = now;
+    current.eta = roundEta(ac.eta);
+
+    if (current.status === "provisional" && (telexSent || isFrozen(ac, settings))) {
+      current.status = "firm";
+      registry.touch();
+      info(`Stand ${current.name} for ${callsign} is now firm (ETA ${current.eta} min)`, {
+        category: "Assignation",
+        callsign,
+        icao: airport.icao,
+      });
+    }
+
+    // Moving to a better stand is fine until the pilot has been told one.
+    if (!current.manual && !telexSent) {
+      const compiled = airport.standsByName.get(current.name);
+      const better =
+        compiled &&
+        findStandProvisional(airport, derived, ac, settings, tierOf(compiled), null);
+      if (better) {
+        const previous = current.name;
+        current = placeProvisional(airport, ac, settings, better, false);
+        info(`${callsign} moved from stand ${previous} to better stand ${current.name}`, {
+          category: "Assignation",
+          callsign,
+          icao: airport.icao,
+        });
+      }
+    }
+  } else {
+    const choice = findStandProvisional(
+      airport,
+      derived,
+      ac,
+      settings,
+      MAX_DISTANCE + 1,
+      telexSent ? state : null
+    );
+    if (!choice) {
+      warnNoStandOnce(ac, airport);
+      return;
+    }
+    current = placeProvisional(airport, ac, settings, choice, telexSent);
+  }
+
+  handleTelexProvisional(airport, derived, ac, current);
+}
+
+function handleTelexProvisional(airport, derived, ac, stand) {
+  const callsign = ac.callsign;
+  const compiled = airport.standsByName.get(stand.name);
+  const existing = notificationState.get(callsign);
+
+  if (existing && existing.status === "sent") {
+    trackCorrection(airport, derived, ac, stand, compiled, existing);
+    return;
+  }
+  // Manual assignments never notify; provisional ones are not a promise yet.
+  if (stand.manual || stand.status !== "firm" || !compiled) return;
+
+  syncPendingEligibility(callsign, compiled.def, airport.raw, stand.name);
+  const state = notificationState.get(callsign);
+  if (!state || state.status !== "pending") return;
+
+  if (!existing) {
+    // Just frozen: try straight away rather than waiting out a recheck window.
+    if (typeof ac.altitude === "number" && ac.altitude >= hoppieMinAltitudeFt(derived.config)) {
+      sendTelexNotification(callsign, state);
+    }
+    return;
+  }
+  checkPendingHoppieNotification(ac, derived.config);
+}
+
+function trackCorrection(airport, derived, ac, stand, compiled, state) {
+  const hoppie = airport.raw && airport.raw.Hoppie;
+  state.maxMessages = hoppieMaxMessages(hoppie); // restored records carry the default
+
+  // A record from before messages were stored: nothing to compare against.
+  if (state.sentMessage === undefined) return;
+
+  const message = compiled ? renderTelexFor(compiled.def, airport.raw) : null;
+  const stale = message !== state.sentMessage;
+  setTelexStale(stand, stale);
+  if (!stale) {
+    state.correction = null;
+    return;
+  }
+  if (!message || state.correctionBlocked || state.inFlight) return;
+
+  const now = Date.now();
+  if (!state.correction || state.correction.standName !== stand.name) {
+    state.correction = { standName: stand.name, since: now };
+    return;
+  }
+  if (now - state.correction.since < CORRECTION_SETTLE_MS) return;
+  if (ac.eta === null || ac.eta < hoppieCorrectionCutoffMinutes(hoppie)) return;
+  if (!(typeof ac.altitude === "number" && ac.altitude >= hoppieMinAltitudeFt(derived.config))) {
+    return;
+  }
+  sendTelexCorrection(ac.callsign, state, message, hoppie);
 }
 
 /**
@@ -1255,7 +1827,12 @@ const processDatafeed = async (aircrafts) => {
     blockStands(stand, ac.origin, ac.callsign);
   }
 
-  // Handle airborne aircraft - (ie: assign stand if criterias met)
+  // Handle airborne aircraft - (ie: assign stand if criterias met).
+  // Candidates are gathered first and served in ETA order, not datafeed order,
+  // so the aircraft that lands first chooses first. Provisional mode depends on
+  // it: an aircraft displaced from its stand always has a later ETA than the one
+  // that took it, so it is still to come in this same cycle.
+  const arrivals = [];
   for (const ac of Object.values(aircrafts.airborne || {})) {
     if (!ac.flight_plan) {
       continue;
@@ -1278,6 +1855,16 @@ const processDatafeed = async (aircrafts) => {
       continue;
     }
 
+    ac.eta = etaMinutes(ac);
+    arrivals.push({ ac, destination });
+  }
+
+  arrivals.sort((a, b) => {
+    const ea = a.ac.eta === null ? Infinity : a.ac.eta;
+    const eb = b.ac.eta === null ? Infinity : b.ac.eta;
+    return ea - eb;
+  });
+  for (const { ac, destination } of arrivals) {
     assignStand(destination, derived, ac);
   }
 
@@ -1342,6 +1929,23 @@ async function assignStandToPilot(standName, icao, callsign, client) {
       message: `Stand ${standName} could not be assigned to ${callsign} as it is already occupied`,
     };
   }
+  // A controller outranks the engine's provisional guess: the aircraft holding
+  // it is moved off and searched again on the next cycle.
+  const provisionalHolder = registry.assignedAt(icao, standName);
+  if (
+    provisionalHolder &&
+    provisionalHolder.callsign !== callsign &&
+    provisionalHolder.status === "provisional" &&
+    !provisionalHolder.manual
+  ) {
+    registry.removeAllAssignedOf(provisionalHolder.callsign);
+    registry.removeAllBlockedOf(provisionalHolder.callsign);
+    info(
+      `Provisional stand ${standName} at ${icao} released from ${provisionalHolder.callsign} for manual assignment to ${callsign}, Requester: ${client}`,
+      { category: "Manual Assign", callsign: provisionalHolder.callsign, icao: icao }
+    );
+  }
+
   if (registry.isAssigned(icao, standName)) {
     warn(
       `Cannot assign stand ${standName} at ${icao} to ${callsign} - already assigned, Requester: ${client}`,
@@ -1375,9 +1979,11 @@ async function assignStandToPilot(standName, icao, callsign, client) {
     }
   }
 
-  registry.addAssigned(
-    new Stand(standName, icao, callsign, "", stand.apronSize)
-  );
+  // Manual assignments are firm: never taken by the engine, never moved by it.
+  const manualStand = new Stand(standName, icao, callsign, "", stand.apronSize);
+  manualStand.status = "firm";
+  manualStand.manual = true;
+  registry.addAssigned(manualStand);
   // Block stands
   blockStands(stand, icao, callsign);
   info(
@@ -1414,6 +2020,8 @@ module.exports = {
   Stand,
   registry,
   processDatafeed,
+  // Exposed for the bench scripts only.
+  _notificationState: notificationState,
   loadPersistedNotifications,
   assignStandToPilot,
   maxAltitudeFt,

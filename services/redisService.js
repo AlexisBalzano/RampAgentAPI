@@ -6,6 +6,7 @@ const crypto = require("crypto");
 const ADMIN_CIDS = require("../config/admins");
 
 const TELEX_NOTIFIED_PREFIX = "telex:notified:";
+const TELEX_COUNT_PREFIX = "telex:count:";
 
 class RedisService {
   // Default expiration times in seconds
@@ -18,6 +19,10 @@ class RedisService {
   // live, so the hour runs from the last time the callsign was seen rather than
   // from the send.
   static TELEX_NOTIFIED_EXPIRATION = 60 * 60; // 1 hour
+
+  // Cleared with the record when the session ends; the expiry only bounds one
+  // orphaned by a crash. Longer than any flight, so it cannot lapse mid-session.
+  static TELEX_COUNT_EXPIRATION = 24 * 60 * 60; // 24 hours
 
   constructor() {
     this.client = null;
@@ -315,11 +320,55 @@ class RedisService {
     }
   }
 
+  // Per-callsign count of TELEX messages sent this session - the hard cap that
+  // keeps a pilot from being sent more than Hoppie.MaxMessages however often
+  // their stand changes. It lives in Redis so a restart cannot reset it, and is
+  // incremented before the POST so two overlapping sends cannot both pass.
+
+  telexCountKey(callsign) {
+    return `${TELEX_COUNT_PREFIX}${callsign}`;
+  }
+
+  /** Increments and returns the count, or null when Redis is unavailable. */
+  async incrTelexCount(callsign) {
+    if (!this.isConnected) return null;
+
+    try {
+      const key = this.telexCountKey(callsign);
+      const count = await this.client.incr(key);
+      await this.client.expire(key, RedisService.TELEX_COUNT_EXPIRATION);
+      return count;
+    } catch (err) {
+      logger.warn(
+        `Failed to increment Telex count for ${callsign}: ${err.message}`,
+        { category: "Telex", callsign }
+      );
+      return null;
+    }
+  }
+
+  /** Gives back a slot taken by incrTelexCount for a send that did not go out. */
+  async decrTelexCount(callsign) {
+    if (!this.isConnected) return;
+
+    try {
+      await this.client.decr(this.telexCountKey(callsign));
+    } catch (err) {
+      logger.warn(
+        `Failed to decrement Telex count for ${callsign}: ${err.message}`,
+        { category: "Telex", callsign }
+      );
+    }
+  }
+
   async clearTelexNotified(callsign) {
     if (!this.isConnected) return false;
 
     try {
-      await this.client.del(this.telexNotifiedKey(callsign));
+      await this.client.del([
+        this.telexNotifiedKey(callsign),
+        this.telexCountKey(callsign),
+      ]);
       return true;
     } catch (err) {
       logger.warn(

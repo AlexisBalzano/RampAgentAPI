@@ -43,8 +43,26 @@ const fakeRedis = {
     store.set(key, { value, ttl: options && options.EX });
     return "OK";
   },
-  async del(key) {
-    return store.delete(key) ? 1 : 0;
+  async del(keys) {
+    let removed = 0;
+    for (const key of Array.isArray(keys) ? keys : [keys]) {
+      if (store.delete(key)) removed++;
+    }
+    return removed;
+  },
+  async incr(key) {
+    const next = Number((store.get(key) || {}).value || 0) + 1;
+    store.set(key, { value: String(next), ttl: (store.get(key) || {}).ttl });
+    return next;
+  },
+  async decr(key) {
+    const next = Number((store.get(key) || {}).value || 0) - 1;
+    store.set(key, { value: String(next), ttl: (store.get(key) || {}).ttl });
+    return next;
+  },
+  async expire(key, seconds) {
+    if (store.has(key)) store.get(key).ttl = seconds;
+    return 1;
   },
   async keys(pattern) {
     if (!pattern.endsWith("*")) throw new Error(`unsupported pattern ${pattern}`);

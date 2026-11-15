@@ -167,7 +167,26 @@ class CompiledAirport {
         this.standsByName.set(name, stand);
       }
     }
+
+    this.assignment = parseAssignmentSettings(raw.Assignment);
   }
+}
+
+const DEFAULT_FREEZE_MINUTES = 25;
+const DEFAULT_PREEMPT_MARGIN_MINUTES = 5;
+
+function parseAssignmentSettings(block) {
+  const positive = (value, fallback) =>
+    typeof value === "number" && Number.isFinite(value) && value > 0 ? value : fallback;
+  const provisional = !(block && block.Mode === "greedy");
+  return {
+    provisional,
+    freezeMinutes: positive(block && block.FreezeMinutes, DEFAULT_FREEZE_MINUTES),
+    preemptMarginMinutes: positive(
+      block && block.PreemptMarginMinutes,
+      DEFAULT_PREEMPT_MARGIN_MINUTES
+    ),
+  };
 }
 
 async function get(icao) {
@@ -290,6 +309,7 @@ module.exports = {
   invalidateAll,
   deriveConfig,
   parseCoordinates,
+  parseAssignmentSettings,
   CompiledAirport,
   CompiledStand,
 };
