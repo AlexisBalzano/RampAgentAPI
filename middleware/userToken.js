@@ -1,15 +1,16 @@
 const jwt = require("jsonwebtoken");
+const { coreJwtKey } = require("../utils/coreJwtKey");
 
 /**
  * Identifies the member behind an /api/v1 call that acts for a person (stand
  * booking), from the vaccfr-core JWT the website forwards in X-User-Token.
  *
  * Runs after requireServiceKey: the service key says the website is calling,
- * this says on whose behalf. The token is verified with CORE_JWT_KEY, the same
+ * this says on whose behalf. The token is verified with VACCFR_RAMPAGENT_CORE_JWT_KEY (or CORE_JWT_KEY), the same
  * secret and algorithm the session login uses - a decoded but unverified token
  * would let anyone book as anyone.
  */
-function createUserTokenMiddleware(secret = process.env.CORE_JWT_KEY) {
+function createUserTokenMiddleware(secret = coreJwtKey()) {
   return function requireUserToken(req, res, next) {
     const header = req.get("X-User-Token") || "";
     const token = header.startsWith("Bearer ") ? header.slice(7) : header;

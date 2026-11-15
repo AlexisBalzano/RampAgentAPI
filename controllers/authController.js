@@ -4,6 +4,7 @@ const path = require("path");
 const cookie = require("cookie");
 const jwt = require("jsonwebtoken");
 const redisService = require("../services/redisService");
+const { coreJwtKey } = require("../utils/coreJwtKey");
 
 // Core is the source of truth for vACC roles: the member endpoint carries
 // UserGlobalPermissions, which is null for a member who was never given one.
@@ -248,7 +249,14 @@ async function createSession(res, _token) {
 
 // Helper: verify token
 async function decryptToken(accessToken) {
-  const secret = process.env.CORE_JWT_KEY;
+  const secret = coreJwtKey();
+  if (!secret) {
+    error(
+      "No core JWT key: set VACCFR_RAMPAGENT_CORE_JWT_KEY (or CORE_JWT_KEY)",
+      { category: "Auth" }
+    );
+    return null;
+  }
 
   try {
     const payload = jwt.verify(accessToken, secret, {

@@ -76,7 +76,7 @@ environment:
   - REDIS_PASSWORD=your-password  # if needed
   - SERVICE_API_KEYS=website:<key>  # /api/v1 callers, comma-separated name:key pairs
   - SUGGEST_RATE_LIMIT=600          # /api/v1 suggest calls per minute per service (optional)
-  - CORE_JWT_KEY=<core secret>     # verifies members' tokens (login, stand booking)
+  - VACCFR_RAMPAGENT_CORE_JWT_KEY=<core AUTH_JWT_KEY>  # verifies members' tokens (login, stand booking); CORE_JWT_KEY still accepted
 ```
 
 `SERVICE_API_KEYS` uses the same `name:key` format as vaccfr-core. When it is
