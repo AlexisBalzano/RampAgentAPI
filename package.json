@@ -5,7 +5,8 @@
   "scripts": {
     "start": "node index.js",
     "dev": "nodemon index.js",
-    "docker": "docker-compose down -v && docker-compose up --build"
+    "docker": "docker-compose down -v && docker-compose up --build",
+    "test": "node --test \"test/*.test.js\""
   },
   "keywords": [],
   "author": "Alexis Balzano",

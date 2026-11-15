@@ -32,6 +32,8 @@ services:
       - CONFIG_REPO_URL=https://github.com/vaccfr/RampAgent-Config.git
       - CONFIG_BRANCH=main
       - DATAPLATFORM_URL=${DATAPLATFORM_URL:-http://dataplatform:8080}
+      # name:key pairs for /api/v1 callers, e.g. website:<key>. Empty refuses every /api/v1 call.
+      - SERVICE_API_KEYS=${SERVICE_API_KEYS:-}
     volumes:
       - rampagent-config:/app/data 
       - ./logs:/app/logs

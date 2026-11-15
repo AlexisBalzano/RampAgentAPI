@@ -250,11 +250,31 @@ async function preload(icaoList) {
   return loadedList;
 }
 
+// Caches built from airport configs elsewhere (the /api/v1 stand definitions)
+// register here, so a config version bump or webhook drops them too. Called
+// with the ICAO, or with null when everything was invalidated.
+const invalidationListeners = [];
+
+function onInvalidate(listener) {
+  invalidationListeners.push(listener);
+}
+
+function notifyInvalidated(icao) {
+  for (const listener of invalidationListeners) {
+    try {
+      listener(icao);
+    } catch (err) {
+      // A listener failing must not stop the others, nor the invalidation.
+    }
+  }
+}
+
 function invalidate(icao) {
   airports.delete(icao);
   loadedList = [];
   loadedByIcao = new Map();
   airportService.invalidateAirport(icao);
+  notifyInvalidated(icao);
 }
 
 function invalidateAll() {
@@ -264,6 +284,7 @@ function invalidateAll() {
   derivedConfig = null;
   derivedConfigSource = null;
   airportService.invalidateAll();
+  notifyInvalidated(null);
 }
 
 /**
@@ -307,6 +328,7 @@ module.exports = {
   preload,
   invalidate,
   invalidateAll,
+  onInvalidate,
   deriveConfig,
   parseCoordinates,
   parseAssignmentSettings,

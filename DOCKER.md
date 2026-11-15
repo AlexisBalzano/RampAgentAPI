@@ -74,6 +74,15 @@ environment:
   - REDIS_HOST=redis
   - REDIS_PORT=6379
   - REDIS_PASSWORD=your-password  # if needed
+  - SERVICE_API_KEYS=website:<key>  # /api/v1 callers, comma-separated name:key pairs
+  - SUGGEST_RATE_LIMIT=600          # /api/v1 suggest calls per minute per service (optional)
+```
+
+`SERVICE_API_KEYS` uses the same `name:key` format as vaccfr-core. When it is
+empty every `/api/v1` request is refused. Generate a key with:
+
+```bash
+node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
 ```
 
 ---

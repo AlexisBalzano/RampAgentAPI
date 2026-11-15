@@ -16,7 +16,7 @@ setInterval(() => {
   noStandFoundCache.clear();
   searchLoggedCache.clear();
   missingCoordsCache.clear();
-}, 60 * 60 * 1000); // Clear every hour
+}, 60 * 60 * 1000).unref(); // Clear every hour. unref: housekeeping must not keep a process alive
 
 const MAX_DISTANCE = Number.MAX_SAFE_INTEGER;
 const METERS_TO_NM = 0.00053996;
@@ -895,7 +895,6 @@ function checkPendingHoppieNotification(ac, config) {
 // Scratch buffers reused across calls. Both consumers are synchronous and
 // non-reentrant, so this avoids an array allocation per aircraft.
 const candidateScratch = [];
-const availableScratch = [];
 
 /**
  * Finds the stand an aircraft is parked on, setting ac.origin to the airport it
@@ -1116,13 +1115,15 @@ function isSchengen(origin, destination) {
   );
 }
 
-function getAircraftWingspan(derived, aircraftType) {
-  if (
-    !aircraftType ||
-    typeof aircraftType !== "string" ||
-    aircraftType === "ZZZZ"
-  )
-    return 81;
+// Assumed for a type with no wingspan data: the largest, so an unknown type is
+// only ever given a stand that fits anything.
+const UNKNOWN_WINGSPAN = 81;
+
+/** The wingspan known for a type, or undefined. No logging; unknowns are not cached. */
+function resolveWingspan(derived, aircraftType) {
+  if (!aircraftType || typeof aircraftType !== "string" || aircraftType === "ZZZZ") {
+    return undefined;
+  }
 
   const upper = aircraftType.toUpperCase();
   const cached = derived.wingspanCache.get(upper);
@@ -1140,18 +1141,23 @@ function getAircraftWingspan(derived, aircraftType) {
       wingspan = match ? derived.wingspans[match] : undefined;
     }
   }
-  if (wingspan === undefined) {
+  if (wingspan !== undefined) derived.wingspanCache.set(upper, wingspan);
+  return wingspan;
+}
+
+function getAircraftWingspan(derived, aircraftType) {
+  const wingspan = resolveWingspan(derived, aircraftType);
+  if (wingspan !== undefined) return wingspan;
+
+  if (aircraftType && typeof aircraftType === "string" && aircraftType !== "ZZZZ") {
     if (!aircraftTypeCache.has(aircraftType)) {
       warn(`Unknown wingspan for aircraft type ${aircraftType}`, {
         category: "Missing Data",
       });
       aircraftTypeCache.add(aircraftType);
     }
-    wingspan = 81; // default if unknown
   }
-
-  derived.wingspanCache.set(upper, wingspan);
-  return wingspan;
+  return UNKNOWN_WINGSPAN; // default if unknown
 }
 
 function getAircraftCode(wingspan) {
@@ -1205,19 +1211,128 @@ function getAircraftUse(derived, callsign, aircraftType, remarks) {
 
 /** What the stand filters need to know about an aircraft, computed once per search. */
 function aircraftProfile(derived, ac) {
-  const aircraftType = ac.flight_plan.aircraft_short;
-  const wingspan = getAircraftWingspan(derived, aircraftType);
-  const callsign = ac.callsign.toUpperCase();
+  // Called for the warning it logs on an unknown type; the profile itself is
+  // built from plain fields, so the stand finder computes exactly the same one.
+  getAircraftWingspan(derived, ac.flight_plan.aircraft_short);
+  return buildProfile(derived, {
+    callsign: ac.callsign,
+    aircraftType: ac.flight_plan.aircraft_short,
+    origin: ac.origin,
+    destination: ac.destination,
+    remarks: ac.flight_plan.remarks,
+  });
+}
+
+/**
+ * Aircraft profile from plain fields - no datafeed object, no logging, no
+ * cache writes. Shared by the engine (through aircraftProfile) and the
+ * stand finder (through evaluateStand).
+ */
+function buildProfile(derived, { callsign, aircraftType, origin, destination, remarks }) {
+  const known = resolveWingspan(derived, aircraftType);
+  const wingspan = known === undefined ? UNKNOWN_WINGSPAN : known;
+  const upper = String(callsign || "").toUpperCase();
   return {
     aircraftType,
-    schengen: isSchengen(ac.origin, ac.destination),
+    typeKnown: known !== undefined,
+    schengen: isSchengen(origin, destination),
     wingspan,
     code: getAircraftCode(wingspan),
-    use: getAircraftUse(derived, ac.callsign, aircraftType, ac.flight_plan.remarks),
-    originPrefix: ac.origin ? ac.origin.substring(0, 2).toUpperCase() : "",
-    callsign,
-    compagnyPrefix: callsign.substring(0, 3),
+    use: getAircraftUse(derived, callsign, aircraftType, remarks),
+    originPrefix: origin ? origin.substring(0, 2).toUpperCase() : "",
+    callsign: upper,
+    compagnyPrefix: upper.substring(0, 3),
   };
+}
+
+/**
+ * Whether a stand is free for `callsign` right now. Stands the same callsign
+ * already holds or blocks count as free: they are its own.
+ */
+function standAvailableFor(icao, stand, callsign) {
+  if (stand.hasApron) {
+    return registry.getApronOccupancyLevel(stand.name, icao) < stand.apronSize;
+  }
+  if (registry.isOccupied(icao, stand.name)) return false;
+  const holder = registry.assignedAt(icao, stand.name);
+  if (holder && holder.callsign !== callsign) return false;
+  const blocking = registry.getBlocked(icao, stand.name);
+  if (blocking && blocking.callsign !== callsign) return false;
+  return true;
+}
+
+/**
+ * Which stands `profile` could be given right now, without assigning anything.
+ *
+ * Returns { fitCount, candidates }: how many stands admit the profile at all,
+ * and the free ones among them at the best Priority tier - the set greedy
+ * assignment picks from with pickTightest. Pure: reads the registry, writes
+ * nothing, logs nothing.
+ */
+function evaluateProfile(airport, profile) {
+  const icao = airport.icao;
+  const stands = airport.stands;
+  let fitCount = 0;
+  let bestTier = MAX_DISTANCE + 1;
+  const free = [];
+
+  for (let i = 0; i < stands.length; i++) {
+    const stand = stands[i];
+    if (!standFits(stand, profile)) continue;
+    fitCount++;
+    if (!standAvailableFor(icao, stand, profile.callsign)) continue;
+    const tier = tierOf(stand);
+    if (tier < bestTier) bestTier = tier;
+    free.push(stand);
+  }
+
+  const candidates = [];
+  for (const stand of free) if (tierOf(stand) === bestTier) candidates.push(stand);
+  return { fitCount, candidates };
+}
+
+/**
+ * Dry run of the assignment engine for the stand finder: which stand would an
+ * aircraft be given if it arrived now - or, for a departure, which free stand
+ * it should start from. `input` is plain fields
+ * ({ callsign, aircraftType, direction, otherAirport, remarks }); `airport`
+ * is this end of the flight. `origin` alone is still read as an arrival.
+ * Free of request and auth concerns, so stand booking can reuse it.
+ *
+ * A departure uses the same fit rules: Schengen is decided by both ends, and a
+ * stand restricted to certain countries is matched against the airport at the
+ * other end (the destination), as an arrival matches its origin.
+ *
+ * In provisional mode this is deliberately more conservative than the engine.
+ * A suggestion has no ETA, so it cannot take a provisional stand from a
+ * later-arriving aircraft the way assignStandProvisional can: every stand held
+ * by another callsign, firm or provisional, counts as unavailable here.
+ */
+function evaluateStand(airport, derived, input) {
+  const departure = input.direction === "departure";
+  const other = input.otherAirport ?? input.origin ?? "";
+  const profile = buildProfile(derived, {
+    ...input,
+    origin: departure ? airport.icao : other,
+    destination: departure ? other : airport.icao,
+  });
+  if (departure) profile.originPrefix = other.substring(0, 2).toUpperCase();
+  return { profile, ...evaluateProfile(airport, profile) };
+}
+
+/** Stands in the order pickTightest prefers them: tightest code first, config order within. */
+function orderByTightness(stands) {
+  const key = (stand) =>
+    stand.maxCode !== null && stand.maxCode < "F" ? stand.maxCode : "F";
+  return stands
+    .map((stand, index) => ({ stand, index }))
+    .sort((a, b) => {
+      const ka = key(a.stand);
+      const kb = key(b.stand);
+      if (ka !== kb) return ka < kb ? -1 : 1;
+      return a.index - b.index;
+    })
+    .map((entry) => entry.stand);
 }
 
 /** Whether a stand's configured restrictions admit this aircraft. */
@@ -1271,52 +1386,15 @@ function assignStand(airport, derived, ac) {
   const profile = aircraftProfile(derived, ac);
   logSearchOnce(ac, airport, profile);
 
-  const available = availableScratch;
-  available.length = 0;
-
-  const stands = airport.stands;
-  let anyPriority = false;
-  let lowestPriority = MAX_DISTANCE;
-
-  for (let i = 0; i < stands.length; i++) {
-    const stand = stands[i];
-
-    if (!standFits(stand, profile)) continue;
-
-    if (!stand.hasApron) {
-      if (registry.isOccupied(ac.destination, stand.name)) continue;
-      if (registry.isAssigned(ac.destination, stand.name)) continue;
-      if (registry.isBlocked(ac.destination, stand.name)) continue;
-    } else if (
-      registry.getApronOccupancyLevel(stand.name, airport.icao) >= stand.apronSize
-    ) {
-      continue; // Apron is full
-    }
-
-    if (stand.priority) {
-      anyPriority = true;
-      if (stand.priority < lowestPriority) lowestPriority = stand.priority;
-    }
-    available.push(stand);
-  }
-
-  // Priority filtering
-  let count = available.length;
-  if (anyPriority) {
-    let kept = 0;
-    for (let i = 0; i < count; i++) {
-      if (available[i].priority !== lowestPriority) continue;
-      available[kept++] = available[i];
-    }
-    available.length = count = kept;
-  }
-
-  if (count === 0) {
+  // The same evaluation the stand finder runs (evaluateStand), so a suggestion
+  // and the real assignment cannot drift apart.
+  const { candidates } = evaluateProfile(airport, profile);
+  if (candidates.length === 0) {
     warnNoStandOnce(ac, airport);
     return;
   }
 
-  const selected = pickTightest(available);
+  const selected = pickTightest(candidates);
 
   const stand = new Stand(
     selected.name,
@@ -1743,6 +1821,9 @@ function resolveRemark(standDef, aircraftCode) {
   return "";
 }
 
+// When the last datafeed cycle finished processing; null before the first.
+let lastCycleAt = null;
+
 const processDatafeed = async (aircrafts) => {
   // get config.json for parameters
   const config = await airportService.getConfig();
@@ -1867,6 +1948,8 @@ const processDatafeed = async (aircrafts) => {
   for (const { ac, destination } of arrivals) {
     assignStand(destination, derived, ac);
   }
+
+  lastCycleAt = Date.now();
 
   // Every callsign this cycle carried, whether or not it was assignable - a
   // pilot still connected is still in session even when nothing was done for
@@ -2013,13 +2096,17 @@ function standCleanup() {
   // the session is over. See expireNotificationsNotSeen, driven by the datafeed.
 }
 
-setInterval(standCleanup, 60 * 1000); // every minute
+setInterval(standCleanup, 60 * 1000).unref(); // every minute
 
 // Export everything together
 module.exports = {
   Stand,
   registry,
   processDatafeed,
+  evaluateStand,
+  orderByTightness,
+  pickTightest,
+  getLastCycleAt: () => lastCycleAt,
   // Exposed for the bench scripts only.
   _notificationState: notificationState,
   loadPersistedNotifications,

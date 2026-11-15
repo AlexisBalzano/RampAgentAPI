@@ -21,6 +21,8 @@ const occupancyService = require("./services/occupancyService");
 const healthRoutes = require("./routes/health");
 const authRoutes = require("./routes/auth");
 const apiKeyRoutes = require("./routes/APIkey");
+const v1Routes = require("./routes/v1");
+const { createServiceKeyMiddleware } = require("./middleware/serviceKey");
 
 const app = express();
 
@@ -151,6 +153,15 @@ app.use("/api/occupancy", occupancyRoutes);
 
 // API endpoint for API key management
 app.use("/api/apikey", apiKeyRoutes);
+
+// Versioned API for other services (the vACC website's stand finder), behind a
+// service key. The unversioned routes above stay as they are for the viewer and
+// the EuroScope plugin.
+app.use(
+  "/api/v1",
+  createServiceKeyMiddleware(process.env.SERVICE_API_KEYS),
+  v1Routes
+);
 
 // Per-airport deep links: /LFPG serves the same single-page shell, which then
 // reads the ICAO out of the path. Registered after every API route and after

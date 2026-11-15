@@ -12,7 +12,7 @@ setInterval(() => {
       callsignCache.delete(callsign);
     }
   }
-}, 2 * 60 * 1000); // Clean up every 2 minutes
+}, 2 * 60 * 1000).unref(); // Clean up every 2 minutes; unref: must not keep a process alive
 
 /**
  * These endpoints are polled by every connected controller, but the registry
@@ -28,8 +28,10 @@ const payloadCache = new Map(); // name -> { version, body }
 // and refilled rather than allowed to grow on request.
 const MAX_CACHED_PAYLOADS = 128;
 
-function cachedPayload(name, build) {
-  const version = occupancyService.registry.version;
+// `extra` joins the registry version in the cache key, for payloads that
+// carry something else that changes - the /api/v1 status's cycle time.
+function cachedPayload(name, build, extra = null) {
+  const version = `${occupancyService.registry.version}:${extra}`;
   const entry = payloadCache.get(name);
   if (entry && entry.version === version) return entry.body;
 
@@ -38,6 +40,8 @@ function cachedPayload(name, build) {
   payloadCache.set(name, { version, body });
   return body;
 }
+
+exports.cachedPayload = cachedPayload;
 
 function sendJson(res, body) {
   res.set("Content-Type", "application/json").send(body);

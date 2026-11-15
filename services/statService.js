@@ -25,6 +25,26 @@ function incrementRequestCount(by = 1) {
     }
 }
 
+// Stand-finder suggestions, counted apart from requestCounts so the website's
+// traffic does not distort the plugin/viewer request chart.
+const suggestCounts = new Map(); // hourIndex -> count
+
+function incrementSuggestCount(by = 1) {
+    const idx = _currentHourIndex();
+    suggestCounts.set(idx, (suggestCounts.get(idx) || 0) + by);
+    if (suggestCounts.size > 100) {
+        const minIdx = idx - 48;
+        for (const k of [...suggestCounts.keys()]) if (k < minIdx) suggestCounts.delete(k);
+    }
+}
+
+function getSuggestCountLast24Hours() {
+    const minIdx = _currentHourIndex() - 23;
+    let total = 0;
+    for (const [idx, count] of suggestCounts) if (idx >= minIdx) total += count;
+    return total;
+}
+
 function getLast24HoursReports() {
     const nowIdx = _currentHourIndex();
     const result = [];
@@ -56,6 +76,8 @@ function getLast24HoursRequests() {
 module.exports = {
     incrementReportCount,
     incrementRequestCount,
+    incrementSuggestCount,
+    getSuggestCountLast24Hours,
     getLast24HoursReports,
     getLast24HoursRequests,
 };
