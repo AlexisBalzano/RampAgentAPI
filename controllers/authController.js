@@ -5,6 +5,25 @@ const cookie = require("cookie");
 const jwt = require("jsonwebtoken");
 const redisService = require("../services/redisService");
 
+// Core is the source of truth for vACC roles: the member endpoint carries
+// UserGlobalPermissions, which is null for a member who was never given one.
+// Core admins and sysadmins are RampAgent admins.
+function isCoreAdmin(coreUser) {
+  const perms = coreUser && coreUser.UserGlobalPermissions;
+  return !!(perms && (perms.isSysAdmin || perms.isAdmin));
+}
+
+// Roles granted here (stored in Redis) plus "admin" when core says so.
+// The core flag is stored separately so revoking it in core removes access
+// without touching roles granted locally.
+function effectiveRoles(localUser) {
+  const roles = Array.isArray(localUser?.roles) ? [...localUser.roles] : [];
+  if (localUser?.core_admin && !roles.includes("admin")) roles.push("admin");
+  return roles;
+}
+exports.isCoreAdmin = isCoreAdmin;
+exports.effectiveRoles = effectiveRoles;
+
 exports.getLocalUser = async (req, res) => {
   try {
     const { cid } = req.user; // From requireAuth middleware
@@ -198,7 +217,7 @@ exports.requireAuth = async (req, res, next) => {
     );
     req.user = {
       ...sessionData.tokenContent,
-      roles: localUser?.roles || [],
+      roles: effectiveRoles(localUser),
     };
 
     return next();
@@ -283,12 +302,27 @@ exports.getSession = async (req, res) => {
   if (!coreUser) return res.status(401).json({ error: "Core user not found" });
 
   // Get local user from Redis
-  const localUser = await redisService.getLocalUser(coreUser.cid);
+  let localUser = await redisService.getLocalUser(coreUser.cid);
   if (!localUser) {
     warn("No local user found for CID: " + coreUser.cid, { category: "Auth" });
   }
 
-  return res.json({ core: coreUser, local: localUser, token: sessionData.token });
+  // Roles change in core without telling anyone: refresh the stored flag from
+  // this live response so requireAuth sees a grant or revocation on the next
+  // request rather than at the next login.
+  const coreAdmin = isCoreAdmin(coreUser);
+  if (localUser && !!localUser.core_admin !== coreAdmin) {
+    localUser =
+      (await redisService.updateLocalUser(coreUser.cid, {
+        core_admin: coreAdmin,
+        updated_at: new Date().toISOString(),
+      })) || localUser;
+  }
+
+  const local = localUser
+    ? { ...localUser, roles: effectiveRoles(localUser) }
+    : localUser;
+  return res.json({ core: coreUser, local, token: sessionData.token });
 };
 
 async function updateSessionLocalUser(_token, _user) {
@@ -302,6 +336,7 @@ async function updateSessionLocalUser(_token, _user) {
     // from the stored JSON on the next login instead of leaving a stale
     // address behind for users already cached.
     email: undefined,
+    core_admin: isCoreAdmin(_user),
     updated_at: new Date().toISOString(),
   };
 

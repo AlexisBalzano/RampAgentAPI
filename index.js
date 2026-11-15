@@ -13,6 +13,7 @@ const assignRoutes = require("./routes/assign");
 const occupancyRoutes = require("./routes/occupancy");
 const airportRoutes = require("./routes/airports");
 const logRoutes = require("./routes/log");
+const authController = require("./controllers/authController");
 const statRoutes = require("./routes/stats");
 const redisService = require("./services/redisService");
 const airportService = require("./services/airportService");
@@ -139,7 +140,7 @@ app.use("/api/auth", authRoutes);
 app.use("/health", healthRoutes);
 
 // API endpoint to get logs
-app.use("/api/logs", logRoutes);
+app.use("/api/logs", authController.requireAuth, authController.requireRoles("admin"), logRoutes);
 
 // API endpoint to get Airports
 app.use("/api/airports", airportRoutes);
