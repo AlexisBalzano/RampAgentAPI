@@ -56,3 +56,17 @@ test("/api/logs is admin-only, and core admins get in", async (t) => {
   assert.equal(await as("100"), 200);
   assert.equal(await as("300"), 200);
 });
+
+test("the login key is read from VACCFR_RAMPAGENT_CORE_JWT_KEY first", () => {
+  const { coreJwtKey } = require("../utils/coreJwtKey");
+  const saved = process.env.VACCFR_RAMPAGENT_CORE_JWT_KEY;
+  try {
+    process.env.VACCFR_RAMPAGENT_CORE_JWT_KEY = "new-name";
+    assert.equal(coreJwtKey(), "new-name");
+    delete process.env.VACCFR_RAMPAGENT_CORE_JWT_KEY;
+    assert.equal(coreJwtKey(), process.env.CORE_JWT_KEY);
+  } finally {
+    if (saved === undefined) delete process.env.VACCFR_RAMPAGENT_CORE_JWT_KEY;
+    else process.env.VACCFR_RAMPAGENT_CORE_JWT_KEY = saved;
+  }
+});

@@ -177,7 +177,7 @@ then keeps the stand as for any parked aircraft. Arrivals can't book: the
 assignment engine handles them.
 
 These routes act for a member, so on top of the service key they need the
-member's vaccfr-core JWT in `X-User-Token` (verified with `CORE_JWT_KEY`).
+member's vaccfr-core JWT in `X-User-Token` (verified with `VACCFR_RAMPAGENT_CORE_JWT_KEY`).
 Missing or invalid: `401`.
 
 ### `GET /api/v1/me/prefiles`
