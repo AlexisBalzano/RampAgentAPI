@@ -104,7 +104,8 @@ Live state of the airport's stands. Free stands are left out. Cheap to poll.
 }
 ```
 
-- `state` is `occupied`, `assigned` or `blocked`, in that order of precedence.
+- `state` is `occupied`, `assigned`, `booked` or `blocked`, in that order of
+  precedence. `booked` is a departure stand held for a pilot (see below).
 - Aprons hold several aircraft: they also carry `used` and `capacity`, and
   `callsign` is one of the aircraft on them.
 - `updatedAt` is when the last datafeed cycle was processed (`null` before the
@@ -167,3 +168,85 @@ Response:
   it to an earlier arrival.
 - Limited to `SUGGEST_RATE_LIMIT` calls per minute per service (default 600);
   over the limit returns `429` with `Retry-After`.
+
+## Departure stand booking (`/api/v1`)
+
+A pilot with a **prefile** departing one of our airports can hold one stand
+there for **10 minutes**. They must connect on it within that time; occupancy
+then keeps the stand as for any parked aircraft. Arrivals can't book: the
+assignment engine handles them.
+
+These routes act for a member, so on top of the service key they need the
+member's vaccfr-core JWT in `X-User-Token` (verified with `CORE_JWT_KEY`).
+Missing or invalid: `401`.
+
+### `GET /api/v1/me/prefiles`
+
+The member's prefiles departing an airport we cover, from the data platform.
+
+```json
+[{ "callsign": "AFR123", "aircraftType": "A320", "departure": "LFPG", "arrival": "LEMD", "deptime": "1120" }]
+```
+
+`503` with `code: "prefiles_unavailable"` when the data platform can't be reached.
+
+### `POST /api/v1/airports/:icao/bookings`
+
+```json
+{ "stand": "K40", "callsign": "AFR123" }
+```
+
+`callsign` is only needed when the member has several prefiles departing
+`:icao`. Aircraft type, destination and remarks always come from the prefile.
+A new booking replaces the member's previous one.
+
+`201`:
+
+```json
+{
+  "icao": "LFPG", "stand": "K40", "callsign": "AFR123", "aircraftType": "A320",
+  "destination": "LEMD", "createdAt": "…", "expiresAt": "…"
+}
+```
+
+| Status | `code` | Meaning |
+|---|---|---|
+| 404 | | Unknown airport or stand |
+| 422 | `no_prefile` | No prefile departing `:icao` on this VATSIM account |
+| 422 | `several_prefiles` | Several match: send `callsign` |
+| 422 | `stand_unsuitable` | The stand doesn't accept this aircraft (size, use, Schengen, airline…) |
+| 409 | `stand_taken` | Occupied, assigned, blocked or booked by someone else |
+
+### `GET /api/v1/me/booking`
+
+```json
+{
+  "booking": { "icao": "LFPG", "stand": "K40", "expiresAt": "…" },
+  "last": { "status": "fulfilled", "icao": "LFPG", "stand": "K40", "callsign": "AFR123", "at": "…" }
+}
+```
+
+`booking` is the held booking or `null`. `last` says how the previous one
+ended, for 30 minutes:
+
+| `status` | When |
+|---|---|
+| `fulfilled` | The pilot connected on the stand |
+| `released` | The pilot connected on another stand |
+| `expired` | Nobody connected within 10 minutes |
+| `conflict` | Another aircraft connected on the stand or next to it |
+| `overridden` | A controller assigned the stand to someone else |
+| `cancelled` / `replaced` | The member cancelled it, or booked another stand |
+
+### `DELETE /api/v1/me/booking`
+
+`204`, or `404` with `code: "no_booking"`.
+
+### How the engine honours a booking
+
+While held, the booking is an assigned stand in the registry with
+`status: "booked"`, and its `Block` neighbours are blocked. No arrival is
+given the stand or a stand that would block it, and the plugin sees it as
+assigned. Bookings are mirrored in Redis with the remaining hold as TTL, so
+a restart neither loses nor extends one. A manual `/api/assign` by a
+controller cancels the booking.

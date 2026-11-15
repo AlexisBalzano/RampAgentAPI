@@ -162,7 +162,9 @@ function buildStatus(icao) {
     }
   };
   for (const s of registry.getAllOccupied()) put(s, "occupied");
-  for (const s of registry.getAllAssigned()) put(s, "assigned");
+  // A departure booking is an assigned stand underneath; the website shows it
+  // as booked.
+  for (const s of registry.getAllAssigned()) put(s, s.status === "booked" ? "booked" : "assigned");
   for (const s of registry.getAllBlocked()) put(s, "blocked");
 
   const cycleAt = occupancyService.getLastCycleAt();

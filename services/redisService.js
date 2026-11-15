@@ -7,6 +7,7 @@ const ADMIN_CIDS = require("../config/admins");
 
 const TELEX_NOTIFIED_PREFIX = "telex:notified:";
 const TELEX_COUNT_PREFIX = "telex:count:";
+const STAND_BOOKING_PREFIX = "stand-booking:";
 
 class RedisService {
   // Default expiration times in seconds
@@ -407,6 +408,59 @@ class RedisService {
       logger.warn(`Failed to read Telex records: ${err.message}`, {
         category: "Telex",
       });
+      return [];
+    }
+  }
+
+  // Departure stand bookings (bookingService), one per member CID. The TTL is
+  // what is left of the hold, so Redis expires a booking exactly when it would
+  // have lapsed anyway and a restart neither loses nor extends one.
+
+  async setStandBooking(cid, booking, ttlSeconds) {
+    if (!this.isConnected) return false;
+    try {
+      await this.client.set(`${STAND_BOOKING_PREFIX}${cid}`, JSON.stringify(booking), {
+        EX: ttlSeconds,
+      });
+      return true;
+    } catch (err) {
+      logger.warn(`Failed to persist stand booking for ${cid}: ${err.message}`, {
+        category: "Booking",
+      });
+      return false;
+    }
+  }
+
+  async clearStandBooking(cid) {
+    if (!this.isConnected) return false;
+    try {
+      await this.client.del(`${STAND_BOOKING_PREFIX}${cid}`);
+      return true;
+    } catch (err) {
+      logger.warn(`Failed to clear stand booking for ${cid}: ${err.message}`, {
+        category: "Booking",
+      });
+      return false;
+    }
+  }
+
+  async getAllStandBookings() {
+    if (!this.isConnected) return [];
+    try {
+      const keys = await this.client.keys(`${STAND_BOOKING_PREFIX}*`);
+      if (keys.length === 0) return [];
+      const values = await this.client.mGet(keys);
+      const bookings = [];
+      for (const value of values) {
+        try {
+          if (value) bookings.push(JSON.parse(value));
+        } catch (err) {
+          // A damaged record is skipped: the stand simply is not held.
+        }
+      }
+      return bookings;
+    } catch (err) {
+      logger.warn(`Failed to read stand bookings: ${err.message}`, { category: "Booking" });
       return [];
     }
   }

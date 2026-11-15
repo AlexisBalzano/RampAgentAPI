@@ -1258,7 +1258,32 @@ function standAvailableFor(icao, stand, callsign) {
   if (holder && holder.callsign !== callsign) return false;
   const blocking = registry.getBlocked(icao, stand.name);
   if (blocking && blocking.callsign !== callsign) return false;
+  // Taking this stand would block its neighbours: never one booked by someone
+  // else, which would knock that booking off its stand.
+  if (stand.block) {
+    for (let i = 0; i < stand.block.length; i++) {
+      const neighbour = registry.assignedAt(icao, stand.block[i]);
+      if (neighbour && neighbour.status === "booked" && neighbour.callsign !== callsign) return false;
+    }
+  }
   return true;
+}
+
+/**
+ * Whether one named stand would take this aircraft right now: `fits` (its
+ * restrictions admit the profile) and `available` (free for this callsign).
+ * Same input as evaluateStand. Used to check a stand a pilot picked, which
+ * need not be the engine's first choice.
+ */
+function checkStandFor(airport, derived, input, standName) {
+  const { profile } = evaluateStand(airport, derived, input);
+  const stand = airport.standsByName.get(standName);
+  if (!stand) return { profile, fits: false, available: false };
+  return {
+    profile,
+    fits: standFits(stand, profile),
+    available: standAvailableFor(airport.icao, stand, profile.callsign),
+  };
 }
 
 /**
@@ -1864,6 +1889,10 @@ const processDatafeed = async (aircrafts) => {
     ac.stand = standName;
     const airport = airportByIcao.get(ac.origin);
 
+    // A departure booking ends here: fulfilled on its stand, released on any
+    // other. Required lazily - bookingService depends on this module.
+    require("./bookingService").onParked(ac, ac.origin, standName);
+
     // remove any existing occupied / blocked / assigned stands for this callsign
     registry.removeAllOccupiedOf(ac.callsign);
     registry.removeAllBlockedOf(ac.callsign);
@@ -1907,6 +1936,10 @@ const processDatafeed = async (aircrafts) => {
     );
     blockStands(stand, ac.origin, ac.callsign);
   }
+
+  // Held departure bookings go into the registry before arrivals are assigned,
+  // so no arrival is given a booked stand.
+  require("./bookingService").applyBookings(airportByIcao);
 
   // Handle airborne aircraft - (ie: assign stand if criterias met).
   // Candidates are gathered first and served in ETA order, not datafeed order,
@@ -2014,6 +2047,12 @@ async function assignStandToPilot(standName, icao, callsign, client) {
   }
   // A controller outranks the engine's provisional guess: the aircraft holding
   // it is moved off and searched again on the next cycle.
+  // A controller also outranks a pilot's booking: the booking is cancelled.
+  const bookedHolder = registry.assignedAt(icao, standName);
+  if (bookedHolder && bookedHolder.status === "booked" && bookedHolder.callsign !== callsign) {
+    require("./bookingService").overrideAt(icao, standName, callsign);
+  }
+
   const provisionalHolder = registry.assignedAt(icao, standName);
   if (
     provisionalHolder &&
@@ -2104,6 +2143,8 @@ module.exports = {
   registry,
   processDatafeed,
   evaluateStand,
+  checkStandFor,
+  blockStandsFor: blockStands,
   orderByTightness,
   pickTightest,
   getLastCycleAt: () => lastCycleAt,

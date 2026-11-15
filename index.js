@@ -194,6 +194,14 @@ redisService
       });
     })
   )
+  // Held stand bookings too, or a restart would hand a booked stand to an arrival.
+  .then(() =>
+    require("./services/bookingService").loadPersisted().catch((err) => {
+      logger.warn(`Failed to restore stand bookings: ${err.message}`, {
+        category: "Booking",
+      });
+    })
+  )
   .then(() => {
     app.listen(config.port, () => {
       logger.info(`Server running at http://localhost:${config.port}`, {
