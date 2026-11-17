@@ -103,7 +103,7 @@ booking ended, and stays available for 30 minutes:
 | `fulfilled` | The pilot connected on the stand |
 | `released` | The pilot connected on another stand |
 | `expired` | No connection within 10 minutes |
-| `conflict` | Another aircraft took the stand |
+| `conflict` | Another aircraft took the stand, or a neighbouring stand that blocks it |
 | `overridden` | A controller assigned the stand to someone else |
 | `cancelled` / `replaced` | Cancelled, or replaced by a new booking |
 
@@ -118,8 +118,9 @@ Error responses are JSON, for example `{ "error": "…", "code": "…" }`.
 | Status | `code` | What to do |
 |---|---|---|
 | 400 | | Malformed request or CID. Fix the request |
-| 401 / 403 | | Missing or wrong service key |
-| 403 | `pilot_cid_not_allowed` | Your key isn't enabled for bookings. Contact us |
+| 401 | | Missing `X-Service-Key`, or `X-Pilot-Cid` missing on a booking route |
+| 403 | | Key not recognised: wrong, disabled, replaced or deleted. Contact us |
+| 403 | `pilot_cid_not_allowed` | This key isn't a VA key. Use the key we gave you |
 | 404 | | Unknown airport or stand |
 | 404 | `no_booking` | Nothing to cancel |
 | 409 | `stand_taken` | The stand is taken. Offer another one, or use `/suggest` |
