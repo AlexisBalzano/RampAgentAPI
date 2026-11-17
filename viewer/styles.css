@@ -2528,3 +2528,124 @@ body.dark-mode #apiKeyListTable tbody tr .swipe-indicator.right {
 }
 
 /*# sourceMappingURL=styles.css.map */
+
+/* Virtual airline integrations */
+#vaIntegrationContainer {
+  margin-top: 20px;
+  max-width: 100%;
+  min-width: 330px;
+  padding: 0 16px 20px;
+  box-sizing: border-box;
+}
+
+.va-hint {
+  margin: 0 0 12px;
+  max-width: 640px;
+  text-align: center;
+  font-size: 0.9em;
+}
+
+.va-form {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: center;
+  width: 100%;
+}
+
+.va-form input {
+  flex: 1 1 200px;
+  min-width: 0;
+  padding: 8px 10px;
+  border: 1px solid #ccc;
+  border-radius: 8px;
+  font: inherit;
+}
+
+body.dark-mode .va-form input {
+  background-color: #6b6b6b;
+  border-color: #444;
+  color: #e0e0e0;
+}
+
+.va-error {
+  min-height: 1.2em;
+  margin: 8px 0 0;
+  color: #dc3545;
+}
+
+.va-new-key {
+  width: 100%;
+  margin-top: 8px;
+  padding: 10px 12px;
+  border: 2px solid #28a745;
+  border-radius: 10px;
+  box-sizing: border-box;
+}
+
+.va-new-key p {
+  margin: 0 0 8px;
+}
+
+.va-key-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+
+.va-key-row code {
+  flex: 1 1 260px;
+  min-width: 0;
+  overflow-wrap: anywhere;
+  user-select: all;
+}
+
+#vaListWrapper {
+  width: 100%;
+  margin-top: 12px;
+  overflow-x: auto;
+  border: 2px solid #ccc;
+  border-radius: 10px;
+}
+
+body.dark-mode #vaListWrapper {
+  border-color: #444;
+}
+
+#vaListTable {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+#vaListTable th,
+#vaListTable td {
+  padding: 6px 8px;
+  text-align: center;
+  border-bottom: 2px solid #ccc;
+}
+
+body.dark-mode #vaListTable th,
+body.dark-mode #vaListTable td {
+  border-bottom-color: #444;
+  color: #b6b6b6;
+}
+
+#vaListTable .va-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  justify-content: center;
+}
+
+#vaListTable .va-actions button {
+  padding: 6px 12px;
+}
+
+#vaListTable tr.va-disabled td {
+  opacity: 0.6;
+}
+
+#vaListTable .va-key-hint {
+  font-family: "Fira Code", monospace;
+}

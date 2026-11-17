@@ -9,6 +9,10 @@ const { info, warn } = require("../utils/logger");
  * per-user keys in the api_keys table expire after 30 days, so they cannot
  * serve a backend that calls us unattended.
  *
+ * Virtual airlines get their keys from the admin dashboard instead
+ * (services/vaIntegrationService). A VA key authenticates as service
+ * "va:<id>" and sets req.vaIntegration, which lets it book for pilots by CID.
+ *
  * Missing header -> 401, wrong key -> 403. With no keys configured every call
  * is refused: an unconfigured deployment must not be an open one.
  */
@@ -41,11 +45,16 @@ function matchServiceKey(keys, presented) {
   return match;
 }
 
-function createServiceKeyMiddleware(raw) {
+/**
+ * `matchVa` maps a presented key to a VA integration ({ id, name, prefixes })
+ * or null; it defaults to the dashboard-managed store.
+ */
+function createServiceKeyMiddleware(raw, { matchVa } = {}) {
   const keys = parseServiceKeys(raw);
+  const lookupVa = matchVa || require("../services/vaIntegrationService").match;
   if (keys.length === 0) {
     warn(
-      "SERVICE_API_KEYS is not set - every /api/v1 request will be refused",
+      "SERVICE_API_KEYS is not set - only VA keys from the dashboard will be accepted on /api/v1",
       { category: "Service" }
     );
   }
@@ -57,7 +66,14 @@ function createServiceKeyMiddleware(raw) {
     if (!presented) {
       return res.status(401).json({ error: "Missing X-Service-Key header" });
     }
-    const name = keys.length > 0 ? matchServiceKey(keys, presented) : null;
+    let name = keys.length > 0 ? matchServiceKey(keys, presented) : null;
+    if (!name) {
+      const va = lookupVa(presented);
+      if (va) {
+        name = `va:${va.id}`;
+        req.vaIntegration = va;
+      }
+    }
     if (!name) {
       warn(`Rejected /api/v1 request with an invalid service key (${req.method} ${req.originalUrl})`, {
         category: "Service",

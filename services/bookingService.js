@@ -153,7 +153,7 @@ function end(booking, status, reason) {
  * The stand must fit the prefiled aircraft and be free right now; a member
  * holds one booking at a time, so a new one replaces the old.
  */
-function book({ cid, prefile, airport, derived, standName }) {
+function book({ cid, prefile, airport, derived, standName, via }) {
   const icao = airport.icao;
   const compiled = airport.standsByName.get(standName);
   if (!compiled) {
@@ -200,7 +200,7 @@ function book({ cid, prefile, airport, derived, standName }) {
   materialize(booking, airport);
   persist(booking);
   info(
-    `Stand ${standName} at ${icao} booked for ${booking.callsign} (${booking.aircraftType} to ${booking.destination}) until ${new Date(booking.expiresAt).toISOString()}`,
+    `Stand ${standName} at ${icao} booked for ${booking.callsign} (${booking.aircraftType} to ${booking.destination}) until ${new Date(booking.expiresAt).toISOString()}${via ? ` (via ${via})` : ""}`,
     { category: "Booking", callsign: booking.callsign, icao }
   );
   return { ok: true, booking: publicView(booking) };

@@ -23,6 +23,7 @@ const healthRoutes = require("./routes/health");
 const authRoutes = require("./routes/auth");
 const apiKeyRoutes = require("./routes/APIkey");
 const v1Routes = require("./routes/v1");
+const vaIntegrationRoutes = require("./routes/vaIntegrations");
 const { createServiceKeyMiddleware } = require("./middleware/serviceKey");
 
 const app = express();
@@ -155,6 +156,15 @@ app.use("/api/occupancy", occupancyRoutes);
 // API endpoint for API key management
 app.use("/api/apikey", apiKeyRoutes);
 
+// Virtual airline integrations (keys that may book stands by pilot CID), managed
+// from the admin dashboard.
+app.use(
+  "/api/admin/va-integrations",
+  authController.requireAuth,
+  authController.requireRoles("admin"),
+  vaIntegrationRoutes
+);
+
 // Versioned API for other services (the vACC website's stand finder), behind a
 // service key. The unversioned routes above stay as they are for the viewer and
 // the EuroScope plugin.
@@ -203,6 +213,13 @@ redisService
       });
     })
   )
+  // VA keys live in Redis; without them every VA call would be refused until
+  // the next reload.
+  .then(() => {
+    const vaIntegrations = require("./services/vaIntegrationService");
+    vaIntegrations.startReloading();
+    return vaIntegrations.load();
+  })
   .then(() => {
     app.listen(config.port, () => {
       logger.info(`Server running at http://localhost:${config.port}`, {

@@ -197,6 +197,43 @@
               </div>
             </div>
           </div>
+          <div class="container">
+            <div class="subContainer" id="vaIntegrationContainer">
+              <h3>Virtual airlines</h3>
+              <p class="va-hint">
+                A VA key lets that airline's server book departure stands for its
+                pilots by VATSIM CID, only for callsigns starting with its prefixes.
+              </p>
+              <form id="vaCreateForm" class="va-form">
+                <input id="vaName" name="name" type="text" placeholder="Name, e.g. Fly VA" required minlength="2" maxlength="60" />
+                <input id="vaPrefixes" name="prefixes" type="text" placeholder="Callsign prefixes, e.g. FVA, FVX" required />
+                <button type="submit" class="renewButton">Create key</button>
+              </form>
+              <p id="vaError" class="va-error" role="alert"></p>
+              <div id="vaNewKey" class="va-new-key" hidden>
+                <p>Key for <strong id="vaNewKeyName"></strong>. Copy it now: it won't be shown again.</p>
+                <div class="va-key-row">
+                  <code id="vaNewKeyValue"></code>
+                  <button type="button" id="vaCopyKey" class="renewButton">Copy</button>
+                  <button type="button" id="vaDismissKey" class="revokeButton">Done</button>
+                </div>
+              </div>
+              <div id="vaListWrapper">
+                <table id="vaListTable">
+                  <thead>
+                    <tr>
+                      <th>Name</th>
+                      <th>Callsigns</th>
+                      <th>Key</th>
+                      <th>Last used</th>
+                      <th>Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody></tbody>
+                </table>
+              </div>
+            </div>
+          </div>
         </section>
       </section>
     </main>

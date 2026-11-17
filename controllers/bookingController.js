@@ -1,15 +1,19 @@
 /**
  * /api/v1 departure stand booking, on behalf of a signed-in member.
  *
- * Every route runs behind requireServiceKey (the website is calling) and
- * requireUserToken (req.cid: for whom). Only members with a prefile departing
+ * Every route runs behind requireServiceKey (which service is calling) and
+ * requirePilot (req.cid: for whom). Only members with a prefile departing
  * one of our airports can book; arrivals are left to the assignment engine.
+ *
+ * A virtual airline acting by CID (req.callsignPrefixes set) only sees, books
+ * and cancels flights under its own callsign prefixes.
  */
 const airportService = require("../services/airportService");
 const airportIndex = require("../services/airportIndex");
 const prefileService = require("../services/prefileService");
 const bookingService = require("../services/bookingService");
 const { error } = require("../utils/logger");
+const { ownsCallsign } = require("../middleware/pilotIdentity");
 
 const ICAO = /^[A-Z0-9]{4}$/;
 const STAND = /^[A-Z0-9-]{1,10}$/i;
@@ -33,7 +37,7 @@ exports.myPrefiles = async (req, res) => {
     const airports = await covered();
     res.json(
       mine
-        .filter((p) => airports.has(p.departure))
+        .filter((p) => airports.has(p.departure) && ownsCallsign(req, p.callsign))
         .map((p) => ({
           callsign: p.callsign,
           aircraftType: p.aircraftType,
@@ -50,12 +54,17 @@ exports.myPrefiles = async (req, res) => {
 
 /** GET /api/v1/me/booking - the member's held booking and how their last one ended. */
 exports.myBooking = (req, res) => {
-  res.json(bookingService.forCid(req.cid));
+  const { booking, last } = bookingService.forCid(req.cid);
+  res.json({
+    booking: booking && ownsCallsign(req, booking.callsign) ? booking : null,
+    last: last && ownsCallsign(req, last.callsign) ? last : null,
+  });
 };
 
 /** DELETE /api/v1/me/booking */
 exports.cancel = (req, res) => {
-  if (!bookingService.cancel(req.cid)) {
+  const { booking } = bookingService.forCid(req.cid);
+  if (!booking || !ownsCallsign(req, booking.callsign) || !bookingService.cancel(req.cid)) {
     return res.status(404).json({ error: "You have no stand booked", code: "no_booking" });
   }
   res.status(204).end();
@@ -90,9 +99,16 @@ exports.book = async (req, res) => {
     } catch (err) {
       return unavailable(res);
     }
-    const departing = mine.filter(
+    const here = mine.filter(
       (p) => p.departure === icao && (!wantedCallsign || p.callsign === wantedCallsign)
     );
+    const departing = here.filter((p) => ownsCallsign(req, p.callsign));
+    if (departing.length === 0 && here.length > 0) {
+      return res.status(422).json({
+        error: `The pilot's prefile departing ${icao} is not under this service's callsigns`,
+        code: "callsign_not_allowed",
+      });
+    }
     if (departing.length === 0) {
       return res.status(422).json({
         error: `No prefiled flight plan departing ${icao} on your VATSIM account. File one, then book.`,
@@ -119,6 +135,7 @@ exports.book = async (req, res) => {
       airport,
       derived: airportIndex.deriveConfig(config),
       standName: exact || standName,
+      via: req.service,
     });
     if (!result.ok) {
       return res.status(result.status).json({ error: result.error, code: result.code });

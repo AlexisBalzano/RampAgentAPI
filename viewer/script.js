@@ -2391,6 +2391,7 @@ function displayDashboard(user) {
     document.getElementById("dashboardAdmin").style.display = "block";
     updateControllerNumber();
     updateApiKeyList();
+    updateVaIntegrationList();
   } else {
     document.getElementById("dashboardAdmin").style.display = "none";
   }
@@ -2577,6 +2578,141 @@ function showNoApiKeysMessageIfEmpty() {
     tbody.appendChild(noKeysRow);
   }
 }
+
+// Virtual airline integrations
+const VA_API = () => API_BASE_URL + "/api/admin/va-integrations";
+
+function vaEscape(value) {
+  return String(value == null ? "" : value).replace(/[&<>"']/g, (c) => ({
+    "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;",
+  })[c]);
+}
+
+function vaShowError(message) {
+  const el = document.getElementById("vaError");
+  if (el) el.textContent = message || "";
+}
+
+async function vaRequest(path, { method = "GET", body } = {}) {
+  const res = await fetch(VA_API() + path, {
+    method,
+    credentials: "same-origin",
+    headers: body ? { "Content-Type": "application/json" } : {},
+    body: body ? JSON.stringify(body) : undefined,
+  });
+  if (res.status === 204) return null;
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(data.error || `Request failed (${res.status})`);
+  return data;
+}
+
+function vaShowNewKey(result) {
+  document.getElementById("vaNewKeyName").textContent = result.integration.name;
+  document.getElementById("vaNewKeyValue").textContent = result.key;
+  document.getElementById("vaNewKey").hidden = false;
+}
+
+function vaFormatDate(iso) {
+  return iso ? new Date(iso).toLocaleString() : "Never";
+}
+
+async function updateVaIntegrationList() {
+  const tbody = document.querySelector("#vaListTable tbody");
+  if (!tbody) return;
+  try {
+    const list = await vaRequest("/");
+    if (list.length === 0) {
+      tbody.innerHTML = `<tr><td colspan="5">No virtual airline yet</td></tr>`;
+      return;
+    }
+    tbody.innerHTML = list
+      .map(
+        (va) => `
+      <tr data-va="${vaEscape(va.id)}" class="${va.enabled ? "" : "va-disabled"}">
+        <td>${vaEscape(va.name)}${va.enabled ? "" : " <em>(disabled)</em>"}</td>
+        <td class="va-prefixes">${va.prefixes.map(vaEscape).join(", ")}</td>
+        <td class="va-key-hint">…${vaEscape(va.keyHint)}</td>
+        <td>${vaEscape(vaFormatDate(va.lastUsedAt))}</td>
+        <td class="va-actions">
+          <button type="button" class="renewButton" data-va-action="prefixes">Callsigns</button>
+          <button type="button" class="renewButton" data-va-action="toggle">${va.enabled ? "Disable" : "Enable"}</button>
+          <button type="button" class="renewButton" data-va-action="rotate">New key</button>
+          <button type="button" class="revokeButton" data-va-action="delete">Delete</button>
+        </td>
+      </tr>`
+      )
+      .join("");
+    tbody.querySelectorAll("tr[data-va]").forEach((row) => {
+      const va = list.find((v) => v.id === row.dataset.va);
+      row.querySelectorAll("[data-va-action]").forEach((btn) =>
+        btn.addEventListener("click", () => vaAction(btn.dataset.vaAction, va))
+      );
+    });
+  } catch (err) {
+    tbody.innerHTML = `<tr><td colspan="5">Could not load virtual airlines</td></tr>`;
+    console.error("Failed to load VA integrations", err);
+  }
+}
+
+async function vaAction(action, va) {
+  vaShowError("");
+  const path = "/" + encodeURIComponent(va.id);
+  try {
+    if (action === "prefixes") {
+      const value = prompt(`Callsign prefixes for ${va.name} (comma-separated):`, va.prefixes.join(", "));
+      if (value === null) return;
+      await vaRequest(path, { method: "PATCH", body: { prefixes: value } });
+    } else if (action === "toggle") {
+      await vaRequest(path, { method: "PATCH", body: { enabled: !va.enabled } });
+    } else if (action === "rotate") {
+      if (!confirm(`Issue a new key for ${va.name}? The current key stops working immediately.`)) return;
+      vaShowNewKey(await vaRequest(path + "/rotate", { method: "POST" }));
+    } else if (action === "delete") {
+      if (!confirm(`Delete ${va.name}? Its key stops working immediately. This cannot be undone.`)) return;
+      await vaRequest(path, { method: "DELETE" });
+    }
+  } catch (err) {
+    vaShowError(err.message);
+  }
+  updateVaIntegrationList();
+}
+
+(function wireVaIntegrations() {
+  const form = document.getElementById("vaCreateForm");
+  if (!form) return;
+  form.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    vaShowError("");
+    try {
+      const result = await vaRequest("/", {
+        method: "POST",
+        body: {
+          name: document.getElementById("vaName").value,
+          prefixes: document.getElementById("vaPrefixes").value,
+        },
+      });
+      form.reset();
+      vaShowNewKey(result);
+      updateVaIntegrationList();
+    } catch (err) {
+      vaShowError(err.message);
+    }
+  });
+  document.getElementById("vaCopyKey").addEventListener("click", async () => {
+    const key = document.getElementById("vaNewKeyValue").textContent;
+    try {
+      await navigator.clipboard.writeText(key);
+      document.getElementById("vaCopyKey").textContent = "Copied";
+    } catch (err) {
+      vaShowError("Copy failed: select the key and copy it by hand");
+    }
+  });
+  document.getElementById("vaDismissKey").addEventListener("click", () => {
+    document.getElementById("vaNewKey").hidden = true;
+    document.getElementById("vaNewKeyValue").textContent = "";
+    document.getElementById("vaCopyKey").textContent = "Copy";
+  });
+})();
 
 // ATC controller number
 function updateControllerNumber() {

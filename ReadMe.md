@@ -180,6 +180,19 @@ These routes act for a member, so on top of the service key they need the
 member's vaccfr-core JWT in `X-User-Token` (verified with `VACCFR_RAMPAGENT_CORE_JWT_KEY`).
 Missing or invalid: `401`.
 
+A virtual airline's backend sends the pilot's CID in `X-Pilot-Cid` instead,
+with a VA key. Admins create VA keys in the dashboard (**Dashboard → Virtual
+airlines**), each with its callsign prefixes. A VA only sees, books and cancels
+flights under its prefixes. The key is shown once, at creation or rotation, and
+only its SHA-256 hash is stored in Redis. Disabling, rotating or deleting a key
+takes effect immediately. Any other key sending `X-Pilot-Cid` gets `403` with
+`code: "pilot_cid_not_allowed"`, and a prefile outside the prefixes gets `422`
+with `code: "callsign_not_allowed"`. The dashboard uses
+`/api/admin/va-integrations` (admin session required): `GET`, `POST
+{ name, prefixes }`, `PATCH /:id { name?, prefixes?, enabled? }`,
+`POST /:id/rotate`, `DELETE /:id`.
+See [VA-INTEGRATION.md](VA-INTEGRATION.md) for the guide given to VAs.
+
 ### `GET /api/v1/me/prefiles`
 
 The member's prefiles departing an airport we cover, from the data platform.

@@ -7,6 +7,7 @@ const crypto = require("crypto");
 const TELEX_NOTIFIED_PREFIX = "telex:notified:";
 const TELEX_COUNT_PREFIX = "telex:count:";
 const STAND_BOOKING_PREFIX = "stand-booking:";
+const VA_INTEGRATIONS_KEY = "va-integrations"; // hash: id -> JSON record
 
 class RedisService {
   // Default expiration times in seconds
@@ -462,6 +463,33 @@ class RedisService {
       logger.warn(`Failed to read stand bookings: ${err.message}`, { category: "Booking" });
       return [];
     }
+  }
+
+  // Virtual airline integrations, managed from the admin dashboard. Kept
+  // without expiry: they last until an admin deletes them. Unlike the caches
+  // above, a write that cannot reach Redis is an error the admin must see.
+  async getAllVaIntegrations() {
+    if (!this.isConnected) throw new Error("Redis is not connected");
+    const all = await this.client.hGetAll(VA_INTEGRATIONS_KEY);
+    const records = [];
+    for (const value of Object.values(all || {})) {
+      try {
+        records.push(JSON.parse(value));
+      } catch (err) {
+        // A damaged record is skipped: that VA's key simply stops working.
+      }
+    }
+    return records;
+  }
+
+  async setVaIntegration(record) {
+    if (!this.isConnected) throw new Error("Redis is not connected");
+    await this.client.hSet(VA_INTEGRATIONS_KEY, record.id, JSON.stringify(record));
+  }
+
+  async deleteVaIntegration(id) {
+    if (!this.isConnected) throw new Error("Redis is not connected");
+    await this.client.hDel(VA_INTEGRATIONS_KEY, id);
   }
 
   async getAllLocalUsers() {
