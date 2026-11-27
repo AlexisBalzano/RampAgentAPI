@@ -41,7 +41,7 @@ X-Pilot-Cid: <the pilot's VATSIM CID>
 Content-Type: application/json
 ```
 
-Base URL: `https://<rampagent host>/api/v1`
+Base URL: `https://rampagent.vatsim.fr/api/v1`
 
 ## Endpoints
 
@@ -227,10 +227,10 @@ Tell your pilot the stand when `status` is `firm`: from then on it won't change
 | 422 | `eta_out_of_range` | ETA more than 30 min ago or more than 2 h ahead |
 | 429 | `too_many_preferences` | More than 500 live preferences |
 
-## Example
+## Example for departure stand booking
 
 ```bash
-curl -X POST "https://<rampagent host>/api/v1/airports/LFPG/bookings" \
+curl -X POST "https://rampagent.vatsim.fr/api/v1/airports/LFPG/bookings" \
   -H "X-Service-Key: $RAMPAGENT_KEY" \
   -H "X-Pilot-Cid: 1234567" \
   -H "Content-Type: application/json" \
