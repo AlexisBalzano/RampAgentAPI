@@ -213,6 +213,14 @@ redisService
       });
     })
   )
+  // VA arrival preferences too, or a restart would forget the airlines' stands.
+  .then(() =>
+    require("./services/vaArrivalService").loadPersisted().catch((err) => {
+      logger.warn(`Failed to restore arrival preferences: ${err.message}`, {
+        category: "VA Arrival",
+      });
+    })
+  )
   // VA keys live in Redis; without them every VA call would be refused until
   // the next reload.
   .then(() => {

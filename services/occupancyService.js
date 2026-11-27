@@ -1410,6 +1410,87 @@ function standFits(stand, p) {
   return true;
 }
 
+/*
+ * Virtual airline arrival preferences
+ * ===================================
+ *
+ * A VA may name the stand it announced to its pilot (services/vaArrivalService).
+ * Only the aircraft's size is checked against it: the stand's other
+ * restrictions are the airline's business. The preferred stand is given first
+ * when it is strictly free - nobody on it, holding it or blocking it, and no
+ * neighbour it blocks held by someone else - so a preference never displaces
+ * anyone. Past that the assignment is an ordinary one.
+ */
+
+/** Wingspan and code for a type; `known` is false when the type has no wingspan data. */
+function sizeProfile(derived, aircraftType) {
+  const known = resolveWingspan(derived, aircraftType);
+  const wingspan = known === undefined ? UNKNOWN_WINGSPAN : known;
+  return { known: known !== undefined, wingspan, code: getAircraftCode(wingspan) };
+}
+
+/**
+ * Whether the aircraft is small enough for the stand - its code among the
+ * stand's Code letters and its wingspan within the stand's Wingspan, the same
+ * size rules as standFits - ignoring every other restriction.
+ */
+function sizeFits(stand, size) {
+  if (stand.code && stand.code.includes(size.code) === false) return false;
+  if (stand.wingspan && stand.wingspan < size.wingspan) return false;
+  return true;
+}
+
+/** Size check of a named stand for the VA API: { exists, known, fits }. */
+function checkStandSize(airport, derived, aircraftType, standName) {
+  const stand = airport.standsByName.get(standName);
+  const size = sizeProfile(derived, aircraftType);
+  return { exists: !!stand, known: size.known, fits: !!stand && sizeFits(stand, size) };
+}
+
+/** Free for `callsign` without moving or blocking anyone else. */
+function standStrictlyFree(icao, stand, callsign) {
+  if (stand.hasApron) {
+    return registry.getApronOccupancyLevel(stand.name, icao) < stand.apronSize;
+  }
+  if (registry.isOccupied(icao, stand.name)) return false;
+  const holder = registry.assignedAt(icao, stand.name);
+  if (holder && holder.callsign !== callsign) return false;
+  const blocking = registry.getBlocked(icao, stand.name);
+  if (blocking && blocking.callsign !== callsign) return false;
+  if (stand.block) {
+    for (let i = 0; i < stand.block.length; i++) {
+      const neighbour = registry.assignedAt(icao, stand.block[i]);
+      if (neighbour && neighbour.callsign !== callsign) return false;
+    }
+  }
+  return true;
+}
+
+/**
+ * The airline's preference for this arrival, as { name, stand }: `name` the
+ * preferred stand, `stand` its compiled definition when the aircraft fits it
+ * (null when it does not). Null without a live preference. The filed type is
+ * the aircraft actually flown; the airline's is used only when ours is unknown.
+ */
+function preferredStandFor(airport, derived, ac) {
+  const vaArrivals = require("./vaArrivalService"); // lazily: it depends on this module
+  const pref = vaArrivals.activeFor(ac.callsign, airport.icao);
+  if (!pref) return null;
+  const compiled = airport.standsByName.get(pref.stand);
+  if (!compiled) return { name: pref.stand, stand: null };
+  const filed = ac.flight_plan && ac.flight_plan.aircraft_short;
+  const type = resolveWingspan(derived, filed) !== undefined ? filed : pref.aircraftType;
+  const fits = sizeFits(compiled, sizeProfile(derived, type));
+  vaArrivals.setUnsuitable(ac.callsign, !fits);
+  return { name: pref.stand, stand: fits ? compiled : null };
+}
+
+/** The preferred stand when it can be given to `ac` right now, else null. */
+function freePreferred(airport, ac, preferred) {
+  if (!preferred || !preferred.stand) return null;
+  return standStrictlyFree(airport.icao, preferred.stand, ac.callsign) ? preferred.stand : null;
+}
+
 function logSearchOnce(ac, airport, p) {
   // Logged once per callsign: with a wide assignment radius this line would
   // otherwise repeat every cycle for every aircraft that cannot be placed.
@@ -1450,15 +1531,20 @@ function assignStand(airport, derived, ac) {
   const profile = aircraftProfile(derived, ac);
   logSearchOnce(ac, airport, profile);
 
-  // The same evaluation the stand finder runs (evaluateStand), so a suggestion
-  // and the real assignment cannot drift apart.
-  const { candidates } = evaluateProfile(airport, profile);
-  if (candidates.length === 0) {
-    warnNoStandOnce(ac, airport);
-    return;
+  // The airline's stand first when it is free; greedy mode never moves an
+  // aircraft afterwards, so it is only looked at here.
+  const preferred = preferredStandFor(airport, derived, ac);
+  let selected = freePreferred(airport, ac, preferred);
+  if (!selected) {
+    // The same evaluation the stand finder runs (evaluateStand), so a suggestion
+    // and the real assignment cannot drift apart.
+    const { candidates } = evaluateProfile(airport, profile);
+    if (candidates.length === 0) {
+      warnNoStandOnce(ac, airport);
+      return;
+    }
+    selected = pickTightest(candidates);
   }
-
-  const selected = pickTightest(candidates);
 
   const stand = new Stand(
     selected.name,
@@ -1468,7 +1554,8 @@ function assignStand(airport, derived, ac) {
     selected.apronSize
   );
   stand.status = "firm"; // greedy mode never takes a stand back
-  info(`Assigning Stand ${selected.name} to ${ac.callsign}`, {
+  const airlines = !!preferred && selected.name === preferred.name;
+  info(`Assigning Stand ${selected.name} to ${ac.callsign}${airlines ? " (airline's stand)" : ""}`, {
     category: "Assignation",
     callsign: ac.callsign,
     icao: airport.icao,
@@ -1750,6 +1837,7 @@ function assignStandProvisional(airport, derived, ac, settings) {
   ac.eta = etaMinutes(ac);
   const state = notificationState.get(callsign);
   const telexSent = !!state && state.status === "sent";
+  const preferred = preferredStandFor(airport, derived, ac);
 
   let current = registry.firstAssignedOf(callsign);
   if (current && current.icao !== airport.icao) {
@@ -1783,8 +1871,23 @@ function assignStandProvisional(airport, derived, ac, settings) {
       });
     }
 
-    // Moving to a better stand is fine until the pilot has been told one.
-    if (!current.manual && !telexSent) {
+    // Moving to a better stand is fine until the pilot has been told one. The
+    // airline's stand counts as the best there is: a flight on it stays, and a
+    // flight elsewhere goes back to it if it frees up before the freeze.
+    const onPreferred = !!preferred && current.name === preferred.name;
+    const backTo =
+      !current.manual && !telexSent && !onPreferred && current.status === "provisional"
+        ? freePreferred(airport, ac, preferred)
+        : null;
+    if (backTo) {
+      const previous = current.name;
+      current = placeProvisional(airport, ac, settings, { stand: backTo, displace: [] }, false);
+      info(`${callsign} moved from stand ${previous} to its airline's stand ${current.name}`, {
+        category: "Assignation",
+        callsign,
+        icao: airport.icao,
+      });
+    } else if (!current.manual && !telexSent && !onPreferred) {
       const compiled = airport.standsByName.get(current.name);
       const better =
         compiled &&
@@ -1800,14 +1903,11 @@ function assignStandProvisional(airport, derived, ac, settings) {
       }
     }
   } else {
-    const choice = findStandProvisional(
-      airport,
-      derived,
-      ac,
-      settings,
-      MAX_DISTANCE + 1,
-      telexSent ? state : null
-    );
+    // A pilot already sent a TELEX is steered back to what it named instead.
+    const preferredFree = telexSent ? null : freePreferred(airport, ac, preferred);
+    const choice = preferredFree
+      ? { stand: preferredFree, displace: [] }
+      : findStandProvisional(airport, derived, ac, settings, MAX_DISTANCE + 1, telexSent ? state : null);
     if (!choice) {
       warnNoStandOnce(ac, airport);
       return;
@@ -2021,6 +2121,9 @@ const processDatafeed = async (aircrafts) => {
     assignStand(destination, derived, ac);
   }
 
+  // What each airline-preferred flight ended up with, for the VAs to poll.
+  require("./vaArrivalService").observe();
+
   lastCycleAt = Date.now();
 
   // Every callsign this cycle carried, whether or not it was assignable - a
@@ -2184,6 +2287,7 @@ module.exports = {
   isConcernedArrival,
   evaluateStand,
   checkStandFor,
+  checkStandSize,
   blockStandsFor: blockStands,
   orderByTightness,
   orderByPreference,

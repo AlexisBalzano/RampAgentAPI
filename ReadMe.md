@@ -263,3 +263,49 @@ given the stand or a stand that would block it, and the plugin sees it as
 assigned. Bookings are mirrored in Redis with the remaining hold as TTL, so
 a restart neither loses nor extends one. A manual `/api/assign` by a
 controller cancels the booking.
+
+## Arrival stand preferences for virtual airlines (`/api/v1/va/arrivals`)
+
+A VA key (see above) may name, per flight, the arrival stand the airline
+announced to its pilot. No `X-Pilot-Cid`: a preference belongs to the flight.
+Other keys get `403 va_only`; callsigns outside the VA's prefixes get
+`403 callsign_not_allowed`.
+
+| Route | |
+|---|---|
+| `PUT /va/arrivals/:callsign` | `{ arrival, stand, aircraftType, eta }` → `201` created / `200` replaced |
+| `GET /va/arrivals` | The VA's live preferences with what each flight was given (for polling) |
+| `GET /va/arrivals/:callsign` | One of them |
+| `DELETE /va/arrivals/:callsign` | `204`, or `404 no_preference` |
+
+At request time only the stand's existence and the aircraft's size are
+checked, with the usual rules (its code among the stand's `Code`, its wingspan
+within `Wingspan`); Use, Schengen, Countries and Callsigns restrictions are the
+airline's call and are ignored. Errors: `unknown_airport`, `unknown_stand`,
+`unknown_aircraft_type`, `stand_unsuitable`, `eta_out_of_range` (30 min ago to
+2 h ahead), `callsign_claimed` (another VA's flight), `too_late` (the flight
+already holds another stand firm, or is parked there), `too_many_preferences`.
+
+### How the engine honours a preference
+
+Nothing is written into the registry: the stand stays open to everyone, and the
+plugin sees nothing new. A preference lives 2 hours from its last `PUT`:
+
+- The preferred stand is given first if it is strictly free (not occupied,
+  held or blocked by anyone else, and no `Block` neighbour held by someone
+  else) and the filed aircraft is small enough for it. A preference never
+  displaces anyone.
+- Otherwise the flight is assigned as usual. In provisional mode it moves to
+  the preferred stand if that frees up while its assignment is still
+  provisional, and is never "upgraded" away from it.
+- Everything else is unchanged: an earlier arrival may still take a
+  provisional stand, the freeze makes it firm, the TELEX goes out, a
+  controller's assignment wins.
+
+The preference is deleted as soon as the flight parks at the airport (on its
+stand or another one), or when its 2 hours are up, so a later flight under the
+same callsign never inherits it. Until then each record's `assignment` reports
+`state` (`waiting` or `assigned`), `stand`, `status` (`provisional`/`firm`),
+`honoured`, and when not honoured a `reason`: `stand_unavailable`,
+`aircraft_unsuitable`, `controller`, or `destination_differs`. Records are
+mirrored in Redis.

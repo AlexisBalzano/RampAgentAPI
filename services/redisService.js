@@ -8,6 +8,7 @@ const TELEX_NOTIFIED_PREFIX = "telex:notified:";
 const TELEX_COUNT_PREFIX = "telex:count:";
 const STAND_BOOKING_PREFIX = "stand-booking:";
 const VA_INTEGRATIONS_KEY = "va-integrations"; // hash: id -> JSON record
+const VA_ARRIVAL_PREFIX = "va-arrival:";
 
 class RedisService {
   // Default expiration times in seconds
@@ -461,6 +462,55 @@ class RedisService {
       return bookings;
     } catch (err) {
       logger.warn(`Failed to read stand bookings: ${err.message}`, { category: "Booking" });
+      return [];
+    }
+  }
+
+  // Arrival stand preferences sent by virtual airlines, one per callsign, with
+  // a TTL so an orphaned record cannot outlive its flight.
+  async setVaArrival(callsign, record, ttlSeconds) {
+    if (!this.isConnected) return false;
+    try {
+      await this.client.set(`${VA_ARRIVAL_PREFIX}${callsign}`, JSON.stringify(record), { EX: ttlSeconds });
+      return true;
+    } catch (err) {
+      logger.warn(`Failed to persist arrival preference for ${callsign}: ${err.message}`, {
+        category: "VA Arrival",
+      });
+      return false;
+    }
+  }
+
+  async clearVaArrival(callsign) {
+    if (!this.isConnected) return false;
+    try {
+      await this.client.del(`${VA_ARRIVAL_PREFIX}${callsign}`);
+      return true;
+    } catch (err) {
+      logger.warn(`Failed to clear arrival preference for ${callsign}: ${err.message}`, {
+        category: "VA Arrival",
+      });
+      return false;
+    }
+  }
+
+  async getAllVaArrivals() {
+    if (!this.isConnected) return [];
+    try {
+      const keys = await this.client.keys(`${VA_ARRIVAL_PREFIX}*`);
+      if (keys.length === 0) return [];
+      const values = await this.client.mGet(keys);
+      const records = [];
+      for (const value of values) {
+        try {
+          if (value) records.push(JSON.parse(value));
+        } catch (err) {
+          // A damaged record is skipped: the flight is assigned as usual.
+        }
+      }
+      return records;
+    } catch (err) {
+      logger.warn(`Failed to read arrival preferences: ${err.message}`, { category: "VA Arrival" });
       return [];
     }
   }

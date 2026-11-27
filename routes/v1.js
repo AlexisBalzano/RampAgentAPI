@@ -2,6 +2,7 @@ const express = require("express");
 const router = express.Router();
 const v1 = require("../controllers/v1Controller");
 const booking = require("../controllers/bookingController");
+const vaArrival = require("../controllers/vaArrivalController");
 const { createPilotIdentityMiddleware } = require("../middleware/pilotIdentity");
 
 // Mounted behind requireServiceKey in index.js. Routes acting for a member also
@@ -18,5 +19,11 @@ router.post("/airports/:icao/bookings", requirePilot, v1.suggestRateLimit, booki
 router.get("/me/booking", requirePilot, booking.myBooking);
 router.delete("/me/booking", requirePilot, booking.cancel);
 router.get("/me/prefiles", requirePilot, booking.myPrefiles);
+
+// Arrival stand preferences, per flight: VA keys only, no pilot identity.
+router.get("/va/arrivals", vaArrival.requireVa, vaArrival.list);
+router.get("/va/arrivals/:callsign", vaArrival.requireVa, vaArrival.get);
+router.put("/va/arrivals/:callsign", vaArrival.requireVa, v1.suggestRateLimit, vaArrival.put);
+router.delete("/va/arrivals/:callsign", vaArrival.requireVa, vaArrival.remove);
 
 module.exports = router;
